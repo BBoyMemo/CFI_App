@@ -28,11 +28,15 @@ Hepsi admin panelinden yönetilir. **Hiçbiri kodda sabit değildir.**
 ### Department
 `Id, Name, IsActive, CreatedAt, CreatedByUserId, UpdatedAt, UpdatedByUserId`
 
-Seed: **Production**, **Maintenance**, **FLT**. Kalanlar admin panelinden eklenecek.
+Seed: **Production**, **Maintenance**, **FLT**, **QA**. Kalanlar admin panelinden eklenecek.
 
 Departman roldan türetilir, onay formunda elle seçilmez (`Permissions.RoleDepartments`).
 FLT sürücüleri kendi departmanları — hat işletmiyorlar, sahanın iki tarafına da mal
 taşıyorlar, Production'ın altına koymak onları ait olmadıkları bir ekibe yazmak olurdu.
+**QA da kendi departmanı** (2026-09-16): önceden Maintenance altındaydı, tek sebebi onları
+onaylayacak ve hesap verecekleri başka kimsenin olmamasıydı. Artık QA Manager var; orada
+bırakmak QA Manager'a bütün mühendisleri, Maintenance Manager'a bütün QA'leri kendi ekibi
+olarak gösterirdi.
 
 > **Hiyerarşi: `Unit → Area (oda) → Line → Equipment → Equipment (parça)`.**
 > En üst seviye **Unit**'tir (Unit 1/2/3, Yard) — resmi Factory Equipment Fault Reporting
@@ -62,7 +66,12 @@ açmak gerekir.
 ### Line
 `Id, UnitId → Unit, AreaId? → Area, Name, DisplayOrder, IsActive`
 
-Seed — Filling Room içinde: Line 1 (2kg), Line 2, Line 3, Line 4 (Box Line).
+Seed — Filling Room içinde: Line 1 (2kg), Line 2, Line 3, Line 4 (Box Line),
+**Inkjet Printer**.
+
+Inkjet Printer bir makine değil, hat seviyesinde bir istasyon (2026-09-16'da düzeltildi):
+diğer dört hatla aynı seviyede duruyor ve altına makineleri sonra eklenecek. Line 1 (2kg)
+gibi şu an altı boş.
 
 Hattın kendi başına var olma sebebi: Line 2 ve Line 3'ün **ikisinde de** Seamer ve Conveyor
 var. Hat seçilmezse arıza formu hangisinin bozulduğunu söyleyemez. Bu yüzden arıza formunda
@@ -133,13 +142,29 @@ Kullanıcı başına **tek rol** (karar verildi). Maintenance Manager'ın Engine
 çoklu rolle değil, rolüne Engineer permission'larının da verilmesiyle çözülüyor — daha basit
 ve yetki hesabı tek sorguda çıkıyor.
 
-Roller *(2026-09-07)*: `Operator`, `Supervisor`, `FltDriver`, `Engineer`,
-`MaintenanceManager` (admin), `QA`, `ProductionManager`.
+Roller *(2026-09-16)*: `Operator`, `Supervisor`, `FltDriver`, `Engineer`,
+`MaintenanceManager` (admin), `QA`, `QaManager`, `ProductionManager`.
 
 `Supervisor` ve `FltDriver` **şimdilik sadece eklendi**: ikisi de operatörün taban yetkisiyle
 başlıyor (giriş-çıkış, arıza bildir, izin talebi). Ne yapabilecekleri henüz kararlaştırılmadı;
 sonradan alınacak bir yetkiyi geri almak, hiç verilmemiş olandan zordur. İkisini de
 **Production Manager** onaylar — sahada çalışıyorlar, bakımın altında değiller.
+
+`QaManager`, QA'nin üstü — Maintenance Manager'ın Engineer'ı kapsaması gibi QA'yi kapsıyor:
+swab da yapar, ekibi de yönetir. `admin.manage` **almıyor**; QA'yi yönetmek sahayı yönetmek
+değil. İzin talebi de yok (menejerler izni onaylar, buradan talep etmez).
+
+**Onay zinciri** (`Permissions.ApprovableRoles`) — her menejer kendi insanını alır:
+
+| Onaylayan | Kimi içeri alabilir |
+|---|---|
+| Maintenance Manager (admin) | Engineer, MaintenanceManager, **QaManager**, ProductionManager |
+| QA Manager | QA |
+| Production Manager | Operator, Supervisor, FltDriver |
+
+Admin artık QA'leri **doğrudan onaylamıyor**: QA Manager'ı içeri alır, kimin QA işi yapacağına
+QA Manager karar verir. Haritada olmayan bir rol kimseyi onaylayamaz — güvenli varsayılan bu:
+`user.approve` yetkisi yanlışlıkla bir role verilse o rol sessizce admin olmaz.
 
 Permission anahtarları modül.eylem biçiminde: `workorder.create`, `workorder.claim`,
 `workorder.assign`, `workorder.close`, `qa.signoff`, `task.create`, `order.manageAll`,

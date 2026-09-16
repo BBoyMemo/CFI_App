@@ -663,6 +663,8 @@ veri modeli `DOMAIN.md` §1 ve §4'te.
 - `Priority`'den `Critical` kaldırıldı, migration eski kayıtları `High`'a çevirdi
 - Yeni roller `Supervisor` ve `FltDriver` (şimdilik operatör yetkisi)
 - **FLT kendi departmanı** — Production, Maintenance, FLT
+- **QA Manager rolü + QA kendi departmanı** (2026-09-16) — admin QA Manager'ı onaylar,
+  QA Manager kendi QA'lerini onaylar
 - Admin paneline **Lines sekmesi** ve ekipmana hat + üst makine alanları
 - Migration `SiteLayoutAndJobTypes`
 

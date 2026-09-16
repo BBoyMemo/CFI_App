@@ -62,6 +62,7 @@ public sealed class PermissionSeedTests(CfiAppApiFactory factory)
         roles.ShouldContain(Permissions.Roles.Engineer);
         roles.ShouldContain(Permissions.Roles.MaintenanceManager);
         roles.ShouldContain(Permissions.Roles.Qa);
+        roles.ShouldContain(Permissions.Roles.QaManager);
         roles.ShouldContain(Permissions.Roles.ProductionManager);
     }
 
@@ -127,6 +128,35 @@ public sealed class PermissionSeedTests(CfiAppApiFactory factory)
         productionManager.ShouldNotContain(Permissions.QaSignOff);
     }
 
+    /// <summary>
+    /// The QA Manager swabs as well as running the team - the same shape as the Maintenance
+    /// Manager over an engineer. What they must not pick up along the way is the admin
+    /// panel: running QA is not running the site.
+    /// </summary>
+    [Fact]
+    public async Task Qa_manager_can_do_everything_a_qa_can_plus_run_the_team()
+    {
+        await RunSeedAsync();
+
+        var qa = await GrantedKeysAsync(Permissions.Roles.Qa);
+        var qaManager = await GrantedKeysAsync(Permissions.Roles.QaManager);
+
+        foreach (var key in qa.Where(x => x != Permissions.HolidayRequest))
+        {
+            qaManager.ShouldContain(key, $"a QA manager should be able to {key}");
+        }
+
+        qaManager.ShouldContain(Permissions.UserApprove);
+        qaManager.ShouldContain(Permissions.AttendanceViewTeam);
+        qaManager.ShouldContain(Permissions.HolidayApprove);
+
+        qaManager.ShouldNotContain(Permissions.AdminManage);
+        qaManager.ShouldNotContain(Permissions.WorkOrderClaim);
+
+        // Managers approve leave, they do not book it here.
+        qaManager.ShouldNotContain(Permissions.HolidayRequest);
+    }
+
     [Fact]
     public async Task Managers_approve_leave_rather_than_booking_it_here()
     {
@@ -170,6 +200,13 @@ public sealed class PermissionSeedTests(CfiAppApiFactory factory)
 
         Permissions.RoleDepartments[Permissions.Roles.FltDriver]
             .ShouldBe(Permissions.Departments.Flt);
+
+        // QA answers to the QA Manager, not to maintenance.
+        Permissions.RoleDepartments[Permissions.Roles.Qa]
+            .ShouldBe(Permissions.Departments.Qa);
+
+        Permissions.RoleDepartments[Permissions.Roles.QaManager]
+            .ShouldBe(Permissions.Departments.Qa);
 
         Permissions.RoleDepartments[Permissions.Roles.Supervisor]
             .ShouldBe(Permissions.Departments.Production);

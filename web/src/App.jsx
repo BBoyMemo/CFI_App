@@ -16,7 +16,6 @@ import TaskDetailPage from './features/tasks/TaskDetailPage';
 import OrdersPage from './features/orders/OrdersPage';
 import AttendancePage from './features/attendance/AttendancePage';
 import TeamHoursPage from './features/attendance/TeamHoursPage';
-import WhoIsInPage from './features/attendance/WhoIsInPage';
 import OvertimePage from './features/attendance/OvertimePage';
 import HolidayPage from './features/attendance/HolidayPage';
 import ShiftPlannerPage from './features/shifts/ShiftPlannerPage';
@@ -42,7 +41,6 @@ const PROTECTED = [
   { path: '/orders', permission: Permissions.OrderCreate, element: <OrdersPage /> },
   { path: '/attendance', permission: Permissions.AttendanceViewOwn, element: <AttendancePage /> },
   { path: '/attendance/team', permission: Permissions.AttendanceViewTeam, element: <TeamHoursPage /> },
-  { path: '/attendance/who-is-in', permission: Permissions.AttendanceViewTeam, element: <WhoIsInPage /> },
   { path: '/overtime', permission: Permissions.OvertimeDeclare, element: <OvertimePage /> },
   { path: '/shifts', permission: Permissions.ShiftPlan, element: <ShiftPlannerPage /> },
   { path: '/shifts/mine', permission: Permissions.ShiftViewOwn, element: <MyShiftsPage /> },

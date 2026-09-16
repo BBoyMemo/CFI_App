@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, Outlet } from 'react-router-dom';
 
+import Icon from '../components/ui/Icon';
 import LanguageSelector from '../components/LanguageSelector';
 import { getUnseenNotifications } from '../api/endpoints';
 import { Permissions } from '../api/permissions';
@@ -11,31 +12,40 @@ import SidePanel from './SidePanel';
 import { useClockState } from './useClockState';
 
 /**
- * Where each role goes, in the order the approved prototypes put it.
+ * The screens that live on the bar under the header, always one tap away.
  *
- * `null` means everyone signed in. Keeping the whole map here is deliberate: adding a
- * screen later is one row, not a hunt through JSX for who is currently allowed where.
+ * These are the places somebody comes back to all shift. They are deliberately *not* also
+ * in the side panel: two routes to the same screen makes the panel long enough that the
+ * things only reachable there get lost in it.
+ *
+ * `null` means everyone signed in. Nobody sees all seven - an operator has no pool and no
+ * history - so the bar is as short as the person's job is.
+ */
+const PRIMARY = [
+  { to: '/', labelKey: 'nav.dashboard', icon: 'home', permission: null, end: true },
+  { to: '/workorders/pool', labelKey: 'nav.pool', icon: 'box', permission: Permissions.WorkOrderClaim },
+  { to: '/workorders/mine', labelKey: 'nav.myJobs', icon: 'clipboard', permission: Permissions.WorkOrderClaim },
+  { to: '/tasks', labelKey: 'nav.tasks', icon: 'clipboard', permission: Permissions.TaskViewAssigned },
+  { to: '/workorders/history', labelKey: 'nav.history', icon: 'history', permission: Permissions.WorkOrderHistory },
+  { to: '/messages', labelKey: 'nav.messages', icon: 'message', permission: Permissions.MessageSend },
+  { to: '/notifications', labelKey: 'nav.notifications', icon: 'bell', permission: null },
+];
+
+/**
+ * Everything else, behind the hamburger. Reached a few times a shift rather than
+ * constantly: booking leave, planning a rota, letting a new starter in.
+ *
+ * Keeping the whole map here is deliberate: adding a screen later is one row, not a hunt
+ * through JSX for who is currently allowed where.
  */
 const MENU = [
-  // Home and the three work-order destinations come first. They are also on the home
-  // screen itself, but a menu that cannot reach the pool leaves somebody stranded the
-  // moment they navigate away from it.
-  { to: '/', labelKey: 'nav.dashboard', icon: 'home', permission: null, end: true },
   { to: '/workorders/new', labelKey: 'nav.createReport', icon: 'wrench', permission: Permissions.WorkOrderCreate },
-  { to: '/workorders/mine', labelKey: 'nav.myJobs', icon: 'clipboard', permission: Permissions.WorkOrderClaim },
-  { to: '/workorders/pool', labelKey: 'nav.pool', icon: 'box', permission: Permissions.WorkOrderClaim },
-
   { to: '/attendance', labelKey: 'nav.attendance', icon: 'calendar', permission: Permissions.AttendanceViewOwn },
   { to: '/shifts/mine', labelKey: 'nav.myShifts', icon: 'clock', permission: Permissions.ShiftViewOwn },
-  { to: '/notifications', labelKey: 'nav.notifications', icon: 'bell', permission: null },
-  { to: '/tasks', labelKey: 'nav.tasks', icon: 'clipboard', permission: Permissions.TaskViewAssigned },
   { to: '/orders', labelKey: 'nav.orders', icon: 'box', permission: Permissions.OrderCreate },
-  { to: '/workorders/history', labelKey: 'nav.history', icon: 'history', permission: Permissions.WorkOrderHistory },
   { to: '/holiday', labelKey: 'nav.holiday', icon: 'sun', permission: null },
   { to: '/shifts', labelKey: 'nav.shiftPlanner', icon: 'clock', permission: Permissions.ShiftPlan },
-  { to: '/attendance/who-is-in', labelKey: 'nav.whoIsIn', icon: 'users', permission: Permissions.AttendanceViewTeam },
   { to: '/attendance/team', labelKey: 'nav.teamHours', icon: 'history', permission: Permissions.AttendanceViewTeam },
-  { to: '/messages', labelKey: 'nav.messages', icon: 'message', permission: Permissions.MessageSend },
   { to: '/team', labelKey: 'nav.team', icon: 'users', permission: Permissions.AttendanceViewTeam },
   { to: '/approvals', labelKey: 'nav.pendingApprovals', icon: 'person', permission: Permissions.UserApprove },
   { to: '/profile', labelKey: 'nav.profile', icon: 'settings', permission: null },
@@ -59,9 +69,12 @@ export default function AppLayout() {
   const unseen = useApiData(() => getUnseenNotifications());
   const unseenCount = unseen.data?.count ?? 0;
 
-  const items = MENU
+  const allowed = (menu) => menu
     .filter((item) => item.permission === null || hasPermission(item.permission))
     .map((item) => (item.to === '/notifications' ? { ...item, badge: unseenCount } : item));
+
+  const primary = allowed(PRIMARY);
+  const items = allowed(MENU);
 
   const firstName = me?.fullName?.split(' ')[0] ?? '';
 
@@ -112,6 +125,39 @@ export default function AppLayout() {
           <LanguageSelector />
         </div>
       </header>
+
+      {/* The bar the shift actually uses. It scrolls sideways rather than wrapping: on a
+          phone a second row would push the page content below the fold, and a factory
+          floor thumb swipes more reliably than it hits a 3mm target. */}
+      {primary.length > 1 && (
+        <nav className="border-b border-cfi-rule bg-cfi-surface">
+          <div className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 sm:px-4">
+            {primary.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) =>
+                  `relative flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-semibold transition-colors ${
+                    isActive
+                      ? 'border-cfi-yellow-dark text-cfi-brown-dark'
+                      : 'border-transparent text-cfi-muted hover:text-cfi-brown-dark'
+                  }`
+                }
+              >
+                <Icon name={item.icon} />
+                <span>{t(item.labelKey)}</span>
+
+                {item.badge > 0 && (
+                  <span className="rounded-full bg-cfi-red px-1.5 text-[11px] font-bold text-white">
+                    {item.badge}
+                  </span>
+                )}
+              </NavLink>
+            ))}
+          </div>
+        </nav>
+      )}
 
       <SidePanel
         open={menuOpen}

@@ -95,6 +95,7 @@ public static class Permissions
         public const string Engineer = "Engineer";
         public const string MaintenanceManager = "MaintenanceManager";
         public const string Qa = "QA";
+        public const string QaManager = "QaManager";
         public const string ProductionManager = "ProductionManager";
     }
 
@@ -103,8 +104,10 @@ public static class Permissions
     /// already says it, and asking twice only creates a way to get it wrong. An operator
     /// runs a line, so they are Production; a engineer fixes it, so they are Maintenance.
     ///
-    /// QA sits under Maintenance because the Maintenance Manager is who approves them and
-    /// who they answer to day to day - the site has no QA manager of its own yet.
+    /// QA is its own department now that the site has a QA Manager. It used to sit under
+    /// Maintenance for one reason only - there was nobody else to approve them or answer
+    /// to - and leaving it there would have meant the QA Manager seeing every engineer as
+    /// their team, and the Maintenance Manager seeing every QA as theirs.
     ///
     /// FLT drivers are their own department. They move stock for both sides of the site
     /// rather than running a line, so filing them under Production would put them in a
@@ -124,7 +127,8 @@ public static class Permissions
             [Roles.ProductionManager] = Departments.Production,
             [Roles.Engineer] = Departments.Maintenance,
             [Roles.MaintenanceManager] = Departments.Maintenance,
-            [Roles.Qa] = Departments.Maintenance
+            [Roles.Qa] = Departments.Qa,
+            [Roles.QaManager] = Departments.Qa
         };
 
     public static class Departments
@@ -134,14 +138,19 @@ public static class Permissions
 
         /// <summary>Forklift drivers. Their own department, not part of production.</summary>
         public const string Flt = "FLT";
+
+        /// <summary>Quality assurance, under its own manager.</summary>
+        public const string Qa = "QA";
     }
 
     /// <summary>
     /// Who an approver is allowed to let in, and as what. Approving someone is delegation,
     /// not just a permission check: a Maintenance Manager runs the engineers and, as the
-    /// site's only admin, is also the one who lets in QA and any new manager. A Production
-    /// Manager takes on their own floor staff - an operator does not sit under maintenance,
-    /// so maintenance does not hand out those roles.
+    /// site's admin, is the one who lets in every other manager. Each manager then takes on
+    /// their own people - a QA reports to the QA Manager, an operator to the Production
+    /// Manager, and neither sits under maintenance, so maintenance does not hand out those
+    /// roles. The admin lets the QA Manager in and stops there; it is the QA Manager who
+    /// decides who does QA work.
     ///
     /// A role missing from this map can approve nobody, which is the safe default: adding
     /// user.approve to a role by mistake does not quietly make it an admin.
@@ -150,7 +159,12 @@ public static class Permissions
         new Dictionary<string, string[]>
         {
             [Roles.MaintenanceManager] =
-                [Roles.Engineer, Roles.Qa, Roles.MaintenanceManager, Roles.ProductionManager],
+            [
+                Roles.Engineer, Roles.MaintenanceManager,
+                Roles.QaManager, Roles.ProductionManager
+            ],
+
+            [Roles.QaManager] = [Roles.Qa],
 
             [Roles.ProductionManager] = [Roles.Operator, Roles.Supervisor, Roles.FltDriver]
         };
@@ -167,6 +181,11 @@ public static class Permissions
         TaskViewAssigned, TaskComplete, OrderCreate
     ];
 
+    private static readonly string[] QaCore =
+    [
+        WorkOrderViewAll, QaCheck, QaSignOff
+    ];
+
     private static readonly string[] ManagerCore =
     [
         UserApprove, UserManage, AttendanceViewTeam, AttendanceCorrect,
@@ -174,8 +193,9 @@ public static class Permissions
     ];
 
     /// <summary>
-    /// Role to permission map. Maintenance Manager is deliberately a superset of Engineer:
-    /// the manager repairs machines as well as running the team.
+    /// Role to permission map. A manager role is deliberately a superset of the role it
+    /// runs: the Maintenance Manager repairs machines as well as running the team, and the
+    /// QA Manager swabs as well as running QA.
     /// Managers do not hold HolidayRequest - they approve leave, they do not book it here.
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string[]> RoleGrants =
@@ -197,7 +217,9 @@ public static class Permissions
                 WorkOrderAssign, WorkOrderReject, TaskManage, OrderManageAll, AdminManage
             ],
 
-            [Roles.Qa] = [.. EveryoneBaseline, HolidayRequest, WorkOrderViewAll, QaCheck, QaSignOff],
+            [Roles.Qa] = [.. EveryoneBaseline, HolidayRequest, .. QaCore],
+
+            [Roles.QaManager] = [.. EveryoneBaseline, .. QaCore, .. ManagerCore],
 
             [Roles.ProductionManager] =
             [

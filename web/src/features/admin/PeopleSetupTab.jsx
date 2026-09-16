@@ -5,6 +5,7 @@ import AsyncSection from '../../components/ui/AsyncSection';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import { describeApiError } from '../../api/apiClient';
 import {
@@ -83,13 +84,23 @@ function EditableList({ titleKey, hintKey, source, create, activate, deactivate,
                   <Badge tone={row.isActive ? 'bg-cfi-green/15 text-cfi-green-dark' : 'bg-cfi-sunk text-cfi-muted'}>
                     {row.isActive ? t('admin.active') : t('admin.inactive')}
                   </Badge>
-                  <Button
-                    variant="secondary"
-                    disabled={busy}
-                    onClick={() => runAction(() => (row.isActive ? deactivate(row.id) : activate(row.id)))}
-                  >
-                    {row.isActive ? t('admin.deactivate') : t('admin.activate')}
-                  </Button>
+                  {row.isActive ? (
+                    <ConfirmButton
+                      disabled={busy}
+                      onConfirm={() => runAction(() => deactivate(row.id))}
+                      confirmLabel={t('admin.deactivate')}
+                    >
+                      {t('admin.deactivate')}
+                    </ConfirmButton>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => runAction(() => activate(row.id))}
+                    >
+                      {t('admin.activate')}
+                    </Button>
+                  )}
                 </div>
               </Card>
             ))}

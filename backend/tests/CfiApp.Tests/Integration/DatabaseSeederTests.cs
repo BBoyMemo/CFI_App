@@ -14,7 +14,7 @@ namespace CfiApp.Tests.Integration;
 public sealed class DatabaseSeederTests(CfiAppApiFactory factory)
 {
     private static readonly string[] ExpectedUnitCodes = ["UNIT1", "UNIT2", "UNIT3", "YARD"];
-    private static readonly string[] ExpectedDepartments = ["Production", "Maintenance", "FLT"];
+    private static readonly string[] ExpectedDepartments = ["Production", "Maintenance", "FLT", "QA"];
 
     private async Task RunSeedAsync()
     {
@@ -24,7 +24,7 @@ public sealed class DatabaseSeederTests(CfiAppApiFactory factory)
     }
 
     [Fact]
-    public async Task Seeds_the_four_site_units_and_the_three_departments()
+    public async Task Seeds_the_four_site_units_and_the_four_departments()
     {
         await RunSeedAsync();
 
@@ -83,7 +83,11 @@ public sealed class DatabaseSeederTests(CfiAppApiFactory factory)
             .SingleAsync(x => x.Code == "FILLING" && x.Unit!.Code == "UNIT1");
 
         var lines = await context.Lines.Where(x => x.AreaId == filling.Id).ToListAsync();
-        lines.Count.ShouldBe(4, "the filling room runs four lines");
+        // Four lines plus the inkjet printer, which stands at the same level as them and
+        // will have machines of its own once the site adds them.
+        lines.Select(x => x.Name).ShouldBe(
+            ["Line 1 (2kg)", "Line 2", "Line 3", "Line 4 (Box Line)", "Inkjet Printer"],
+            ignoreOrder: true);
 
         // Line 2 and Line 3 each have their own Seamer. If the seeder keyed machines on
         // name alone, one of these would be missing and a fault report could not say which

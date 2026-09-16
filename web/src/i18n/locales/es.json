@@ -45,6 +45,8 @@
     "approve": "Aprobar",
     "reject": "Rechazar",
     "delete": "Eliminar",
+    "confirmQuestion": "¿Seguro?",
+    "confirmYes": "Sí",
     "note": "Nota"
   },
   "auth": {
@@ -75,7 +77,7 @@
     "workOrders": "Averías",
     "more": "Más",
     "tasks": "Tareas",
-    "orders": "Repuestos",
+    "orders": "Pedidos",
     "attendance": "Mis horas",
     "teamHours": "Horas del equipo",
     "overtime": "Horas extra",
@@ -86,8 +88,7 @@
     "admin": "Configuración",
     "profile": "Mi cuenta",
     "menu": "Menú",
-    "notifications": "Avisos",
-    "whoIsIn": "Quién está"
+    "notifications": "Avisos"
   },
   "workorder": {
     "number": "Número",
@@ -168,7 +169,7 @@
     },
     "sentBackByQaNotice": "Calidad lo devolvió: corrígelo y envíalo otra vez.",
     "awaitingQaNotice": "Cerrado, a la espera de la prueba de hisopo.",
-    "selectEquipment": "Elige la máquina",
+    "selectEquipment": "Selecciona la máquina",
     "assignTo": "Asignar a un técnico",
     "reject": "Rechazar",
     "rejectReason": "¿Por qué se rechaza?",
@@ -199,6 +200,8 @@
   },
   "team": {
     "selectRole": "Rol",
+    "remove": "Quitar",
+    "confirmRemove": "¿Quitar a {{name}} del equipo?",
     "worksIn": "Trabaja en",
     "approve": "Aprobar",
     "areasChosen": "{{count}} área(s) seleccionada(s)"
@@ -223,6 +226,8 @@
     "markDone": "Marcar hecha",
     "completions": "Quién la ha hecho",
     "delete": "Eliminar tarea",
+    "confirmQuestion": "¿Seguro?",
+    "confirmYes": "Sí",
     "kind_Daily": "Diaria",
     "kind_Weekend": "Fin de semana",
     "kind_ManagerAssigned": "Asignada",
@@ -231,8 +236,8 @@
     "priority_Preventive": "Preventiva"
   },
   "order": {
-    "partName": "Pieza",
-    "partNamePlaceholder": "p. ej. rodamiento 6205",
+    "partName": "Artículo",
+    "partNamePlaceholder": "p. ej. rodamiento 6205, cartucho de filtro",
     "quantity": "Cant.",
     "urgent": "Urgente",
     "request": "Solicitar",

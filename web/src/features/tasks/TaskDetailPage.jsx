@@ -6,6 +6,7 @@ import AsyncSection from '../../components/ui/AsyncSection';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import { describeApiError } from '../../api/apiClient';
 import { completeTask, deleteTask, getTask } from '../../api/endpoints';
@@ -142,14 +143,14 @@ export default function TaskDetailPage() {
             )}
 
             {hasPermission(Permissions.TaskManage) && (
-              <Button
+              <ConfirmButton
                 variant="danger"
                 className="mt-4"
                 disabled={busy}
-                onClick={() => runAction(() => deleteTask(detail.id), () => navigate('/tasks'))}
+                onConfirm={() => runAction(() => deleteTask(detail.id), () => navigate('/tasks'))}
               >
                 {t('task.delete')}
-              </Button>
+              </ConfirmButton>
             )}
           </>
         )}

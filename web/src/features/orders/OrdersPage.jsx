@@ -5,6 +5,7 @@ import AsyncSection from '../../components/ui/AsyncSection';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import { describeApiError } from '../../api/apiClient';
 import { createOrder, deleteOrder, getAllOrders, getMyOrders, markOrderOrdered } from '../../api/endpoints';
@@ -129,13 +130,12 @@ export default function OrdersPage() {
                       {t('order.markOrdered')}
                     </Button>
                   )}
-                  <Button
-                    variant="secondary"
+                  <ConfirmButton
                     disabled={busy}
-                    onClick={() => runAction(() => deleteOrder(order.id))}
+                    onConfirm={() => runAction(() => deleteOrder(order.id))}
                   >
                     {t('common.delete')}
-                  </Button>
+                  </ConfirmButton>
                 </div>
               </Card>
             ))}

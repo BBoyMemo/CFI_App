@@ -166,6 +166,75 @@ public sealed class AdminCrudTests(CfiAppApiFactory factory)
     }
 
     /// <summary>
+    /// The machine list reads down the site, not across it. Every room numbers its own
+    /// machines from 1, so ordering on DisplayOrder alone used to interleave all of them
+    /// into one run - "AAK, Filler, Inkjet Printer, P Tank 1, Separator 7" - which made the
+    /// admin panel unusable at 62 machines.
+    ///
+    /// Within a room the order is the one the site reads its own list in: the machines on
+    /// each line, line by line, then whatever stands in the room itself.
+    /// </summary>
+    [Fact]
+    public async Task The_machine_list_is_ordered_room_by_room_and_line_by_line()
+    {
+        var managerClient = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+
+        var units = await managerClient.GetFromJsonAsync<PagedResult<UnitDto>>("/api/v1/admin/units?pageSize=200");
+        var unit1 = units!.Items.Single(x => x.Code == "UNIT1");
+
+        var rooms = await managerClient.GetFromJsonAsync<PagedResult<AreaDto>>(
+            $"/api/v1/admin/areas?unitId={unit1.Id}&pageSize=200");
+        var filling = rooms!.Items.Single(x => x.Code == "FILLING");
+
+        var machines = await managerClient.GetFromJsonAsync<PagedResult<EquipmentDto>>(
+            $"/api/v1/admin/equipment?unitId={unit1.Id}&pageSize=200");
+
+        var all = machines!.Items.ToList();
+
+        // Rooms come out in one block each, never mixed together.
+        var roomRuns = all
+            .Select(x => x.AreaId)
+            .Aggregate(new List<int?>(), (runs, areaId) =>
+            {
+                if (runs.Count == 0 || runs[^1] != areaId) runs.Add(areaId);
+                return runs;
+            });
+
+        roomRuns.Distinct().Count().ShouldBe(roomRuns.Count, "a room's machines should be one unbroken run");
+
+        // Inside any room: everything on a line first, then whatever stands in the room
+        // itself. Asserted over the whole list rather than one named machine, so it still
+        // holds when the site moves something onto a line or off one.
+        foreach (var room in all.GroupBy(x => x.AreaId))
+        {
+            var seenRoomLevel = false;
+            foreach (var machine in room)
+            {
+                if (machine.LineId is null) seenRoomLevel = true;
+                else
+                {
+                    seenRoomLevel.ShouldBeFalse(
+                        $"{machine.Name} is on a line, so it cannot come after a machine that is not");
+                }
+            }
+        }
+
+        // And each line's machines stay together, in the line's own order.
+        var inFilling = all.Where(x => x.AreaId == filling.Id).ToList();
+        var lineRuns = inFilling
+            .Where(x => x.LineId is not null)
+            .Select(x => x.LineId!.Value)
+            .Aggregate(new List<int>(), (runs, lineId) =>
+            {
+                if (runs.Count == 0 || runs[^1] != lineId) runs.Add(lineId);
+                return runs;
+            });
+
+        lineRuns.Distinct().Count().ShouldBe(lineRuns.Count, "a line's machines should be one unbroken run");
+        lineRuns.ShouldBe(lineRuns.OrderBy(x => x).ToList());
+    }
+
+    /// <summary>
     /// A part of a machine - Blender 2's FIBC1, and anything the site adds later from this
     /// panel. The three refusals are the ones that would otherwise put a part somewhere its
     /// machine is not, which makes the fault log name two places for one repair.
@@ -249,12 +318,20 @@ public sealed class AdminCrudTests(CfiAppApiFactory factory)
 
         var maintenanceRoles = await maintenanceClient.GetFromJsonAsync<List<RoleDto>>("/api/v1/admin/roles");
 
+        // No QA in this list on purpose: the admin lets the QA Manager in, and the QA
+        // Manager decides who does QA work.
         maintenanceRoles!.Select(x => x.Name).ShouldBe(
         [
-            Permissions.Roles.Engineer, Permissions.Roles.Qa,
-            Permissions.Roles.MaintenanceManager, Permissions.Roles.ProductionManager
+            Permissions.Roles.Engineer, Permissions.Roles.MaintenanceManager,
+            Permissions.Roles.QaManager, Permissions.Roles.ProductionManager
         ],
             ignoreOrder: true);
+
+        var qaManagerClient = await SignedInAsAsync(Permissions.Roles.QaManager);
+
+        var qaManagerRoles = await qaManagerClient.GetFromJsonAsync<List<RoleDto>>("/api/v1/admin/roles");
+
+        qaManagerRoles!.Select(x => x.Name).ShouldBe([Permissions.Roles.Qa]);
 
         var productionClient = await SignedInAsAsync(Permissions.Roles.ProductionManager);
 

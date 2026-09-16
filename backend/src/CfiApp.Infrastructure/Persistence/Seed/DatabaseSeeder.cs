@@ -28,7 +28,7 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
         ("YARD", "Yard", 4)
     ];
 
-    private static readonly string[] Departments = ["Production", "Maintenance", "FLT"];
+    private static readonly string[] Departments = ["Production", "Maintenance", "FLT", "QA"];
 
     /// <summary>
     /// The three shifts the site runs today. Hours are editable and more can be added;
@@ -76,7 +76,11 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
         ("UNIT1", "FILLING", "Line 1 (2kg)", 1),
         ("UNIT1", "FILLING", "Line 2", 2),
         ("UNIT1", "FILLING", "Line 3", 3),
-        ("UNIT1", "FILLING", "Line 4 (Box Line)", 4)
+        ("UNIT1", "FILLING", "Line 4 (Box Line)", 4),
+        // No machines under it yet - the site adds those from the admin panel. It sits here
+        // rather than as a machine in the room because it is a station of its own, the same
+        // level as the four lines beside it.
+        ("UNIT1", "FILLING", "Inkjet Printer", 5)
     ];
 
     /// <summary>
@@ -111,7 +115,6 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
         new("UNIT1", "FILLING", "Line 3", null, "Seamer", "seamer", 2),
         new("UNIT1", "FILLING", "Line 3", null, "Conveyor", "conveyor", 3),
         new("UNIT1", "FILLING", "Line 4 (Box Line)", null, "Printer", "printer", 1),
-        new("UNIT1", "FILLING", null, null, "Inkjet Printer", "printer", 1),
 
         new("UNIT1", "PTANKS", null, null, "P Tank 1", "tank", 1),
         new("UNIT1", "PTANKS", null, null, "P Tank 2", "tank", 2),
@@ -139,6 +142,8 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
 
         new("UNIT1", "PACKING", null, null, "Big Shrink Wrap Tunnel", "tunnel", 1),
         new("UNIT1", "PACKING", null, null, "Big Shrink Wrapper", "wrapper", 2),
+        new("UNIT1", "PACKING", null, null, "Small Shrink Wrap Tunnel", "tunnel", 3),
+        new("UNIT1", "PACKING", null, null, "Small Shrink Wrapper", "wrapper", 4),
 
         new("UNIT1", "WAREHOUSE", null, null, "RM Tank 1", "tank", 1),
         new("UNIT1", "WAREHOUSE", null, null, "RM Tank 2", "tank", 2),

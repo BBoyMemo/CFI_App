@@ -5,6 +5,7 @@ import AsyncSection from '../../components/ui/AsyncSection';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import { describeApiError } from '../../api/apiClient';
 import {
@@ -114,16 +115,23 @@ export default function AttendanceRulesTab() {
                     <Badge tone={row.isActive ? 'bg-cfi-green/15 text-cfi-green-dark' : 'bg-cfi-sunk text-cfi-muted'}>
                       {row.isActive ? t('admin.active') : t('admin.inactive')}
                     </Badge>
-                    <Button
-                      variant="secondary"
-                      disabled={busy}
-                      onClick={() => runAction(
-                        () => (row.isActive ? deactivateGeofence(row.id) : activateGeofence(row.id)),
-                        geofences,
-                      )}
-                    >
-                      {row.isActive ? t('admin.deactivate') : t('admin.activate')}
-                    </Button>
+                    {row.isActive ? (
+                      <ConfirmButton
+                        disabled={busy}
+                        onConfirm={() => runAction(() => deactivateGeofence(row.id), geofences)}
+                        confirmLabel={t('admin.deactivate')}
+                      >
+                        {t('admin.deactivate')}
+                      </ConfirmButton>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => runAction(() => activateGeofence(row.id), geofences)}
+                      >
+                        {t('admin.activate')}
+                      </Button>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -175,13 +183,12 @@ export default function AttendanceRulesTab() {
                     <span className="font-mono text-cfi-muted">{row.date}</span>
                     <span className="ml-3 font-medium text-cfi-ink">{row.name}</span>
                   </span>
-                  <Button
-                    variant="secondary"
+                  <ConfirmButton
                     disabled={busy}
-                    onClick={() => runAction(() => deletePublicHoliday(row.id), holidays)}
+                    onConfirm={() => runAction(() => deletePublicHoliday(row.id), holidays)}
                   >
                     {t('common.delete')}
-                  </Button>
+                  </ConfirmButton>
                 </Card>
               ))}
             </div>

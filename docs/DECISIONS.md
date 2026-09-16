@@ -661,3 +661,149 @@ tek şeyi — mesajları — gömüyordu.
 
 Mesaj satırı artık gönderenin adını da taşıyor (`NotificationDto.SenderName`) — "yeni mesaj
 var" yazıp ikinci bir ekran açtırmak yerine kimden ve ne yazdığı doğrudan görünüyor.
+
+---
+
+## 2026-09-16 — QA Manager
+
+Saha rol listesini güncelledi ve **QA Manager** ekledi. Diğer üç blok (durumlar, iş tipleri,
+öncelik) listeyle birebir örtüşüyordu, değişiklik gerekmedi.
+
+`Engineer` adı **kalıyor** — listede "Technician" yazıyordu ama kullanıcı 2026-09-07'de
+Engineer'a dönmemi istemişti ve teyit ettirdiğimde Engineer'da kalmasını söyledi. İsim bir
+daha çevrilmeyecek.
+
+### QA kendi departmanı oldu
+
+Dört departman: Production, Maintenance, FLT, **QA**.
+
+QA önceden Maintenance altındaydı ve koddaki notta sebebi açıkça yazılıydı: *"onları
+onaylayan ve günlük olarak hesap verdikleri kişi Maintenance Manager; sahanın kendi QA
+menejeri henüz yok."* Artık var, yani gerekçe ortadan kalktı. Orada bırakmak menejer
+görünürlüğünü bozardı — menejer kendi departmanını görür, dolayısıyla QA Manager bütün
+mühendisleri, Maintenance Manager da bütün QA'leri kendi ekibi sanardı.
+
+### Onay zinciri: her menejer kendi insanını alır
+
+| Onaylayan | Kimi içeri alabilir |
+|---|---|
+| Maintenance Manager (admin) | Engineer, MaintenanceManager, **QaManager**, ProductionManager |
+| **QA Manager** | QA |
+| Production Manager | Operator, Supervisor, FltDriver |
+
+**Admin artık QA'leri doğrudan onaylamıyor.** QA Manager'ı içeri alır ve orada durur; kimin
+QA işi yapacağına QA Manager karar verir. Bu bilinçli bir daraltma — onay bir yetki kontrolü
+değil, yetki devri.
+
+### QA Manager ne yapabilir
+
+QA'nin yaptığı her şey (`workorder.viewAll`, `qa.check`, `qa.signOff`) + menejer çekirdeği
+(kullanıcı onaylama, ekip görme, devamsızlık düzeltme, mesai/izin onayı, vardiya planı,
+mesaj gönderme). Maintenance Manager'ın Engineer'ı kapsaması ile aynı desen.
+
+**Almadığı iki şey:**
+- `admin.manage` — QA'yi yönetmek sahayı yönetmek değil. Site düzeni, roller ve vardiya
+  tipleri admin'de kalıyor.
+- `holiday.request` — menejerler izni onaylar, buradan talep etmez (diğer menejerlerle aynı).
+
+### Not: mevcut QA hesapları
+
+Departman kullanıcıya onay anında yazılıyor. Zaten onaylanmış bir QA varsa `Maintenance`
+departmanında kalır; yerelde hiç QA hesabı yoktu, sunucuya da çıkılmadı, o yüzden taşınacak
+veri yok. Sonradan çıkarsa admin panelinden departmanı düzeltilir.
+
+### Doğrulandı
+
+- `dotnet test` — **217/217** (yeni: QA Manager yetki kapsamı ve admin'i kapsamaması,
+  QA'nin kendi departmanına düşmesi, QA Manager'ın sadece QA onaylayabilmesi)
+- API üzerinden: admin'in onaylayabildiği roller `Engineer, MaintenanceManager,
+  ProductionManager, QaManager` — QA listede yok, doğru
+- Seed: 8 rol, 4 departman; QaManager 18 permission ile yazıldı
+
+### Makine listesi sırası (2026-09-16)
+
+Inkjet Printer'ın Line 1 ile aynı seviyede olup olmadığı soruldu. **Veride öyleydi** —
+Filling Room'a bağlı, hiçbir hatta ait değil, yani hatların kardeşi. Ama kontrol ederken
+gerçek bir kusur çıktı.
+
+`GET /admin/equipment` sadece `DisplayOrder`'a göre sıralıyordu. Her oda kendi makinelerini
+1'den numaralandırdığı için 62 makine tek sıraya karışıyordu: *"AAK(1), Filler(1), Inkjet
+Printer(1), P Tank 1(1), Separator 7(1)…"*. Admin panelindeki Makineler sekmesi bu haliyle
+kullanılamazdı.
+
+Sıra artık **sahanın kendi listesini okuduğu yönde** — aşağı doğru, yanlamasına değil:
+
+```
+unit → (oda olanlar, sonra unit'te duranlar) → oda
+     → (hattakiler, sonra odada duranlar) → hat
+     → (bütün makineler, sonra parçalar) → DisplayOrder → ad
+```
+
+Yani Filling Room: Line 2'nin makineleri, Line 3'ün, Line 4'ün, **sonra** Inkjet Printer.
+Hatlar da odaya göre gruplandı (`/admin/lines`) — bugün sadece Filling Room'da hat var ama
+panelden yeni hat eklenebiliyor.
+
+> **Null kontrolleri elle yazıldı** (`x.LineId == null` gibi), veritabanına bırakılmadı:
+> PostgreSQL artan sıralamada NULL'ları sona, SQL Server başa koyar. Proje ileride SQL
+> Server'a taşınırsa bu liste şekil değiştirmemeli.
+
+Sıralamayı kilitleyen bir test var (`The_machine_list_is_ordered_room_by_room_and_line_by_line`) —
+odaların kesintisiz blok halinde geldiğini, her hattın makinelerinin bir arada kaldığını ve
+Inkjet Printer'ın hatlardan sonra geldiğini doğruluyor. Yoksa bu sıra ileride sessizce bozulur.
+
+**Inkjet Printer hat seviyesine taşındı** (2026-09-16). Önce Filling Room'da duran bir
+makine olarak seed'lenmişti; saha onun Line 1 ile **aynı seviyede** olduğunu, altına sonra
+makineler eklenebileceğini belirtti. Artık `Line` olarak duruyor ve admin panelinin Lines
+sekmesinde diğer dördüyle birlikte listeleniyor.
+
+**Packing'e iki makine eklendi** (2026-09-16): Small Shrink Wrap Tunnel ve Small Shrink
+Wrapper. Büyük çiftin yanına, aynı odada. (`rapper` → `Wrapper`, büyüğünde yapılan
+düzeltmenin aynısı.)
+
+Yeni sayılar: 12 oda, **5 hat**, **63 makine**.
+
+> Bunun bir sonucu var: altında makine olmadığı sürece inkjet printer'ın **kendisine** arıza
+> bildirmek için formda o hattı seçip makine adımında "Other" ile yazmak gerekiyor — Line 1
+> (2kg) için de aynı durum geçerli. Altına bir makine eklendiği anda kendiliğinden düzelir.
+
+### Gezinme ve yıkıcı aksiyonlar (2026-09-16)
+
+**Menü ikiye ayrıldı.** Header'ın altına, vardiyanın sürekli kullandığı yedi ekran için
+yatay bir şerit kondu: Dashboard, Pool, My Jobs, Tasks, History, Messages, Notifications.
+Geri kalanı hamburger'da kaldı (Report Breakdown, My hours, My shifts, Orders, Holiday,
+Shift planner, Team hours, Team, Pending Approvals, My account).
+
+Yedi madde **kasten** yan panelden çıkarıldı, iki yere konmadı: aynı ekrana iki yol olunca
+panel uzuyor ve sadece orada bulunan şeyler içinde kayboluyor.
+
+Şerit **yan kayıyor**, satır kırmıyor: telefonda ikinci bir satır sayfa içeriğini ekranın
+altına itiyor, fabrika zemininde bir başparmak da 3 mm'lik hedefe basmaktan çok kaydırmayı
+daha güvenilir yapıyor. Yetkiye göre filtreli — kimse yedisini birden görmüyor; operatörün
+ne havuzu var ne geçmişi, dolayısıyla şerit kişinin işi kadar kısa.
+
+**"Parts" → "Orders".** Saha sadece parça değil, takım/sarf/hizmet de aynı ekrandan
+ısmarlıyor. Talep formundaki alan adı da menüyü takip etti: "Part" → "Item".
+
+**"Who's in" ekranı kaldırıldı.** Rota, sayfa ve kullanılmayan API çağrısı silindi.
+Backend'deki `GET /attendance/query/who-is-in` uç noktası **duruyor** (testli): ekranı geri
+istemek bir dosya, uç noktayı yeniden yazmak bir gün.
+
+**Her yıkıcı aksiyon artık soruyor.** Ortak bir `ConfirmButton` yazıldı ve altı yere
+bağlandı: unit / oda / hat / makine / vardiya tipi kapatma, departman ve occupation
+kapatma, geofence kapatma, resmi tatil silme, task silme, sipariş silme, ekipten kişi
+çıkarma.
+
+> Onay **satır içinde** soruluyor, modal veya `window.confirm` ile değil. Telefonda modal
+> tam olarak baktığın satırı kapatıyor, `window.confirm` ise **hangi** makinenin gideceğini
+> söyleyemiyor. Burada soru butonun yerine geçiyor, yani şeyin adı yanında ekranda kalıyor.
+>
+> **Geri açmak soru sormuyor** — sadece kapatmak/silmek soruyor. Zararsız bir aksiyon için
+> de sormak, insanlara soruyu okumadan geçmeyi öğretir; bu, hiç sormamaktan kötüdür.
+
+**Team'den kişi çıkarma eklendi.** `UserManage` yetkisi gerekiyor. Satır silinmiyor, hesap
+**disable** ediliyor: kişinin clock kayıtları bordroyu besliyor ve adı imzalanmış tamirlerin
+üstünde duruyor, yani kayıt o kişiden sonra da yaşamak zorunda. Bütün oturumları anında
+kapanıyor, kapıdan onunla çıkan telefon çalışmaz hâle geliyor.
+
+Kendi satırında buton hiç çıkmıyor — API zaten reddediyor (400), ama her zaman başarısız
+olan bir buton, hiç buton olmamasından kötüdür.

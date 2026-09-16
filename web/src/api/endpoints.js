@@ -165,7 +165,6 @@ export const deletePublicHoliday = (id) => apiClient.delete(v1(`/admin/public-ho
 export const getNotifications = (params) => apiClient.get(v1('/notifications'), { params });
 export const getUnseenNotifications = (since) =>
   apiClient.get(v1('/notifications/unseen-count'), { params: since ? { since } : undefined });
-export const getWhoIsIn = () => apiClient.get(v1('/attendance/who-is-in'));
 export const getReportedByMe = (params) => apiClient.get(v1('/workorders/reported-by-me'), { params });
 
 // ---------------------------------------------------------------- admin: people setup

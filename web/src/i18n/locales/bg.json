@@ -45,6 +45,8 @@
     "approve": "Одобри",
     "reject": "Отхвърли",
     "delete": "Изтрий",
+    "confirmQuestion": "Сигурен ли сте?",
+    "confirmYes": "Да",
     "note": "Бележка"
   },
   "auth": {
@@ -75,7 +77,7 @@
     "workOrders": "Аварии",
     "more": "Още",
     "tasks": "Задачи",
-    "orders": "Части",
+    "orders": "Заявки",
     "attendance": "Моите часове",
     "teamHours": "Часове на екипа",
     "overtime": "Извънреден труд",
@@ -86,8 +88,7 @@
     "admin": "Настройки",
     "profile": "Моят профил",
     "menu": "Меню",
-    "notifications": "Известия",
-    "whoIsIn": "Кой е на място"
+    "notifications": "Известия"
   },
   "workorder": {
     "number": "Номер",
@@ -168,7 +169,7 @@
     },
     "sentBackByQaNotice": "QA върна заявката - отстранете и изпратете отново.",
     "awaitingQaNotice": "Затворена, чака тампонния тест на QA.",
-    "selectEquipment": "Изберете машина",
+    "selectEquipment": "Избери машина",
     "assignTo": "Възложи на инженер",
     "reject": "Отхвърли",
     "rejectReason": "Защо се отхвърля?",
@@ -199,6 +200,8 @@
   },
   "team": {
     "selectRole": "Роля",
+    "remove": "Премахни",
+    "confirmRemove": "Да се премахне ли {{name}} от екипа?",
     "worksIn": "Работи в",
     "approve": "Одобри",
     "areasChosen": "Избрани зони: {{count}}"
@@ -223,6 +226,8 @@
     "markDone": "Отбележи като готова",
     "completions": "Кой я е свършил",
     "delete": "Изтрий задачата",
+    "confirmQuestion": "Сигурен ли сте?",
+    "confirmYes": "Да",
     "kind_Daily": "Ежедневна",
     "kind_Weekend": "Уикенд",
     "kind_ManagerAssigned": "Възложена",
@@ -231,8 +236,8 @@
     "priority_Preventive": "Превантивна"
   },
   "order": {
-    "partName": "Част",
-    "partNamePlaceholder": "напр. лагер 6205",
+    "partName": "Позиция",
+    "partNamePlaceholder": "напр. лагер 6205, филтърен патрон",
     "quantity": "Бр.",
     "urgent": "Спешно",
     "request": "Заяви",

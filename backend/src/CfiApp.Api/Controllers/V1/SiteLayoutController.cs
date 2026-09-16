@@ -227,7 +227,14 @@ public sealed class LinesController(CfiAppDbContext context) : ControllerBase
             query = query.Where(x => x.AreaId == areaId);
         }
 
-        query = query.OrderBy(x => x.UnitId).ThenBy(x => x.DisplayOrder);
+        // Grouped by room as well, so two rooms that both run lines never interleave.
+        // Today only the filling room has any, but the site adds these from the panel.
+        query = query
+            .OrderBy(x => x.UnitId)
+            .ThenBy(x => x.AreaId == null)
+            .ThenBy(x => x.AreaId)
+            .ThenBy(x => x.DisplayOrder);
+
         var total = await query.CountAsync(cancellationToken);
 
         var items = await query
@@ -352,7 +359,25 @@ public sealed class EquipmentController(CfiAppDbContext context) : ControllerBas
         if (lineId is not null) query = query.Where(x => x.LineId == lineId);
         if (parentEquipmentId is not null) query = query.Where(x => x.ParentEquipmentId == parentEquipmentId);
 
-        query = query.OrderBy(x => x.DisplayOrder);
+        // Down the site, not across it. Ordering on DisplayOrder alone interleaved all 62
+        // machines into one run - "AAK, Filler, Inkjet Printer, P Tank 1, Separator 7" -
+        // because every room numbers its own machines from 1.
+        //
+        // The null checks are spelled out rather than left to the database: PostgreSQL sorts
+        // NULLs last on an ascending column and SQL Server sorts them first, and this list
+        // must not change shape if the project ever moves.
+        query = query
+            .OrderBy(x => x.UnitId)
+            .ThenBy(x => x.AreaId == null)
+            .ThenBy(x => x.AreaId)
+            // Machines on a line first, then the ones standing in the room itself - the
+            // order the site reads its own list in.
+            .ThenBy(x => x.LineId == null)
+            .ThenBy(x => x.LineId)
+            // Whole machines, then the parts that hang off them.
+            .ThenBy(x => x.ParentEquipmentId != null)
+            .ThenBy(x => x.DisplayOrder)
+            .ThenBy(x => x.Name);
         var total = await query.CountAsync(cancellationToken);
 
         var items = await query

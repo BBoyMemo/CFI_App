@@ -5,6 +5,7 @@ import AsyncSection from '../../components/ui/AsyncSection';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import ConfirmButton from '../../components/ui/ConfirmButton';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import { describeApiError } from '../../api/apiClient';
 import {
@@ -81,13 +82,25 @@ export default function AdminPage() {
       <Badge tone={row.isActive ? 'bg-cfi-green/15 text-cfi-green-dark' : 'bg-cfi-sunk text-cfi-muted'}>
         {row.isActive ? t('admin.active') : t('admin.inactive')}
       </Badge>
-      <Button
-        variant="secondary"
-        disabled={busy}
-        onClick={() => toggleRow(row, activate, deactivate, source)}
-      >
-        {row.isActive ? t('admin.deactivate') : t('admin.activate')}
-      </Button>
+
+      {/* Switching something back on needs no question - only taking it away does. */}
+      {row.isActive ? (
+        <ConfirmButton
+          disabled={busy}
+          onConfirm={() => toggleRow(row, activate, deactivate, source)}
+          confirmLabel={t('admin.deactivate')}
+        >
+          {t('admin.deactivate')}
+        </ConfirmButton>
+      ) : (
+        <Button
+          variant="secondary"
+          disabled={busy}
+          onClick={() => toggleRow(row, activate, deactivate, source)}
+        >
+          {t('admin.activate')}
+        </Button>
+      )}
     </div>
   );
 

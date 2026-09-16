@@ -45,6 +45,8 @@
     "approve": "Zatwierdź",
     "reject": "Odrzuć",
     "delete": "Usuń",
+    "confirmQuestion": "Jesteś pewien?",
+    "confirmYes": "Tak",
     "note": "Notatka"
   },
   "auth": {
@@ -75,7 +77,7 @@
     "workOrders": "Awarie",
     "more": "Więcej",
     "tasks": "Zadania",
-    "orders": "Części",
+    "orders": "Zamówienia",
     "attendance": "Moje godziny",
     "teamHours": "Godziny zespołu",
     "overtime": "Nadgodziny",
@@ -86,8 +88,7 @@
     "admin": "Konfiguracja",
     "profile": "Moje konto",
     "menu": "Menu",
-    "notifications": "Powiadomienia",
-    "whoIsIn": "Kto jest na miejscu"
+    "notifications": "Powiadomienia"
   },
   "workorder": {
     "number": "Numer",
@@ -199,6 +200,8 @@
   },
   "team": {
     "selectRole": "Rola",
+    "remove": "Usuń",
+    "confirmRemove": "Usunąć {{name}} z zespołu?",
     "worksIn": "Pracuje w",
     "approve": "Zatwierdź",
     "areasChosen": "Wybrano obszary: {{count}}"
@@ -223,6 +226,8 @@
     "markDone": "Oznacz jako zrobione",
     "completions": "Kto wykonał",
     "delete": "Usuń zadanie",
+    "confirmQuestion": "Jesteś pewien?",
+    "confirmYes": "Tak",
     "kind_Daily": "Codzienne",
     "kind_Weekend": "Weekendowe",
     "kind_ManagerAssigned": "Zlecone",
@@ -231,8 +236,8 @@
     "priority_Preventive": "Zapobiegawcze"
   },
   "order": {
-    "partName": "Część",
-    "partNamePlaceholder": "np. łożysko 6205",
+    "partName": "Pozycja",
+    "partNamePlaceholder": "np. łożysko 6205, wkład filtra",
     "quantity": "Ilość",
     "urgent": "Pilne",
     "request": "Zamów",
