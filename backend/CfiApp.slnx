@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CfiApp.Api/CfiApp.Api.csproj" />
+    <Project Path="src/CfiApp.Application/CfiApp.Application.csproj" />
+    <Project Path="src/CfiApp.Domain/CfiApp.Domain.csproj" />
+    <Project Path="src/CfiApp.Infrastructure/CfiApp.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CfiApp.Tests/CfiApp.Tests.csproj" />
+  </Folder>
+</Solution>

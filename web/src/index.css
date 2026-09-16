@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+/**
+ * CFI App design tokens.
+ *
+ * The palette comes from the approved prototypes: warm brown for headings and critical
+ * information, green for positive/complete states, yellow for the primary action, cream
+ * for the page ground. Components must use these tokens, never raw hex values, so the
+ * whole app can be re-themed in one place.
+ */
+@theme {
+  --color-cfi-cream: #f5efe2;
+  --color-cfi-surface: #fffdf8;
+  --color-cfi-sunk: #f0e8d6;
+  --color-cfi-rule: #e0d3b9;
+
+  --color-cfi-ink: #2c2016;
+  --color-cfi-ink-soft: #5a4835;
+  --color-cfi-muted: #8a7458;
+
+  --color-cfi-brown: #6b4a2e;
+  --color-cfi-brown-dark: #4a3320;
+  --color-cfi-green: #4e7a3b;
+  --color-cfi-green-dark: #2f4f22;
+  --color-cfi-yellow: #e7a93a;
+  --color-cfi-yellow-dark: #8a5e15;
+  --color-cfi-red: #a8432e;
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Mono', ui-monospace, Consolas, monospace;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-cfi-cream);
+  color: var(--color-cfi-ink);
+  font-family: var(--font-sans);
+}
+
+/* The factory floor uses gloves and bright light: focus must be obvious, and touch
+   targets are sized in the components rather than relying on default browser sizes. */
+:focus-visible {
+  outline: 3px solid var(--color-cfi-yellow-dark);
+  outline-offset: 2px;
+}

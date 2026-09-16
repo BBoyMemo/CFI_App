@@ -1,0 +1,65 @@
+# ---- .NET ----
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.received.*
+
+# ---- Node / React ----
+node_modules/
+dist/
+dist-ssr/
+build/
+.vite/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- React Native ----
+mobile/android/app/build/
+mobile/android/.gradle/
+mobile/ios/Pods/
+mobile/ios/build/
+*.keystore
+!debug.keystore
+
+# ---- Secrets / environment ----
+# Never commit real credentials. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+appsettings.Production.json
+appsettings.Local.json
+secrets.json
+*.pfx
+*.p12
+firebase-service-account*.json
+
+# TLS material. nginx.conf points at ./nginx/certs for the real certificate and its
+# private key; nothing from there is ever committed.
+nginx/certs/
+*.pem
+*.key
+*.crt
+*.csr
+
+# ---- Uploads / generated data ----
+uploads/
+storage/
+logs/
+*.log
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini

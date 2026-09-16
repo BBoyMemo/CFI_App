@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A red build blocks the phase. See docs/ROADMAP.md - "Üretim standardı".
+jobs:
+  backend:
+    name: Backend (.NET 10)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore backend/CfiApp.slnx
+
+      - name: Build
+        run: dotnet build backend/CfiApp.slnx --no-restore --configuration Release
+
+      # Integration tests start a real PostgreSQL container through Testcontainers,
+      # which the ubuntu-latest runner provides out of the box.
+      - name: Test
+        run: dotnet test backend/CfiApp.slnx --no-build --configuration Release --logger "console;verbosity=normal"
+
+      - name: Vulnerable package scan
+        run: |
+          dotnet list backend/CfiApp.slnx package --vulnerable --include-transitive > vuln.txt 2>&1 || true
+          cat vuln.txt
+          if grep -qiE "has the following vulnerable packages" vuln.txt; then
+            echo "::error::Vulnerable NuGet packages found"
+            exit 1
+          fi
+
+  web:
+    name: Web (React)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Translation completeness
+        run: npm run check:i18n
+
+      - name: Build
+        run: npm run build
+
+      - name: Vulnerable package scan
+        run: npm audit --audit-level=high
+
+  docker:
+    name: Docker image (API)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # A Dockerfile that fails to build is a deploy blocker discovered too late otherwise -
+      # this caught a real bug locally (adduser missing from the base image) before it ever
+      # reached a server.
+      - name: Build API image
+        run: docker build -f backend/src/CfiApp.Api/Dockerfile -t cfiapp-api:ci backend
+
+      - name: Boot the image and check liveness
+        run: |
+          docker run -d --name cfiapp-ci \
+            -p 18080:8080 \
+            -e Jwt__Key="$(openssl rand -base64 64 | tr -d '\n')" \
+            -e ConnectionStrings__DefaultConnection="Host=localhost;Port=5;Database=x;Username=x;Password=x" \
+            cfiapp-api:ci
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:18080/health/live > /dev/null; then
+              echo "Liveness OK"; exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Container never became live"
+          docker logs cfiapp-ci
+          exit 1
