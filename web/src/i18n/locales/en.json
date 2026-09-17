@@ -203,8 +203,7 @@
     "remove": "Remove",
     "confirmRemove": "Remove {{name}} from the team?",
     "worksIn": "Works in",
-    "approve": "Approve",
-    "areasChosen": "{{count}} area(s) selected"
+    "approve": "Approve"
   },
   "task": {
     "title": "Title",
@@ -326,6 +325,10 @@
     "activate": "Turn on",
     "deactivate": "Turn off",
     "allUnits": "All units",
+    "isWorkArea": "People can be assigned to work here",
+    "notWorkArea": "No staff assigned here",
+    "markWorkArea": "Mark as a work area",
+    "markNotWorkArea": "Remove as a work area",
     "tab_attendanceRules": "Hours & leave",
     "geofenceTitle": "Site boundary",
     "geofenceHint": "Where the phone app decides somebody has arrived or left. Until a boundary is set and switched on, automatic clocking is refused rather than guessed.",

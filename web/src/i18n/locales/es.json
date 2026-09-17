@@ -203,8 +203,7 @@
     "remove": "Quitar",
     "confirmRemove": "¿Quitar a {{name}} del equipo?",
     "worksIn": "Trabaja en",
-    "approve": "Aprobar",
-    "areasChosen": "{{count}} área(s) seleccionada(s)"
+    "approve": "Aprobar"
   },
   "task": {
     "title": "Título",
@@ -326,6 +325,10 @@
     "activate": "Activar",
     "deactivate": "Desactivar",
     "allUnits": "Todas las unidades",
+    "isWorkArea": "Se puede asignar personal aquí",
+    "notWorkArea": "Sin personal asignado",
+    "markWorkArea": "Marcar como área de trabajo",
+    "markNotWorkArea": "Quitar como área de trabajo",
     "tab_attendanceRules": "Horas y permisos",
     "geofenceTitle": "Perímetro del centro",
     "geofenceHint": "Donde la aplicación móvil decide que alguien ha llegado o se ha ido. Mientras no haya un perímetro activo, el fichaje automático se rechaza en vez de adivinarse.",

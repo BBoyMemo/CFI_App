@@ -15,21 +15,22 @@ export default function ApproveUserForm({ user, roles, units, onApproved }) {
   const { t } = useTranslation();
   const [roleId, setRoleId] = useState('');
   const [unitId, setUnitId] = useState('');
-  const [areaIds, setAreaIds] = useState([]);
+  const [areaId, setAreaId] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Areas are picked one unit at a time, but the selection carries across units - somebody
-  // can work the Filling Room in Unit 1 and the Yard weighbridge on the same week.
   const { data: areasPage } = useApiData(
     () => (unitId ? getAreas({ unitId, pageSize: 100 }) : empty),
     [unitId],
   );
 
-  const areas = useMemo(() => areasPage?.items ?? [], [areasPage]);
-
-  const toggleArea = (id) =>
-    setAreaIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
+  // Only rooms with people stationed in them - the Boiler House and the P Tanks Room are
+  // real, active places, but nobody stands in either of them, so they never belong on a
+  // "works in" form.
+  const areas = useMemo(
+    () => (areasPage?.items ?? []).filter((area) => area.isWorkArea),
+    [areasPage],
+  );
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -39,10 +40,13 @@ export default function ApproveUserForm({ user, roles, units, onApproved }) {
     try {
       // No department is chosen here: the role already says which side of the site
       // somebody is on, and asking twice only creates a way to get it wrong.
+      //
+      // One room, not several: the person stands in one place, and the report form reads
+      // that single room straight off this to skip asking them again.
       await approveUser(user.id, {
         roleId: Number(roleId),
         occupationId: null,
-        areaIds,
+        areaIds: areaId ? [Number(areaId)] : [],
       });
       onApproved();
     } catch (submitError) {
@@ -72,7 +76,14 @@ export default function ApproveUserForm({ user, roles, units, onApproved }) {
 
       <p className="text-sm text-cfi-muted">{t('team.worksIn')}</p>
 
-      <select value={unitId} onChange={(event) => setUnitId(event.target.value)} className={controlClass}>
+      <select
+        value={unitId}
+        onChange={(event) => {
+          setUnitId(event.target.value);
+          setAreaId('');
+        }}
+        className={controlClass}
+      >
         <option value="">{t('workorder.selectUnit')}</option>
         {units.map((unit) => (
           <option key={unit.id} value={unit.id}>
@@ -81,24 +92,18 @@ export default function ApproveUserForm({ user, roles, units, onApproved }) {
         ))}
       </select>
 
+      {/* One room, not several - the report form hides both the unit and the room the
+          moment it knows exactly where somebody stands, and it can only know that when
+          there is exactly one answer here. */}
       {unitId && (
-        <div className="flex flex-wrap gap-2">
+        <select value={areaId} onChange={(event) => setAreaId(event.target.value)} className={controlClass}>
+          <option value="">{t('workorder.selectArea')}</option>
           {areas.map((area) => (
-            <label
-              key={area.id}
-              className={`flex items-center gap-1 rounded border px-2 py-1 text-sm ${
-                areaIds.includes(area.id) ? 'border-cfi-yellow-dark bg-cfi-yellow/20' : 'border-cfi-rule'
-              }`}
-            >
-              <input type="checkbox" checked={areaIds.includes(area.id)} onChange={() => toggleArea(area.id)} />
+            <option key={area.id} value={area.id}>
               {area.name}
-            </label>
+            </option>
           ))}
-        </div>
-      )}
-
-      {areaIds.length > 0 && (
-        <p className="text-sm text-cfi-muted">{t('team.areasChosen', { count: areaIds.length })}</p>
+        </select>
       )}
 
       <ErrorBanner error={error} />

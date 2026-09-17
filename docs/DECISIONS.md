@@ -807,3 +807,51 @@ kapanıyor, kapıdan onunla çıkan telefon çalışmaz hâle geliyor.
 
 Kendi satırında buton hiç çıkmıyor — API zaten reddediyor (400), ama her zaman başarısız
 olan bir buton, hiç buton olmamasından kötüdür.
+
+### "Works in" listesi — kimse çalışmayan odalar kaldırıldı (2026-09-16)
+
+Onay ekranındaki resimde P Tanks Room, Boiler House, Office'in üstü çarpı ile işaretliydi.
+Saha netleştirdi: bu odalarda **istasyonlanmış kimse yok**, o yüzden "works in" formunda
+çıkmamalılar. Office için ayrı not düştü — ileride belki değişir ("office haric ama şimdilik
+office'te görünmesin"), o yüzden kalıcı bir kod kararı değil, **açılıp kapanabilir bir veri
+bayrağı** olarak modellendi.
+
+**Dikkat edilen tuzak:** Bu odalar `IsActive = false` yapılıp tamamen kapatılamazdı — Boiler
+House'daki Steam Boiler bozulabilir, P Tanks Room'daki tank sızdırabilir. Arıza formu bu
+odaları hâlâ listelemek zorunda. O yüzden **`IsActive`'den ayrı, yeni bir alan**: `IsWorkArea`.
+
+- `IsActive` = oda var mı / gösteriliyor mu
+- `IsWorkArea` = **kişi buraya atanabilir mi** (yeni)
+
+`IsWorkArea = false` olan bir oda: **arıza bildirme formunda hâlâ seçilebilir**, **onay
+formunun "works in" listesinde hiç çıkmaz**. İki farklı ekranın aynı `Area` tablosunu farklı
+amaçla tükettiğinin doğal sonucu.
+
+Varsayılan `true` — bir oda istisna, kural değil. Seed'de üç oda `false`: `PTANKS`, `BOILER`,
+`OFFICE`. Migration (`AddIsWorkAreaToArea`) yeni sütunu `true` varsayılanıyla ekliyor, sonra
+tek bir `UPDATE` ile mevcut üç satırı `false`'a çeviriyor — seeder zaten var olan satırları
+asla ezmediği için (bilinçli kural), retroaktif düzeltme migration'ın işi.
+
+**Admin panelinden CRUD tam** — sadece seed/migration'la sabitlenmiş bir bayrak değil:
+- Areas sekmesinde yeni oda eklerken "People can be assigned to work here" checkbox'ı
+  (varsayılan işaretli)
+- Mevcut bir odanın satırında **tek tık geçiş butonu** ("Mark as a work area" /
+  "Remove as a work area") — Office ileride gerçekten gerekirse menejer kod değişikliği
+  beklemeden açabilir
+- `IsWorkArea = false` olan odalarda satırın yanında "No staff assigned here" rozeti
+
+Bu geçiş, activate/deactivate'ten kasıtlı olarak **ayrı bir buton**: aktifleştirme bir
+yaşam-döngüsü kararı (onay ister gibi hissettirebilir), bu ise geri alınabilir bir sınıflama
+— confirm sorusu yok, activate'in "zararsız yön"üyle aynı muamele.
+
+### Doğrulandı
+
+- `dotnet test` — **218/218**. (İlk denemede 176 test "pending model changes" hatasıyla
+  düştü — kod değişikliğinden değil, migration'ı elle düzenlerken açık kalan API sürecinin
+  kilitlediği stale DLL'lerden kaynaklanan derleme tutarsızlığıydı; süreci durdurup temiz
+  build alınca geçti.)
+- Uçtan uca: Unit 1'in 8 odasından `isWorkArea` bayrakları doğru geldi; onay dropdown'ının
+  göstereceği liste P Tanks Room / Boiler House / Office'i içermiyor; **aynı üç odaya arıza
+  bildirimi hâlâ 201 ile kabul edildi** (Boiler House'da Steam Boiler bozulabilir kuralı
+  korunuyor); admin panelinin PUT ile geçiş yapan togglesı uçtan uca denendi (Office
+  true→false→false, kalıcı hâli `false`).

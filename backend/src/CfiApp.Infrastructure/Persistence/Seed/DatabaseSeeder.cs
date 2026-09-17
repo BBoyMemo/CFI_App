@@ -48,22 +48,29 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
     /// outside, and its gates and DAF plant stand in the unit itself. Names are editable
     /// from the admin panel and the seeder never overwrites them.
     /// </summary>
-    private static readonly (string UnitCode, string Code, string Name, int Order)[] Areas =
+    /// <summary>
+    /// IsWorkArea is false for rooms nobody is stationed in - a utility or plant room
+    /// rather than a place with people on shift. The room still exists and still takes
+    /// equipment, so a fault in the Boiler House is still reportable; it just never shows
+    /// up on the "works in" approval form. Office is off for the same reason for now, even
+    /// though that may change once the site has office-based staff to assign there.
+    /// </summary>
+    private static readonly (string UnitCode, string Code, string Name, int Order, bool IsWorkArea)[] Areas =
     [
-        ("UNIT1", "FILLING", "Filling Room", 1),
-        ("UNIT1", "PTANKS", "P Tanks Room", 2),
-        ("UNIT1", "PLANT", "Plant Room", 3),
-        ("UNIT1", "MELTING", "Melting Room", 4),
-        ("UNIT1", "PACKING", "Packing", 5),
-        ("UNIT1", "WAREHOUSE", "Warehouse", 6),
-        ("UNIT1", "BOILER", "Boiler House", 7),
-        ("UNIT1", "OFFICE", "Office", 8),
+        ("UNIT1", "FILLING", "Filling Room", 1, true),
+        ("UNIT1", "PTANKS", "P Tanks Room", 2, false),
+        ("UNIT1", "PLANT", "Plant Room", 3, true),
+        ("UNIT1", "MELTING", "Melting Room", 4, true),
+        ("UNIT1", "PACKING", "Packing", 5, true),
+        ("UNIT1", "WAREHOUSE", "Warehouse", 6, true),
+        ("UNIT1", "BOILER", "Boiler House", 7, false),
+        ("UNIT1", "OFFICE", "Office", 8, false),
 
-        ("UNIT2", "BLENDING", "Blending Room", 1),
-        ("UNIT2", "WAREHOUSE", "Warehouse", 2),
+        ("UNIT2", "BLENDING", "Blending Room", 1, true),
+        ("UNIT2", "WAREHOUSE", "Warehouse", 2, true),
 
-        ("UNIT3", "WAREHOUSE", "Warehouse", 1),
-        ("UNIT3", "WORKSHOP", "Workshop", 2)
+        ("UNIT3", "WAREHOUSE", "Warehouse", 1, true),
+        ("UNIT3", "WORKSHOP", "Workshop", 2, true)
     ];
 
     /// <summary>
@@ -360,12 +367,15 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
 
         var missing = new List<Area>();
 
-        foreach (var (unitCode, code, name, order) in Areas)
+        foreach (var (unitCode, code, name, order, isWorkArea) in Areas)
         {
             if (!unitIdsByCode.TryGetValue(unitCode, out var unitId)) continue;
             if (existingKeys.Contains((unitId, code))) continue;
 
-            missing.Add(new Area { UnitId = unitId, Code = code, Name = name, DisplayOrder = order });
+            missing.Add(new Area
+            {
+                UnitId = unitId, Code = code, Name = name, DisplayOrder = order, IsWorkArea = isWorkArea
+            });
         }
 
         if (missing.Count == 0) return 0;

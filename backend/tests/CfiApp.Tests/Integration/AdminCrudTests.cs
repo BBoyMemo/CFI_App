@@ -120,7 +120,7 @@ public sealed class AdminCrudTests(CfiAppApiFactory factory)
         var managerClient = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
 
         var response = await managerClient.PostAsJsonAsync("/api/v1/admin/areas",
-            new UpsertAreaRequest(999_999, "Ghost Room", null, 1));
+            new UpsertAreaRequest(999_999, "Ghost Room", null, 1, true));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -134,7 +134,7 @@ public sealed class AdminCrudTests(CfiAppApiFactory factory)
         var unit1 = units!.Items.Single(x => x.Name == "Unit 1");
 
         var response = await managerClient.PostAsJsonAsync("/api/v1/admin/areas",
-            new UpsertAreaRequest(unit1.Id, "Chiller Room", "F4", 5));
+            new UpsertAreaRequest(unit1.Id, "Chiller Room", "F4", 5, true));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Created);
         var created = (await response.Content.ReadFromJsonAsync<AreaDto>())!;

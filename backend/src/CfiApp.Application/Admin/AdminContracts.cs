@@ -19,9 +19,10 @@ public sealed record UnitDto(int Id, string Name, string Code, int DisplayOrder,
 public sealed record UpsertUnitRequest(string Name, string Code, int DisplayOrder);
 
 public sealed record AreaDto(
-    int Id, int UnitId, string UnitName, string Name, string? Code, int DisplayOrder, bool IsActive);
+    int Id, int UnitId, string UnitName, string Name, string? Code, int DisplayOrder,
+    bool IsActive, bool IsWorkArea);
 
-public sealed record UpsertAreaRequest(int UnitId, string Name, string? Code, int DisplayOrder);
+public sealed record UpsertAreaRequest(int UnitId, string Name, string? Code, int DisplayOrder, bool IsWorkArea);
 
 public sealed record LineDto(
     int Id, int UnitId, int? AreaId, string Name, int DisplayOrder, bool IsActive);

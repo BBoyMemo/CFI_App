@@ -17,6 +17,14 @@ public sealed class Area : Entity, IAuditable, IDeactivatable
     public int DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// Whether a person can be posted here to work - separate from <see cref="IsActive"/>,
+    /// which is about whether the room exists at all. The Boiler House and the P Tanks
+    /// Room are real, active places a fault can still be reported against; nobody is
+    /// stationed in them, so they should not appear as a choice on the "works in" form.
+    /// </summary>
+    public bool IsWorkArea { get; set; } = true;
+
     public ICollection<Equipment> Equipment { get; set; } = [];
 
     public DateTimeOffset CreatedAt { get; set; }

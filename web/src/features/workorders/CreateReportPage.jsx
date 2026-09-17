@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card';
 import ErrorBanner from '../../components/ui/ErrorBanner';
 import { describeApiError } from '../../api/apiClient';
 import { createWorkOrder, getUnits, getEquipment, getAreas, getLines } from '../../api/endpoints';
+import { useAuth } from '../../auth/useAuth';
 import { useApiData } from '../../hooks/useApiData';
 import PhotoUploader from './PhotoUploader';
 
@@ -22,9 +23,10 @@ const empty = Promise.resolve({ data: { items: [] } });
 export default function CreateReportPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { me } = useAuth();
 
-  const [unitId, setUnitId] = useState('');
-  const [areaId, setAreaId] = useState('');
+  const [manualUnitId, setManualUnitId] = useState('');
+  const [manualAreaId, setManualAreaId] = useState('');
   const [lineId, setLineId] = useState('');
   const [equipmentId, setEquipmentId] = useState('');
   const [equipmentFreeText, setEquipmentFreeText] = useState('');
@@ -36,12 +38,48 @@ export default function CreateReportPage() {
 
   const { data: unitsPage } = useApiData(() => getUnits({ pageSize: 100 }));
 
+  // Somebody posted to specific rooms reports from where they stand, not from a menu of
+  // every unit on site - the approval screen already asked a manager which rooms this
+  // person works in, and re-asking here only invites picking the wrong one.
+  const hasOwnAreas = (me?.areaIds?.length ?? 0) > 0;
+
+  const { data: homeAreasPage } = useApiData(
+    () => (hasOwnAreas ? getAreas({ pageSize: 100 }) : empty),
+    [hasOwnAreas],
+  );
+
+  const homeAreas = useMemo(
+    () => (homeAreasPage?.items ?? []).filter((area) => me?.areaIds?.includes(area.id)),
+    [homeAreasPage, me],
+  );
+
+  // Locking the unit down only makes sense when every room this person works in is in the
+  // same one - somebody posted to a room in Unit 1 and another in the Yard still needs the
+  // full picker, same as the approval screen lets a manager assign across units.
+  const homeUnitIds = useMemo(() => [...new Set(homeAreas.map((area) => area.unitId))], [homeAreas]);
+  const lockedUnitId = homeUnitIds.length === 1 ? homeUnitIds[0] : null;
+
+  // The room itself locks down only when there is exactly one of them - the case the
+  // approval form now produces by default, since it hands out a single room, not several.
+  // Somebody still carrying more than one room from before this change keeps picking
+  // among just their own, same as the unit above.
+  const lockedAreaId = homeAreas.length === 1 ? homeAreas[0].id : null;
+
+  // Derived, not stored: whichever unit or room is in force is read straight off the
+  // locked value or the manual pick, so there is no state to fall out of sync with the
+  // other.
+  const unitId = lockedUnitId ? String(lockedUnitId) : manualUnitId;
+  const areaId = lockedAreaId ? String(lockedAreaId) : manualAreaId;
+
   // Each level waits for the one above it: no unit, no rooms; no room, every machine in
   // the unit. Picking higher up clears what was chosen below, so the form can never be
   // submitted with a machine that does not belong to the place it names.
+  //
+  // Skipped once the unit is locked down: the room choices come from homeAreas instead,
+  // so fetching every room in the unit again would just be thrown away.
   const { data: areasPage } = useApiData(
-    () => (unitId ? getAreas({ unitId, pageSize: 100 }) : empty),
-    [unitId],
+    () => (unitId && !lockedUnitId ? getAreas({ unitId, pageSize: 100 }) : empty),
+    [unitId, lockedUnitId],
   );
 
   // Only the filling room runs lines, so this step appears there and nowhere else.
@@ -59,7 +97,7 @@ export default function CreateReportPage() {
   );
 
   const units = unitsPage?.items ?? [];
-  const areas = areasPage?.items ?? [];
+  const areas = lockedUnitId ? homeAreas : (areasPage?.items ?? []);
   const lines = linesPage?.items ?? [];
 
   /**
@@ -123,50 +161,59 @@ export default function CreateReportPage() {
 
       <Card className="mt-4">
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <label className="flex flex-col gap-1 text-sm">
-            {t('workorder.unit')}
-            <select
-              required
-              value={unitId}
-              onChange={(event) => {
-                setUnitId(event.target.value);
-                setAreaId('');
-                setLineId('');
-                setEquipmentId('');
-              }}
-              className={selectClass}
-            >
-              <option value="" disabled>
-                {t('workorder.selectUnit')}
-              </option>
-              {units.map((unit) => (
-                <option key={unit.id} value={unit.id}>
-                  {unit.name}
+          {/* Hidden once we know which single unit this person's rooms are all in - they
+              are standing there, so asking them to name it is one more tap for nothing. */}
+          {!lockedUnitId && (
+            <label className="flex flex-col gap-1 text-sm">
+              {t('workorder.unit')}
+              <select
+                required
+                value={unitId}
+                onChange={(event) => {
+                  setManualUnitId(event.target.value);
+                  setManualAreaId('');
+                  setLineId('');
+                  setEquipmentId('');
+                }}
+                className={selectClass}
+              >
+                <option value="" disabled>
+                  {t('workorder.selectUnit')}
                 </option>
-              ))}
-            </select>
-          </label>
+                {units.map((unit) => (
+                  <option key={unit.id} value={unit.id}>
+                    {unit.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
-          <label className="flex flex-col gap-1 text-sm">
-            {t('workorder.area')}
-            <select
-              value={areaId}
-              disabled={!unitId}
-              onChange={(event) => {
-                setAreaId(event.target.value);
-                setLineId('');
-                setEquipmentId('');
-              }}
-              className={selectClass}
-            >
-              <option value="">{t('workorder.selectArea')}</option>
-              {areas.map((area) => (
-                <option key={area.id} value={area.id}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* Hidden once this person has exactly one room to work in - they are standing
+              in it, so the form goes straight to what broke instead of naming the room
+              they are already stood in. */}
+          {!lockedAreaId && (
+            <label className="flex flex-col gap-1 text-sm">
+              {t('workorder.area')}
+              <select
+                value={areaId}
+                disabled={!unitId}
+                onChange={(event) => {
+                  setManualAreaId(event.target.value);
+                  setLineId('');
+                  setEquipmentId('');
+                }}
+                className={selectClass}
+              >
+                <option value="">{t('workorder.selectArea')}</option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {/* Hidden where it would only be an extra tap: most rooms run no lines. */}
           {lines.length > 0 && (

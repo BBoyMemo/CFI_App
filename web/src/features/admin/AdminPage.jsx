@@ -12,7 +12,7 @@ import {
   activateArea, activateEquipment, activateLine, activateShiftType, activateUnit,
   deactivateArea, deactivateEquipment, deactivateLine, deactivateShiftType, deactivateUnit,
   getAreas, getEquipment, getLines, getShiftTypes, getUnits,
-  upsertArea, upsertEquipment, upsertLine, upsertShiftType, upsertUnit,
+  updateArea, upsertArea, upsertEquipment, upsertLine, upsertShiftType, upsertUnit,
 } from '../../api/endpoints';
 import { useApiData } from '../../hooks/useApiData';
 import AttendanceRulesTab from './AttendanceRulesTab';
@@ -195,6 +195,7 @@ export default function AdminPage() {
                   name: draft.name,
                   code: draft.code || null,
                   displayOrder: Number(draft.displayOrder || 0),
+                  isWorkArea: draft.isWorkArea ?? true,
                 }), areas);
               }}
             >
@@ -219,6 +220,18 @@ export default function AdminPage() {
                 {t('admin.order')}
                 <input type="number" value={draft.displayOrder ?? ''} onChange={set('displayOrder')} className={controlClass} />
               </label>
+              {/* Checked by default - a plant or utility room nobody is stationed in is
+                  the exception, not the rule. */}
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draft.isWorkArea ?? true}
+                  onChange={(event) =>
+                    setDraft((current) => ({ ...current, isWorkArea: event.target.checked }))
+                  }
+                />
+                {t('admin.isWorkArea')}
+              </label>
               <Button type="submit" disabled={busy}>{t('admin.add')}</Button>
             </form>
           </Card>
@@ -231,8 +244,27 @@ export default function AdminPage() {
                     <span className="font-medium text-cfi-ink">
                       {area.name}
                       <span className="ml-2 text-xs text-cfi-muted">{area.unitName}</span>
+                      {!area.isWorkArea && (
+                        <span className="ml-2">
+                          <Badge>{t('admin.notWorkArea')}</Badge>
+                        </span>
+                      )}
                     </span>
-                    {rowActions(area, activateArea, deactivateArea, areas)}
+                    <div className="flex items-center gap-2">
+                      {/* Reversible metadata, not a lifecycle change like activate/deactivate -
+                          a plain toggle needs no confirmation. */}
+                      <Button
+                        variant="secondary"
+                        disabled={busy}
+                        onClick={() => runAction(() => updateArea(area.id, {
+                          unitId: area.unitId, name: area.name, code: area.code,
+                          displayOrder: area.displayOrder, isWorkArea: !area.isWorkArea,
+                        }), areas)}
+                      >
+                        {area.isWorkArea ? t('admin.markNotWorkArea') : t('admin.markWorkArea')}
+                      </Button>
+                      {rowActions(area, activateArea, deactivateArea, areas)}
+                    </div>
                   </Card>
                 ))}
               </div>

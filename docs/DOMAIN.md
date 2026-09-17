@@ -52,7 +52,13 @@ olarak gösterirdi.
 Seed: **Unit 1**, **Unit 2**, **Unit 3**, **Yard**.
 
 ### Area (Unit'in içindeki oda)
-`Id, UnitId → Unit, Name, Code?, DisplayOrder, IsActive`
+`Id, UnitId → Unit, Name, Code?, DisplayOrder, IsActive, IsWorkArea`
+
+`IsWorkArea` (2026-09-16), `IsActive`'den ayrı bir alan: **oda var mı** değil, **kişi buraya
+atanabilir mi**. P Tanks Room, Boiler House ve Office'te istasyonlanmış kimse yok, o yüzden
+"works in" (onay) formunda çıkmıyorlar — ama arıza bildirme formunda hâlâ seçilebilirler,
+çünkü Boiler House'daki kazan yine bozulabilir. Varsayılan `true`; admin panelinden tek tık
+geçişle değiştirilebilir.
 
 Seed — **Unit 1:** Filling Room, P Tanks Room, Plant Room, Melting Room, Packing,
 Warehouse, Boiler House, Office. **Unit 2:** Blending Room, Warehouse.

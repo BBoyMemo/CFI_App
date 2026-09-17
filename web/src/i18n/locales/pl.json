@@ -203,8 +203,7 @@
     "remove": "Usuń",
     "confirmRemove": "Usunąć {{name}} z zespołu?",
     "worksIn": "Pracuje w",
-    "approve": "Zatwierdź",
-    "areasChosen": "Wybrano obszary: {{count}}"
+    "approve": "Zatwierdź"
   },
   "task": {
     "title": "Tytuł",
@@ -326,6 +325,10 @@
     "activate": "Włącz",
     "deactivate": "Wyłącz",
     "allUnits": "Wszystkie jednostki",
+    "isWorkArea": "Można tu przydzielać pracowników",
+    "notWorkArea": "Nikt tu nie pracuje",
+    "markWorkArea": "Oznacz jako miejsce pracy",
+    "markNotWorkArea": "Usuń jako miejsce pracy",
     "tab_attendanceRules": "Godziny i urlop",
     "geofenceTitle": "Granica zakładu",
     "geofenceHint": "Miejsce, po którym aplikacja mobilna rozpoznaje przyjście i wyjście. Dopóki granica nie jest ustawiona i włączona, automatyczna rejestracja jest odrzucana, a nie zgadywana.",

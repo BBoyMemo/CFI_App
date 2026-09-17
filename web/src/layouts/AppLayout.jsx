@@ -18,11 +18,12 @@ import { useClockState } from './useClockState';
  * in the side panel: two routes to the same screen makes the panel long enough that the
  * things only reachable there get lost in it.
  *
- * `null` means everyone signed in. Nobody sees all seven - an operator has no pool and no
- * history - so the bar is as short as the person's job is.
+ * `null` means everyone signed in. Nobody sees the whole list - an operator has no pool and
+ * no history - so the bar is as short as the person's job is.
  */
 const PRIMARY = [
   { to: '/', labelKey: 'nav.dashboard', icon: 'home', permission: null, end: true },
+  { to: '/workorders/new', labelKey: 'nav.createReport', icon: 'wrench', permission: Permissions.WorkOrderCreate },
   { to: '/workorders/pool', labelKey: 'nav.pool', icon: 'box', permission: Permissions.WorkOrderClaim },
   { to: '/workorders/mine', labelKey: 'nav.myJobs', icon: 'clipboard', permission: Permissions.WorkOrderClaim },
   { to: '/tasks', labelKey: 'nav.tasks', icon: 'clipboard', permission: Permissions.TaskViewAssigned },
@@ -39,7 +40,6 @@ const PRIMARY = [
  * through JSX for who is currently allowed where.
  */
 const MENU = [
-  { to: '/workorders/new', labelKey: 'nav.createReport', icon: 'wrench', permission: Permissions.WorkOrderCreate },
   { to: '/attendance', labelKey: 'nav.attendance', icon: 'calendar', permission: Permissions.AttendanceViewOwn },
   { to: '/shifts/mine', labelKey: 'nav.myShifts', icon: 'clock', permission: Permissions.ShiftViewOwn },
   { to: '/orders', labelKey: 'nav.orders', icon: 'box', permission: Permissions.OrderCreate },

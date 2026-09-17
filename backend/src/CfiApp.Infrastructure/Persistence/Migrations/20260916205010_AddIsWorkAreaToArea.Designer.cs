@@ -3,6 +3,7 @@ using System;
 using CfiApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CfiApp.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CfiAppDbContext))]
-    partial class CfiAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916205010_AddIsWorkAreaToArea")]
+    partial class AddIsWorkAreaToArea
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,7 +56,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CorrectedByUserId");
 
-                    b.ToTable("ClockCorrections", (string)null);
+                    b.ToTable("ClockCorrections");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Attendance.ClockEvent", b =>
@@ -132,7 +135,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "OccurredAtUtc");
 
-                    b.ToTable("ClockEvents", null, t =>
+                    b.ToTable("ClockEvents", t =>
                         {
                             t.HasCheckConstraint("CK_ClockEvent_Coordinates", "(\"Latitude\" IS NULL AND \"Longitude\" IS NULL) OR (\"Latitude\" IS NOT NULL AND \"Longitude\" IS NOT NULL)");
                         });
@@ -192,7 +195,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("GeofenceSettings", null, t =>
+                    b.ToTable("GeofenceSettings", t =>
                         {
                             t.HasCheckConstraint("CK_GeofenceSetting_Radius", "\"RadiusMeters\" > 0");
                         });
@@ -256,7 +259,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "Date");
 
-                    b.ToTable("OvertimeDeclarations", null, t =>
+                    b.ToTable("OvertimeDeclarations", t =>
                         {
                             t.HasCheckConstraint("CK_OvertimeDeclaration_Minutes", "\"Minutes\" > 0");
                         });
@@ -305,7 +308,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("EntityType", "EntityId", "OccurredAt");
 
-                    b.ToTable("AuditLogs", (string)null);
+                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.ManagerScope", b =>
@@ -351,7 +354,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("ManagerScopes", null, t =>
+                    b.ToTable("ManagerScopes", t =>
                         {
                             t.HasCheckConstraint("CK_ManagerScope_TargetIsExclusive", "(\"DepartmentId\" IS NOT NULL AND \"UnitId\" IS NULL) OR (\"DepartmentId\" IS NULL AND \"UnitId\" IS NOT NULL)");
                         });
@@ -380,7 +383,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("Key")
                         .IsUnique();
 
-                    b.ToTable("Permissions", (string)null);
+                    b.ToTable("Permissions");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.RefreshToken", b =>
@@ -437,7 +440,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "ExpiresAt");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.Role", b =>
@@ -483,7 +486,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Roles", (string)null);
+                    b.ToTable("Roles");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.RolePermission", b =>
@@ -498,7 +501,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PermissionId");
 
-                    b.ToTable("RolePermissions", (string)null);
+                    b.ToTable("RolePermissions");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.User", b =>
@@ -599,7 +602,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status");
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.UserArea", b =>
@@ -614,7 +617,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AreaId");
 
-                    b.ToTable("UserAreas", (string)null);
+                    b.ToTable("UserAreas");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Identity.UserSignature", b =>
@@ -660,7 +663,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasFilter("\"ReplacedAt\" IS NULL");
 
-                    b.ToTable("UserSignatures", (string)null);
+                    b.ToTable("UserSignatures");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Maintenance.QaCheck", b =>
@@ -720,7 +723,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("WorkOrderId", "Attempt")
                         .IsUnique();
 
-                    b.ToTable("QaChecks", null, t =>
+                    b.ToTable("QaChecks", t =>
                         {
                             t.HasCheckConstraint("CK_QaCheck_FailNeedsNote", "(\"Result\" <> 2) OR (\"Note\" IS NOT NULL)");
                         });
@@ -782,7 +785,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("WorkOrderId", "Kind")
                         .IsUnique();
 
-                    b.ToTable("SignOffs", (string)null);
+                    b.ToTable("SignOffs");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Maintenance.WorkOrder", b =>
@@ -902,7 +905,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UnitId", "ReportedAt");
 
-                    b.ToTable("WorkOrders", null, t =>
+                    b.ToTable("WorkOrders", t =>
                         {
                             t.HasCheckConstraint("CK_WorkOrder_EquipmentIdentified", "(\"EquipmentId\" IS NOT NULL) OR (\"EquipmentFreeText\" IS NOT NULL)");
                         });
@@ -990,7 +993,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("WorkOrderId", "Version")
                         .IsUnique();
 
-                    b.ToTable("WorkOrderClosures", null, t =>
+                    b.ToTable("WorkOrderClosures", t =>
                         {
                             t.HasCheckConstraint("CK_WorkOrderClosure_Contractor", "(\"ContractorRequired\" = FALSE) OR (\"ContractorUsed\" IS NOT NULL)");
 
@@ -1056,7 +1059,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("WorkOrderId")
                         .IsUnique();
 
-                    b.ToTable("WorkOrderCosts", (string)null);
+                    b.ToTable("WorkOrderCosts");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Maintenance.WorkOrderEvent", b =>
@@ -1099,7 +1102,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("WorkOrderId", "OccurredAt");
 
-                    b.ToTable("WorkOrderEvents", (string)null);
+                    b.ToTable("WorkOrderEvents");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Maintenance.WorkOrderPhoto", b =>
@@ -1143,7 +1146,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("WorkOrderId", "Category");
 
-                    b.ToTable("WorkOrderPhotos", (string)null);
+                    b.ToTable("WorkOrderPhotos");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Media.MediaAsset", b =>
@@ -1207,7 +1210,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("StorageKey")
                         .IsUnique();
 
-                    b.ToTable("MediaAssets", (string)null);
+                    b.ToTable("MediaAssets");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Messaging.DeviceToken", b =>
@@ -1260,7 +1263,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "RevokedAt");
 
-                    b.ToTable("DeviceTokens", (string)null);
+                    b.ToTable("DeviceTokens");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Messaging.Message", b =>
@@ -1309,7 +1312,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SenderUserId");
 
-                    b.ToTable("Messages", (string)null);
+                    b.ToTable("Messages");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Messaging.MessageRead", b =>
@@ -1327,7 +1330,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("MessageReads", (string)null);
+                    b.ToTable("MessageReads");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Messaging.MessageRecipient", b =>
@@ -1355,7 +1358,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("MessageRecipients", null, t =>
+                    b.ToTable("MessageRecipients", t =>
                         {
                             t.HasCheckConstraint("CK_MessageRecipient_TargetIsExclusive", "(\"UserId\" IS NOT NULL AND \"DepartmentId\" IS NULL) OR (\"UserId\" IS NULL AND \"DepartmentId\" IS NOT NULL)");
                         });
@@ -1399,7 +1402,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "SentAt");
 
-                    b.ToTable("NotificationLogs", (string)null);
+                    b.ToTable("NotificationLogs");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Organization.Area", b =>
@@ -1456,7 +1459,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("UnitId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Areas", (string)null);
+                    b.ToTable("Areas");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Organization.Department", b =>
@@ -1498,7 +1501,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Departments", (string)null);
+                    b.ToTable("Departments");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Organization.Equipment", b =>
@@ -1567,7 +1570,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UnitId", "IsActive");
 
-                    b.ToTable("Equipment", (string)null);
+                    b.ToTable("Equipment");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Organization.Line", b =>
@@ -1619,7 +1622,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UnitId", "IsActive");
 
-                    b.ToTable("Lines", (string)null);
+                    b.ToTable("Lines");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Organization.Occupation", b =>
@@ -1661,7 +1664,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("Occupations", (string)null);
+                    b.ToTable("Occupations");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Organization.Unit", b =>
@@ -1713,7 +1716,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsActive", "DisplayOrder");
 
-                    b.ToTable("Units", (string)null);
+                    b.ToTable("Units");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Scheduling.HolidayRequest", b =>
@@ -1776,7 +1779,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId", "StartDate");
 
-                    b.ToTable("HolidayRequests", null, t =>
+                    b.ToTable("HolidayRequests", t =>
                         {
                             t.HasCheckConstraint("CK_HolidayRequest_DateOrder", "\"EndDate\" >= \"StartDate\"");
 
@@ -1828,7 +1831,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("Date", "Region")
                         .IsUnique();
 
-                    b.ToTable("PublicHolidays", (string)null);
+                    b.ToTable("PublicHolidays");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Scheduling.ShiftAssignment", b =>
@@ -1875,7 +1878,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "Date", "ShiftTypeId")
                         .IsUnique();
 
-                    b.ToTable("ShiftAssignments", (string)null);
+                    b.ToTable("ShiftAssignments");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Scheduling.ShiftType", b =>
@@ -1926,7 +1929,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("ShiftTypes", (string)null);
+                    b.ToTable("ShiftTypes");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Work.MaintenanceTask", b =>
@@ -1985,7 +1988,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ScheduledDate", "Kind");
 
-                    b.ToTable("MaintenanceTasks", (string)null);
+                    b.ToTable("MaintenanceTasks");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Work.PartOrderRequest", b =>
@@ -2052,7 +2055,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status", "RequestedAt");
 
-                    b.ToTable("PartOrderRequests", null, t =>
+                    b.ToTable("PartOrderRequests", t =>
                         {
                             t.HasCheckConstraint("CK_PartOrderRequest_Quantity", "\"Quantity\" > 0");
                         });
@@ -2070,7 +2073,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("TaskAssignments", (string)null);
+                    b.ToTable("TaskAssignments");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Work.TaskCompletion", b =>
@@ -2122,7 +2125,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.HasIndex("MaintenanceTaskId", "UserId")
                         .IsUnique();
 
-                    b.ToTable("TaskCompletions", (string)null);
+                    b.ToTable("TaskCompletions");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Work.TaskCompletionPhoto", b =>
@@ -2145,7 +2148,7 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TaskCompletionId");
 
-                    b.ToTable("TaskCompletionPhotos", (string)null);
+                    b.ToTable("TaskCompletionPhotos");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Attendance.ClockCorrection", b =>

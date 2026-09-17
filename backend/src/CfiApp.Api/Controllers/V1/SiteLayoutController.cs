@@ -118,7 +118,8 @@ public sealed class AreasController(CfiAppDbContext context) : ControllerBase
         var items = await query
             .Skip((PagedResult.NormalisePage(page) - 1) * PagedResult.NormalisePageSize(pageSize))
             .Take(PagedResult.NormalisePageSize(pageSize))
-            .Select(x => new AreaDto(x.Id, x.UnitId, x.Unit!.Name, x.Name, x.Code, x.DisplayOrder, x.IsActive))
+            .Select(x => new AreaDto(
+                x.Id, x.UnitId, x.Unit!.Name, x.Name, x.Code, x.DisplayOrder, x.IsActive, x.IsWorkArea))
             .ToListAsync(cancellationToken);
 
         return Ok(new PagedResult<AreaDto>(items, total, page, pageSize));
@@ -141,13 +142,16 @@ public sealed class AreasController(CfiAppDbContext context) : ControllerBase
             UnitId = request.UnitId,
             Name = request.Name.Trim(),
             Code = string.IsNullOrWhiteSpace(request.Code) ? null : request.Code.Trim(),
-            DisplayOrder = request.DisplayOrder
+            DisplayOrder = request.DisplayOrder,
+            IsWorkArea = request.IsWorkArea
         };
 
         context.Areas.Add(area);
         await context.SaveChangesAsync(cancellationToken);
 
-        var dto = new AreaDto(area.Id, area.UnitId, unit.Name, area.Name, area.Code, area.DisplayOrder, area.IsActive);
+        var dto = new AreaDto(
+            area.Id, area.UnitId, unit.Name, area.Name, area.Code, area.DisplayOrder,
+            area.IsActive, area.IsWorkArea);
         return CreatedAtAction(nameof(List), new { }, dto);
     }
 
@@ -170,6 +174,7 @@ public sealed class AreasController(CfiAppDbContext context) : ControllerBase
         area.Name = request.Name.Trim();
         area.Code = string.IsNullOrWhiteSpace(request.Code) ? null : request.Code.Trim();
         area.DisplayOrder = request.DisplayOrder;
+        area.IsWorkArea = request.IsWorkArea;
 
         await context.SaveChangesAsync(cancellationToken);
         return NoContent();
