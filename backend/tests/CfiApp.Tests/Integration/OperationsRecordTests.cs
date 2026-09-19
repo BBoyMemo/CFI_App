@@ -69,37 +69,60 @@ public sealed class OperationsRecordTests(CfiAppApiFactory factory)
     }
 
     [Fact]
-    public async Task Dropping_the_same_person_on_the_same_shift_twice_is_rejected()
+    public async Task The_database_itself_refuses_putting_someone_on_two_shifts_at_once()
     {
         await SeedAsync();
         var userId = await NewUserIdAsync();
-        var date = new DateOnly(2026, 9, 7);
 
-        int shiftTypeId;
+        int morningId, nightId;
         await using (var scope = factory.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
-            shiftTypeId = (await context.ShiftTypes.FirstAsync(x => x.Name == "Morning")).Id;
 
-            context.ShiftAssignments.Add(new ShiftAssignment
+            var morning = new ActiveShift
+            {
+                Name = $"Morning {Guid.NewGuid():N}",
+                StartTime = new TimeOnly(6, 0),
+                EndTime = new TimeOnly(14, 0),
+                Weekdays = Weekdays.WorkingWeek,
+                StartsOn = new DateOnly(2026, 1, 1)
+            };
+
+            var night = new ActiveShift
+            {
+                Name = $"Night {Guid.NewGuid():N}",
+                StartTime = new TimeOnly(22, 0),
+                EndTime = new TimeOnly(6, 0),
+                Weekdays = Weekdays.WorkingWeek,
+                StartsOn = new DateOnly(2026, 1, 1)
+            };
+
+            context.ActiveShifts.AddRange(morning, night);
+            await context.SaveChangesAsync();
+            morningId = morning.Id;
+            nightId = night.Id;
+
+            context.ShiftRosterEntries.Add(new ShiftRosterEntry
             {
                 UserId = userId,
-                Date = date,
-                ShiftTypeId = shiftTypeId
+                ActiveShiftId = morningId,
+                EffectiveFrom = new DateOnly(2026, 9, 7)
             });
             await context.SaveChangesAsync();
         }
 
-        await using var duplicateScope = factory.CreateScope();
-        var duplicateContext = duplicateScope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
-        duplicateContext.ShiftAssignments.Add(new ShiftAssignment
+        // Nobody works two shifts at the same time. The service closes the old row before
+        // opening a new one; this is the guard for when something bypasses it.
+        await using var clashScope = factory.CreateScope();
+        var clashContext = clashScope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+        clashContext.ShiftRosterEntries.Add(new ShiftRosterEntry
         {
             UserId = userId,
-            Date = date,
-            ShiftTypeId = shiftTypeId
+            ActiveShiftId = nightId,
+            EffectiveFrom = new DateOnly(2026, 9, 14)
         });
 
-        await Should.ThrowAsync<DbUpdateException>(() => duplicateContext.SaveChangesAsync());
+        await Should.ThrowAsync<DbUpdateException>(() => clashContext.SaveChangesAsync());
     }
 
     [Fact]

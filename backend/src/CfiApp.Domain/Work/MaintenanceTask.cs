@@ -42,6 +42,7 @@ public sealed class MaintenanceTask : Entity, IAuditable
 
     public ICollection<TaskAssignment> Assignments { get; set; } = [];
     public ICollection<TaskCompletion> Completions { get; set; } = [];
+    public ICollection<TaskProgressNote> ProgressNotes { get; set; } = [];
 
     public DateTimeOffset CreatedAt { get; set; }
     public int? CreatedByUserId { get; set; }
@@ -86,6 +87,40 @@ public sealed class TaskCompletionPhoto : Entity
 {
     public int TaskCompletionId { get; set; }
     public TaskCompletion? TaskCompletion { get; set; }
+
+    public int MediaAssetId { get; set; }
+    public MediaAsset? MediaAsset { get; set; }
+}
+
+/// <summary>
+/// A day's word on a task that is not finished yet - what was done, without marking it
+/// done. The task stays assigned and open for the next shift; unlike <see cref="TaskCompletion"/>
+/// there is no one-per-person limit, because the same engineer may leave one of these
+/// every shift until the day it is actually finished.
+/// </summary>
+public sealed class TaskProgressNote : Entity, IAuditable
+{
+    public int MaintenanceTaskId { get; set; }
+    public MaintenanceTask? MaintenanceTask { get; set; }
+
+    public int UserId { get; set; }
+    public User? User { get; set; }
+
+    public required string Note { get; set; }
+    public DateTimeOffset LoggedAt { get; set; }
+
+    public ICollection<TaskProgressNotePhoto> Photos { get; set; } = [];
+
+    public DateTimeOffset CreatedAt { get; set; }
+    public int? CreatedByUserId { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public int? UpdatedByUserId { get; set; }
+}
+
+public sealed class TaskProgressNotePhoto : Entity
+{
+    public int TaskProgressNoteId { get; set; }
+    public TaskProgressNote? TaskProgressNote { get; set; }
 
     public int MediaAssetId { get; set; }
     public MediaAsset? MediaAsset { get; set; }

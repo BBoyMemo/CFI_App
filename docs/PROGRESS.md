@@ -308,6 +308,57 @@ kullanıcı girdisi olmadan büyük ölçüde ilerlenebilir)
 
 ---
 
+## 2026-09-18 — Shift Planning yeniden tasarlandı / şablon + havuz
+
+**Neden:** Haftalık ızgara planlayıcı işin şeklini yanlış modelliyordu. Aynı insanlar her
+hafta aynı vardiyada çalışıyor, dolayısıyla manager her hafta aynı tabloyu elle dolduruyordu.
+Ayrıca `DELETE assignments/{id}` satırı kalıcı siliyordu: "geçen ay kim gecedeydi" sorusunun
+cevabı sistemde hiç yoktu — BRC denetimi olan bir tesiste boşluk. Üstüne kullanıcı vardiya
+oluşturma/silme istedi ve gece vardiyasının Pazar akşamı başlaması gibi vardiyaya ait
+özellikler ortaya çıktı.
+
+**Model — iki seviye.** `ShiftAssignment` (kişi + gün + shift) kaldırıldı:
+- `ShiftType` artık **şablon**: ad, saat, `Weekdays` (flags), `StartsOn`. Serbestçe silinir,
+  çünkü hiçbir şey ona bakmıyor.
+- `ActiveShift` (yeni) = **havuz**. Şablonun kopyası: ad/saat/gün/başlangıç kendi üstünde.
+  Şablonu silmek ya da düzenlemek havuzdakini değiştirmez — insanlar kopyaya çalışıyor.
+  Havuzdan çıkarmak, hiç kullanılmamışsa siler, kullanılmışsa `EndsOn` ile kapatır.
+- `ShiftRosterEntry` = kişi + havuz vardiyası + `EffectiveFrom`/`EffectiveTo`. Gün alanı yok:
+  günler vardiyaya ait. Unique `(UserId, EffectiveTo)` → kimse aynı anda iki vardiyada olamaz.
+- `ShiftOverride` = tarih aralıklı yerine geçme; `ActiveShiftId` null = "çalışmıyor".
+
+Değişiklik hiçbir zaman silme değil: eski satır kapanır, yenisi açılır. Geçmiş böylece
+kendiliğinden oluşuyor. Geriye dönük rota yazımı 400.
+
+**Çözümleme tek yerde** (`IShiftResolver`): override → onaylı izin → resmi tatil → havuz
+vardiyası (kendi günleri + başlangıcı geçerliyse). Aralık ne olursa olsun 4 sorgu.
+
+**Uçlar:** `GET /shifts/roster?on=`, `POST/DELETE /shifts/pool`, `POST /shifts/roster`,
+`POST /shifts/roster/{id}/end`, `POST/DELETE /shifts/cover`, `GET /shifts/changes`,
+`GET /shifts/mine`; `DELETE /admin/shift-types/{id}` eklendi.
+
+**Ekran:** üç kolon — ekip / çizilmiş vardiyalar / havuz. Vardiya havuza sürüklenince
+kopyalanır ve yerinde kalır; kişi sürüklenince taşınır. Tarihe göre gezinme ayrı sayfaya
+alındı (`/shifts/history`): tarih + arama (isim veya vardiya), o gün ne çalışmış ve kimler
+varmış.
+
+**Yol boyunca çıkanlar:**
+- Sürüklenen şey yalnızca state'te tutulduğu için sayfanın **ilk sürüklemesi yutuluyordu**
+  (`onDragOver`'daki `preventDefault` bir sonraki render'a kadar çalışmıyordu). Ref'e alındı.
+- Bildirim ekranı `MessageId != null` filtreliyordu, yani gövdesi olmayan sistem bildirimleri
+  hiç görünmüyordu. İsimli bir tip listesine çevrildi; iş emri ilerlemesi bilerek dışarıda.
+- `hours.js` içindeki `weekStart`/`addDays` yerel gece yarısını `toISOString()` ile kesiyordu;
+  BST'de bir gün geri veriyordu. Yerelden okuyacak şekilde düzeltildi — attendance ekranları
+  da aynı hatadan etkileniyordu.
+- Migration'da veri düzeltmesi: mevcut vardiya tipleri `Weekdays = 0` ile kalacaktı, yani
+  hiçbir güne denk gelmeyen vardiya. Pzt–Cum'a çekildi.
+
+**Kapsam dışı:** rotating shift / 4-on-4-off, molalar, çalışanın değişiklik talebi + onayı.
+
+**Test:** 233/233 yeşil. Web: lint + i18n (378 anahtar × 4 dil) + build temiz.
+
+---
+
 ## 2026-09-04 — Faz 7 TAMAMLANDI / Shift Planning backend
 
 **Yapıldı**

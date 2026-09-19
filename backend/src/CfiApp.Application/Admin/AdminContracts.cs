@@ -11,9 +11,13 @@ public sealed record OccupationDto(int Id, string Name, bool IsActive);
 public sealed record UpsertOccupationRequest(string Name);
 
 public sealed record ShiftTypeDto(
-    int Id, string Name, TimeOnly StartTime, TimeOnly EndTime, int DisplayOrder, bool IsActive);
+    int Id, string Name, TimeOnly StartTime, TimeOnly EndTime,
+    IReadOnlyCollection<DayOfWeek> Weekdays, DateOnly StartsOn,
+    int DisplayOrder, bool IsActive, bool InPool);
 
-public sealed record UpsertShiftTypeRequest(string Name, TimeOnly StartTime, TimeOnly EndTime, int DisplayOrder);
+public sealed record UpsertShiftTypeRequest(
+    string Name, TimeOnly StartTime, TimeOnly EndTime,
+    IReadOnlyCollection<DayOfWeek> Weekdays, DateOnly StartsOn, int DisplayOrder);
 
 public sealed record UnitDto(int Id, string Name, string Code, int DisplayOrder, bool IsActive);
 public sealed record UpsertUnitRequest(string Name, string Code, int DisplayOrder);

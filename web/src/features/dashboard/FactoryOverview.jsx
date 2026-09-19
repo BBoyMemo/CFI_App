@@ -33,7 +33,9 @@ function Tile({ to, labelKey, count, tone }) {
  */
 export default function FactoryOverview() {
   const open = useApiData(() => getWorkOrders({ open: true, pageSize: 1 }));
-  const pool = useApiData(() => getPool({ pageSize: 1 }));
+  // The pool list shows every live job; this tile counts only the ones still waiting for
+  // somebody, which is the number a manager acts on.
+  const pool = useApiData(() => getPool({ unclaimed: true, pageSize: 1 }));
   const awaitingQa = useApiData(() => getWorkOrders({ status: AWAITING_QA, pageSize: 1 }));
   const qaFailed = useApiData(() => getWorkOrders({ status: QA_FAILED, pageSize: 1 }));
   const closed = useApiData(() => getWorkOrders({ status: CLOSED, pageSize: 1 }));

@@ -9,7 +9,13 @@ public enum UserStatus
     PendingApproval = 0,
     Active = 1,
     /// <summary>Left the company or suspended. All sessions end immediately.</summary>
-    Disabled = 2
+    Disabled = 2,
+    /// <summary>
+    /// A registration a manager decided not to proceed with - not a real starter, a
+    /// duplicate, or not theirs to approve. Distinct from Disabled: this account was
+    /// never active in the first place.
+    /// </summary>
+    Rejected = 3
 }
 
 /// <summary>
@@ -54,6 +60,9 @@ public sealed class User : Entity, IAuditable
     public int? ApprovedByUserId { get; set; }
     public DateTimeOffset? DisabledAt { get; set; }
     public int? DisabledByUserId { get; set; }
+    public DateTimeOffset? RejectedAt { get; set; }
+    public int? RejectedByUserId { get; set; }
+    public string? RejectionReason { get; set; }
 
     public int FailedLoginCount { get; set; }
     public DateTimeOffset? LockoutEndsAt { get; set; }

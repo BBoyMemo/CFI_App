@@ -3,6 +3,8 @@ using CfiApp.Infrastructure.Files;
 using CfiApp.Infrastructure.Auth;
 using CfiApp.Application.Abstractions;
 using CfiApp.Infrastructure.Persistence;
+using CfiApp.Infrastructure.Scheduling;
+using CfiApp.Application.Scheduling;
 using CfiApp.Infrastructure.Persistence.Interceptors;
 using CfiApp.Infrastructure.Persistence.Seed;
 using CfiApp.Infrastructure.Security;
@@ -34,6 +36,8 @@ public static class DependencyInjection
         services.AddScoped<AuditableEntityInterceptor>();
         services.AddScoped<IManagerScopeReader, ManagerScopeReader>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<IShiftResolver, ShiftResolver>();
+        services.AddScoped<RosterService>();
 
         services.AddDbContext<CfiAppDbContext>((provider, options) =>
         {

@@ -55,6 +55,7 @@ export const uploadPhoto = (file) => {
 export const getTeam = (params) => apiClient.get(v1('/team'), { params });
 export const getPendingUsers = (params) => apiClient.get(v1('/users/pending'), { params });
 export const approveUser = (id, payload) => apiClient.post(v1(`/users/${id}/approve`), payload);
+export const rejectPendingUser = (id, reason) => apiClient.post(v1(`/users/${id}/reject`), { reason });
 export const disableUser = (id) => apiClient.post(v1(`/users/${id}/disable`));
 export const getRoles = () => apiClient.get(v1('/admin/roles'));
 
@@ -67,8 +68,8 @@ export const getAllTasks = (params) => apiClient.get(v1('/tasks'), { params });
 export const getTask = (id) => apiClient.get(v1(`/tasks/${id}`));
 export const reassignTask = (id, assignedUserIds) =>
   apiClient.put(v1(`/tasks/${id}/assignees`), { assignedUserIds });
-export const deleteTask = (id) => apiClient.delete(v1(`/tasks/${id}`));
 export const completeTask = (id, payload) => apiClient.post(v1(`/tasks/${id}/complete`), payload);
+export const logTaskProgress = (id, payload) => apiClient.post(v1(`/tasks/${id}/progress`), payload);
 
 // ---------------------------------------------------------------- part orders
 
@@ -104,9 +105,15 @@ export const decideHoliday = (id, payload) => apiClient.post(v1(`/holiday/${id}/
 // ---------------------------------------------------------------- shifts
 
 export const getShiftTypes = (params) => apiClient.get(v1('/admin/shift-types'), { params });
-export const getShiftBoard = (params) => apiClient.get(v1('/shifts/assignments'), { params });
-export const createShiftAssignment = (payload) => apiClient.post(v1('/shifts/assignments'), payload);
-export const deleteShiftAssignment = (id) => apiClient.delete(v1(`/shifts/assignments/${id}`));
+export const deleteShiftType = (id) => apiClient.delete(v1(`/admin/shift-types/${id}`));
+export const addShiftToPool = (shiftTypeId) => apiClient.post(v1('/shifts/pool'), { shiftTypeId });
+export const removeShiftFromPool = (id) => apiClient.delete(v1(`/shifts/pool/${id}`));
+export const getRoster = (params) => apiClient.get(v1('/shifts/roster'), { params });
+export const setRoster = (payload) => apiClient.post(v1('/shifts/roster'), payload);
+export const endRoster = (userId, payload) => apiClient.post(v1(`/shifts/roster/${userId}/end`), payload);
+export const createCover = (payload) => apiClient.post(v1('/shifts/cover'), payload);
+export const deleteCover = (id) => apiClient.delete(v1(`/shifts/cover/${id}`));
+export const getShiftChanges = (params) => apiClient.get(v1('/shifts/changes'), { params });
 export const getMyShifts = (params) => apiClient.get(v1('/shifts/mine'), { params });
 
 // ---------------------------------------------------------------- messages

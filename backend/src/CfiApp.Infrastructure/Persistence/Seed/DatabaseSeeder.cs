@@ -31,8 +31,9 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
     private static readonly string[] Departments = ["Production", "Maintenance", "FLT", "QA"];
 
     /// <summary>
-    /// The three shifts the site runs today. Hours are editable and more can be added;
-    /// unused ones are switched off rather than deleted.
+    /// The three shifts the site runs today, as templates to draw from. Hours and days are
+    /// editable, more can be added, and any of them can be deleted - nothing is working to
+    /// these directly, only to the copies put into the pool.
     /// </summary>
     private static readonly (string Name, TimeOnly Start, TimeOnly End, int Order)[] Shifts =
     [
@@ -324,6 +325,10 @@ public sealed class DatabaseSeeder(CfiAppDbContext context, ILogger<DatabaseSeed
                 Name = shift.Name,
                 StartTime = shift.Start,
                 EndTime = shift.End,
+                // A starting point, not a decision: the site edits the days and the start
+                // date on the planner before putting a shift into the pool.
+                Weekdays = Weekdays.WorkingWeek,
+                StartsOn = new DateOnly(2026, 1, 1),
                 DisplayOrder = shift.Order
             })
             .ToList();

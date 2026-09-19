@@ -229,6 +229,59 @@ public sealed class TasksController(
         return NoContent();
     }
 
+    /// <summary>
+    /// A day's word on a task that is not finished yet - the task stays assigned and open
+    /// for the next shift to pick up. Unlike <see cref="Complete"/> there is no
+    /// one-per-person limit: the same engineer can leave one of these every shift until
+    /// the day it is actually finished, and every one of them stays on the record.
+    /// </summary>
+    [HttpPost("{id:int}/progress")]
+    [Authorize(Policy = Permissions.TaskComplete)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LogProgress(int id, LogTaskProgressRequest request, CancellationToken cancellationToken)
+    {
+        var task = await context.MaintenanceTasks
+            .Include(x => x.Assignments)
+            .FirstOrDefaultAsync(x => x.Id == id && x.DeletedAt == null, cancellationToken);
+
+        if (task is null) return NotFound();
+
+        var userId = currentUser.UserId!.Value;
+
+        if (task.Assignments.All(a => a.UserId != userId))
+        {
+            return Problem(
+                title: "You are not assigned to this task",
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        if (request.PhotoAssetId is { } photoAssetId &&
+            !await context.MediaAssets.AnyAsync(x => x.Id == photoAssetId, cancellationToken))
+        {
+            return Problem(title: "Photo not found", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var progress = new TaskProgressNote
+        {
+            MaintenanceTaskId = id,
+            UserId = userId,
+            Note = request.Note.Trim(),
+            LoggedAt = clock.UtcNow
+        };
+
+        if (request.PhotoAssetId is { } assetId)
+        {
+            progress.Photos.Add(new TaskProgressNotePhoto { MediaAssetId = assetId });
+        }
+
+        context.TaskProgressNotes.Add(progress);
+        await context.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
+
     // ---------------------------------------------------------------- queries
 
     private async Task<ActionResult<PagedResult<TaskSummaryDto>>> ListAsync(
@@ -255,12 +308,18 @@ public sealed class TasksController(
             .Include(x => x.Assignments).ThenInclude(a => a.User)
             .Include(x => x.Completions).ThenInclude(c => c.User)
             .Include(x => x.Completions).ThenInclude(c => c.Photos)
+            .Include(x => x.ProgressNotes).ThenInclude(p => p.User)
+            .Include(x => x.ProgressNotes).ThenInclude(p => p.Photos)
             .FirstAsync(x => x.Id == id, cancellationToken);
 
         return new TaskDetailDto(
             task.Id, task.Title, task.Description, task.Kind, task.ScheduledDate, task.Priority,
             [.. task.Assignments.Select(a => new TaskAssigneeDto(a.UserId, a.User!.FullName))],
             [.. task.Completions.Select(c => new TaskCompletionDto(
-                c.UserId, c.User!.FullName, c.Note, c.CompletedAt, c.Photos.Count > 0))]);
+                c.UserId, c.User!.FullName, c.Note, c.CompletedAt,
+                c.Photos.Select(p => (int?)p.MediaAssetId).FirstOrDefault()))],
+            [.. task.ProgressNotes.OrderBy(p => p.LoggedAt).Select(p => new TaskProgressNoteDto(
+                p.UserId, p.User!.FullName, p.Note, p.LoggedAt,
+                p.Photos.Select(x => (int?)x.MediaAssetId).FirstOrDefault()))]);
     }
 }

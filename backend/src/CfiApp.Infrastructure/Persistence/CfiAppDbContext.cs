@@ -51,6 +51,8 @@ public sealed class CfiAppDbContext(DbContextOptions<CfiAppDbContext> options) :
     public DbSet<TaskAssignment> TaskAssignments => Set<TaskAssignment>();
     public DbSet<TaskCompletion> TaskCompletions => Set<TaskCompletion>();
     public DbSet<TaskCompletionPhoto> TaskCompletionPhotos => Set<TaskCompletionPhoto>();
+    public DbSet<TaskProgressNote> TaskProgressNotes => Set<TaskProgressNote>();
+    public DbSet<TaskProgressNotePhoto> TaskProgressNotePhotos => Set<TaskProgressNotePhoto>();
     public DbSet<PartOrderRequest> PartOrderRequests => Set<PartOrderRequest>();
 
     // ---- Attendance (Phase 1) ----
@@ -61,7 +63,9 @@ public sealed class CfiAppDbContext(DbContextOptions<CfiAppDbContext> options) :
 
     // ---- Scheduling (Phase 1) ----
     public DbSet<ShiftType> ShiftTypes => Set<ShiftType>();
-    public DbSet<ShiftAssignment> ShiftAssignments => Set<ShiftAssignment>();
+    public DbSet<ActiveShift> ActiveShifts => Set<ActiveShift>();
+    public DbSet<ShiftRosterEntry> ShiftRosterEntries => Set<ShiftRosterEntry>();
+    public DbSet<ShiftOverride> ShiftOverrides => Set<ShiftOverride>();
     public DbSet<HolidayRequest> HolidayRequests => Set<HolidayRequest>();
     public DbSet<PublicHoliday> PublicHolidays => Set<PublicHoliday>();
 

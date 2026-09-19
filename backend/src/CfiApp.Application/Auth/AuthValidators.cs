@@ -126,3 +126,13 @@ public sealed class ApproveUserRequestValidator : AbstractValidator<ApproveUserR
         RuleForEach(x => x.AreaIds).GreaterThan(0);
     }
 }
+
+public sealed class RejectPendingUserRequestValidator : AbstractValidator<RejectPendingUserRequest>
+{
+    public RejectPendingUserRequestValidator()
+    {
+        RuleFor(x => x.Reason)
+            .NotEmpty().WithMessage("Say why this registration is being turned down.")
+            .MaximumLength(500);
+    }
+}

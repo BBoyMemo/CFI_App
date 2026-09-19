@@ -1,3 +1,4 @@
+using CfiApp.Application.Scheduling;
 using Asp.Versioning;
 using CfiApp.Application.Abstractions;
 using CfiApp.Application.Admin;
@@ -168,8 +169,12 @@ public sealed class OccupationsController(CfiAppDbContext context) : ControllerB
 }
 
 /// <summary>
-/// Shift types are never deleted, only switched off - a shift already used on the rota
-/// must keep its meaning for the weeks that already reference it.
+/// The library of shifts a manager can draw from: name, hours, the days it runs and the day
+/// it starts.
+///
+/// These are templates, not the rota. Putting one into the pool copies it, so deleting one
+/// here takes nothing away from the people already working the copy - which is what makes
+/// deleting safe, where the old design could only switch a shift off.
 /// </summary>
 [ApiController]
 [ApiVersion("1.0")]
@@ -188,23 +193,45 @@ public sealed class ShiftTypesController(CfiAppDbContext context) : ControllerBa
         var items = await query
             .Skip((PagedResult.NormalisePage(page) - 1) * PagedResult.NormalisePageSize(pageSize))
             .Take(PagedResult.NormalisePageSize(pageSize))
-            .Select(x => new ShiftTypeDto(x.Id, x.Name, x.StartTime, x.EndTime, x.DisplayOrder, x.IsActive))
+            .Select(x => new
+            {
+                x.Id, x.Name, x.StartTime, x.EndTime, x.Weekdays, x.StartsOn, x.DisplayOrder, x.IsActive,
+                InPool = context.ActiveShifts.Any(a => a.SourceShiftTypeId == x.Id && a.EndsOn == DateOnly.MaxValue)
+            })
             .ToListAsync(cancellationToken);
 
-        return Ok(new PagedResult<ShiftTypeDto>(items, total, page, pageSize));
+        var dtos = items
+            .Select(x => new ShiftTypeDto(
+                x.Id, x.Name, x.StartTime, x.EndTime, x.Weekdays.ToDays(), x.StartsOn,
+                x.DisplayOrder, x.IsActive, x.InPool))
+            .ToList();
+
+        return Ok(new PagedResult<ShiftTypeDto>(dtos, total, page, pageSize));
     }
 
     [HttpPost]
     [Authorize(Policy = Permissions.ShiftPlan)]
     [ProducesResponseType(typeof(ShiftTypeDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ShiftTypeDto>> Create(
         UpsertShiftTypeRequest request, CancellationToken cancellationToken)
     {
+        var name = request.Name.Trim();
+
+        if (await context.ShiftTypes.AnyAsync(x => x.Name == name, cancellationToken))
+        {
+            return Problem(
+                title: "There is already a shift with that name",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
         var shiftType = new ShiftType
         {
-            Name = request.Name.Trim(),
+            Name = name,
             StartTime = request.StartTime,
             EndTime = request.EndTime,
+            Weekdays = request.Weekdays.ToFlags(),
+            StartsOn = request.StartsOn,
             DisplayOrder = request.DisplayOrder
         };
 
@@ -213,7 +240,8 @@ public sealed class ShiftTypesController(CfiAppDbContext context) : ControllerBa
 
         var dto = new ShiftTypeDto(
             shiftType.Id, shiftType.Name, shiftType.StartTime, shiftType.EndTime,
-            shiftType.DisplayOrder, shiftType.IsActive);
+            shiftType.Weekdays.ToDays(), shiftType.StartsOn, shiftType.DisplayOrder,
+            shiftType.IsActive, false);
 
         return CreatedAtAction(nameof(List), new { }, dto);
     }
@@ -228,11 +256,34 @@ public sealed class ShiftTypesController(CfiAppDbContext context) : ControllerBa
         var shiftType = await context.ShiftTypes.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (shiftType is null) return NotFound();
 
+        // Editing the template does not touch a copy already in the pool: people are working
+        // to that copy, and a rota must not change because somebody tidied up a name.
         shiftType.Name = request.Name.Trim();
         shiftType.StartTime = request.StartTime;
         shiftType.EndTime = request.EndTime;
+        shiftType.Weekdays = request.Weekdays.ToFlags();
+        shiftType.StartsOn = request.StartsOn;
         shiftType.DisplayOrder = request.DisplayOrder;
 
+        await context.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Deletes the template. Safe by construction: nothing points at it, because what people
+    /// are working is the copy in the pool. Take that out of the pool separately if it should
+    /// stop running.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Policy = Permissions.ShiftPlan)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
+    {
+        var shiftType = await context.ShiftTypes.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (shiftType is null) return NotFound();
+
+        context.ShiftTypes.Remove(shiftType);
         await context.SaveChangesAsync(cancellationToken);
         return NoContent();
     }

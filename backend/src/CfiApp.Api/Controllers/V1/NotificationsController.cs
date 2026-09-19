@@ -11,16 +11,22 @@ using Microsoft.EntityFrameworkCore;
 namespace CfiApp.Api.Controllers.V1;
 
 /// <summary>
-/// Messages a manager has sent this person.
+/// What this person needs telling about: messages a manager has sent them, and the few
+/// system events that are about them rather than about a job.
 ///
 /// The notification log holds more than that - an engineer saying they are on their way, a
-/// job held up waiting for a part, a closure QA sent back - but the site asked for this
-/// screen to carry only the messages. The rest is progress on a job, and a job already has
-/// a card that shows exactly where it has got to; repeating it here turned the screen into
-/// a list nobody read.
+/// job held up waiting for a part, a closure QA sent back - and those deliberately stay off
+/// this screen. A job already has a card showing exactly where it has got to, and repeating
+/// it here turned the screen into a list nobody read.
 ///
-/// The log itself keeps every row: this is a filter over what is shown, not a decision to
-/// stop recording. Turning the other kinds back on is one predicate.
+/// A shift change is the other kind of thing. It is not progress on a job somebody can go
+/// and look at; it is a change to the person's own week that they would otherwise discover
+/// by turning up at the wrong time. So the filter is a named list rather than "anything
+/// with a message attached" - each type is on this screen because somebody decided it
+/// should be.
+///
+/// The log itself keeps every row either way: this is a filter over what is shown, not a
+/// decision to stop recording.
 ///
 /// Append-only, like the log: there is nothing to mark, delete or tidy here.
 /// </summary>
@@ -39,7 +45,7 @@ public sealed class NotificationsController(CfiAppDbContext context, ICurrentUse
     {
         var userId = currentUser.UserId!.Value;
 
-        var query = MessagesFor(userId).OrderByDescending(x => x.SentAt);
+        var query = FeedFor(userId).OrderByDescending(x => x.SentAt);
 
         var total = await query.CountAsync(cancellationToken);
 
@@ -75,18 +81,25 @@ public sealed class NotificationsController(CfiAppDbContext context, ICurrentUse
 
         // Counted over the same rows the screen lists. A badge promising three things
         // that are not there when you tap it is worse than no badge.
-        var query = MessagesFor(userId);
+        var query = FeedFor(userId);
         if (since is not null) query = query.Where(x => x.SentAt > since);
 
         return Ok(new UnseenNotificationsDto(await query.CountAsync(cancellationToken)));
     }
 
     /// <summary>
-    /// This person's notification rows that came from a message. Everything the system
-    /// raises about a work order has no MessageId, which is what separates the two.
+    /// System notification types that belong on this screen. Work order progress is not
+    /// here on purpose - see the note on the class.
     /// </summary>
-    private IQueryable<NotificationLog> MessagesFor(int userId) =>
+    private static readonly string[] FeedTypes =
+        ["shift.rosterChanged", "shift.coverAdded", "shift.coverRemoved"];
+
+    /// <summary>
+    /// This person's rows worth showing: anything that came from a message, plus the named
+    /// system types above.
+    /// </summary>
+    private IQueryable<NotificationLog> FeedFor(int userId) =>
         context.NotificationLogs
             .AsNoTracking()
-            .Where(x => x.UserId == userId && x.MessageId != null);
+            .Where(x => x.UserId == userId && (x.MessageId != null || FeedTypes.Contains(x.Type)));
 }

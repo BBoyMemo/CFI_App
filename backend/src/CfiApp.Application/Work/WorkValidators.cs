@@ -33,6 +33,15 @@ public sealed class CompleteTaskRequestValidator : AbstractValidator<CompleteTas
     }
 }
 
+public sealed class LogTaskProgressRequestValidator : AbstractValidator<LogTaskProgressRequest>
+{
+    public LogTaskProgressRequestValidator()
+    {
+        RuleFor(x => x.Note).NotEmpty().MaximumLength(2000);
+        RuleFor(x => x.PhotoAssetId).GreaterThan(0).When(x => x.PhotoAssetId is not null);
+    }
+}
+
 public sealed class CreatePartOrderRequestValidator : AbstractValidator<CreatePartOrderRequest>
 {
     public CreatePartOrderRequestValidator()

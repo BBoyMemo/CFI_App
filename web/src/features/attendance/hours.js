@@ -34,16 +34,36 @@ export function formatHours(minutes) {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+/**
+ * A calendar day as YYYY-MM-DD, read off the local clock.
+ *
+ * Deliberately not toISOString(): that converts to UTC first, so through British Summer
+ * Time every one of these helpers used to answer with the previous day for any time before
+ * 01:00 - a rota is written in local days, and a shift landing on the wrong date is not a
+ * rounding error to anybody expected to turn up for it.
+ */
+export function toIsoDay(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Today, as an ISO day string. */
+export function todayIso() {
+  return toIsoDay(new Date());
+}
+
 /** Monday of the week containing the given date, as an ISO day string. */
 export function weekStart(date) {
   const copy = new Date(date);
   const weekday = (copy.getDay() + 6) % 7; // Monday = 0
   copy.setDate(copy.getDate() - weekday);
-  return copy.toISOString().slice(0, 10);
+  return toIsoDay(copy);
 }
 
 export function addDays(isoDay, days) {
   const date = new Date(`${isoDay}T00:00:00`);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return toIsoDay(date);
 }

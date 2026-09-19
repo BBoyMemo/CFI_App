@@ -187,6 +187,11 @@ public sealed class AuthController(
             detail: "This account has been disabled. Contact your manager.",
             statusCode: StatusCodes.Status403Forbidden),
 
+        AuthFailure.AccountRejected => Problem(
+            title: "Registration not approved",
+            detail: "This registration was not approved. Contact your manager.",
+            statusCode: StatusCodes.Status403Forbidden),
+
         AuthFailure.AccountLocked => Problem(
             title: "Too many attempts",
             detail: "Too many failed sign in attempts. Try again in a few minutes.",

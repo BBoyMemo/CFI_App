@@ -18,6 +18,7 @@ import AttendancePage from './features/attendance/AttendancePage';
 import TeamHoursPage from './features/attendance/TeamHoursPage';
 import OvertimePage from './features/attendance/OvertimePage';
 import HolidayPage from './features/attendance/HolidayPage';
+import ShiftHistoryPage from './features/shifts/ShiftHistoryPage';
 import ShiftPlannerPage from './features/shifts/ShiftPlannerPage';
 import MyShiftsPage from './features/shifts/MyShiftsPage';
 import NotificationsPage from './features/notifications/NotificationsPage';
@@ -43,6 +44,7 @@ const PROTECTED = [
   { path: '/attendance/team', permission: Permissions.AttendanceViewTeam, element: <TeamHoursPage /> },
   { path: '/overtime', permission: Permissions.OvertimeDeclare, element: <OvertimePage /> },
   { path: '/shifts', permission: Permissions.ShiftPlan, element: <ShiftPlannerPage /> },
+  { path: '/shifts/history', permission: Permissions.ShiftPlan, element: <ShiftHistoryPage /> },
   { path: '/shifts/mine', permission: Permissions.ShiftViewOwn, element: <MyShiftsPage /> },
   // The inbox-and-compose screen is a sender's tool, which is why only senders have it in
   // the menu. A single message stays open to anyone who may read one, so the link on a

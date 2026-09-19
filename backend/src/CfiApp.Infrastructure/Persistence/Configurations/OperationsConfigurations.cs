@@ -71,6 +71,36 @@ public sealed class TaskCompletionPhotoConfiguration : IEntityTypeConfiguration<
     }
 }
 
+public sealed class TaskProgressNoteConfiguration : IEntityTypeConfiguration<TaskProgressNote>
+{
+    public void Configure(EntityTypeBuilder<TaskProgressNote> builder)
+    {
+        builder.Property(x => x.Note).HasMaxLength(2000).IsRequired();
+
+        builder.HasOne(x => x.MaintenanceTask).WithMany(x => x.ProgressNotes)
+            .HasForeignKey(x => x.MaintenanceTaskId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+
+        // No uniqueness here, deliberately - unlike TaskCompletion, the same person can
+        // leave one of these every shift until the task is actually finished.
+        builder.HasIndex(x => new { x.MaintenanceTaskId, x.LoggedAt });
+    }
+}
+
+public sealed class TaskProgressNotePhotoConfiguration : IEntityTypeConfiguration<TaskProgressNotePhoto>
+{
+    public void Configure(EntityTypeBuilder<TaskProgressNotePhoto> builder)
+    {
+        builder.HasOne(x => x.TaskProgressNote).WithMany(x => x.Photos)
+            .HasForeignKey(x => x.TaskProgressNoteId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.MediaAsset).WithMany()
+            .HasForeignKey(x => x.MediaAssetId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 public sealed class PartOrderRequestConfiguration : IEntityTypeConfiguration<PartOrderRequest>
 {
     public void Configure(EntityTypeBuilder<PartOrderRequest> builder)
@@ -170,25 +200,72 @@ public sealed class ShiftTypeConfiguration : IEntityTypeConfiguration<ShiftType>
     public void Configure(EntityTypeBuilder<ShiftType> builder)
     {
         builder.Property(x => x.Name).HasMaxLength(60).IsRequired();
+        builder.Property(x => x.Weekdays).HasConversion<int>();
+
         builder.HasIndex(x => x.Name).IsUnique();
     }
 }
 
-public sealed class ShiftAssignmentConfiguration : IEntityTypeConfiguration<ShiftAssignment>
+public sealed class ActiveShiftConfiguration : IEntityTypeConfiguration<ActiveShift>
 {
-    public void Configure(EntityTypeBuilder<ShiftAssignment> builder)
+    public void Configure(EntityTypeBuilder<ActiveShift> builder)
+    {
+        builder.Property(x => x.Name).HasMaxLength(60).IsRequired();
+        builder.Property(x => x.Weekdays).HasConversion<int>();
+
+        // Deliberately no foreign key to the template it was copied from. The template is a
+        // sketch somebody is free to delete; the shift people are working must outlive it.
+        builder.Property(x => x.SourceShiftTypeId);
+
+        // The board asks "what is running on this date".
+        builder.HasIndex(x => new { x.StartsOn, x.EndsOn });
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "CK_ActiveShift_DateOrder", "\"EndsOn\" >= \"StartsOn\""));
+    }
+}
+
+public sealed class ShiftRosterEntryConfiguration : IEntityTypeConfiguration<ShiftRosterEntry>
+{
+    public void Configure(EntityTypeBuilder<ShiftRosterEntry> builder)
     {
         builder.HasOne(x => x.User).WithMany()
             .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.ShiftType).WithMany()
-            .HasForeignKey(x => x.ShiftTypeId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.ActiveShift).WithMany()
+            .HasForeignKey(x => x.ActiveShiftId).OnDelete(DeleteBehavior.Restrict);
 
-        // Dropping the same person on the same shift twice is a no-op, not a duplicate.
-        builder.HasIndex(x => new { x.UserId, x.Date, x.ShiftTypeId }).IsUnique();
+        // Nobody is on two shifts at once. Because a row still in force always carries
+        // DateOnly.MaxValue, including EffectiveTo in the key makes this "one current row
+        // per person" while still allowing any number of closed, historical rows behind it.
+        builder.HasIndex(x => new { x.UserId, x.EffectiveTo }).IsUnique();
 
-        // The planner board reads a week at a time.
-        builder.HasIndex(x => new { x.Date, x.ShiftTypeId });
+        builder.HasIndex(x => new { x.ActiveShiftId, x.EffectiveFrom, x.EffectiveTo });
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "CK_ShiftRosterEntry_DateOrder", "\"EffectiveTo\" >= \"EffectiveFrom\""));
+    }
+}
+
+public sealed class ShiftOverrideConfiguration : IEntityTypeConfiguration<ShiftOverride>
+{
+    public void Configure(EntityTypeBuilder<ShiftOverride> builder)
+    {
+        builder.Property(x => x.Note).HasMaxLength(200);
+
+        builder.HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.ActiveShift).WithMany()
+            .HasForeignKey(x => x.ActiveShiftId).OnDelete(DeleteBehavior.Restrict);
+
+        // Overlapping ranges cannot be expressed as an index on any provider this project
+        // has to run on, so the service refuses them; this index is what makes that check,
+        // and the board's own lookup, cheap.
+        builder.HasIndex(x => new { x.UserId, x.FromDate, x.ToDate });
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "CK_ShiftOverride_DateOrder", "\"ToDate\" >= \"FromDate\""));
     }
 }
 

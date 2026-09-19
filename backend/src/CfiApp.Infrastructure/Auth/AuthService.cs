@@ -90,14 +90,27 @@ public sealed class AuthService(
             return AuthResult.Fail(AuthFailure.InvalidCredentials);
         }
 
-        if (user.Status == UserStatus.PendingApproval)
+        // Written as an exhaustive switch rather than a chain of ifs on purpose: this
+        // project builds with TreatWarningsAsErrors, so a status added later without a
+        // line here fails the build (CS8524) instead of quietly falling through to a
+        // successful sign in - which is exactly the bug this replaced.
+        var statusFailure = user.Status switch
         {
-            return AuthResult.Fail(AuthFailure.AccountNotApproved);
-        }
+            UserStatus.Active => (AuthFailure?)null,
+            UserStatus.PendingApproval => AuthFailure.AccountNotApproved,
+            UserStatus.Disabled => AuthFailure.AccountDisabled,
+            UserStatus.Rejected => AuthFailure.AccountRejected,
+            // C# does not treat an enum as a closed set of its named members - a `_` arm
+            // is required for the switch to compile at all. Failing loudly here, rather
+            // than falling through to a successful sign in, is what actually matters: a
+            // status added later without a case above breaks sign in with a clear
+            // exception instead of letting an unrecognised account state through.
+            _ => throw new InvalidOperationException($"Unhandled user status: {user.Status}")
+        };
 
-        if (user.Status == UserStatus.Disabled)
+        if (statusFailure is { } failure)
         {
-            return AuthResult.Fail(AuthFailure.AccountDisabled);
+            return AuthResult.Fail(failure);
         }
 
         user.FailedLoginCount = 0;
@@ -135,11 +148,27 @@ public sealed class AuthService(
         // tokens, and without this order that revocation would look like token theft: the
         // person would get a generic sign in failure instead of being told their account
         // was switched off, and the reuse alarm would fire on a perfectly normal event.
-        if (user.Status != UserStatus.Active)
+        //
+        // Exhaustive switch, same reasoning as LoginAsync: TreatWarningsAsErrors means a
+        // status added later without a line here fails the build rather than picking the
+        // wrong failure reason silently.
+        var statusFailure = user.Status switch
         {
-            return AuthResult.Fail(user.Status == UserStatus.Disabled
-                ? AuthFailure.AccountDisabled
-                : AuthFailure.AccountNotApproved);
+            UserStatus.Active => (AuthFailure?)null,
+            UserStatus.PendingApproval => AuthFailure.AccountNotApproved,
+            UserStatus.Disabled => AuthFailure.AccountDisabled,
+            UserStatus.Rejected => AuthFailure.AccountRejected,
+            // C# does not treat an enum as a closed set of its named members - a `_` arm
+            // is required for the switch to compile at all. Failing loudly here, rather
+            // than falling through to a successful sign in, is what actually matters: a
+            // status added later without a case above breaks sign in with a clear
+            // exception instead of letting an unrecognised account state through.
+            _ => throw new InvalidOperationException($"Unhandled user status: {user.Status}")
+        };
+
+        if (statusFailure is { } failure)
+        {
+            return AuthResult.Fail(failure);
         }
 
         if (stored.RevokedAt is not null)

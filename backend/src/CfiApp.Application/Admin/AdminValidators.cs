@@ -24,6 +24,11 @@ public sealed class UpsertShiftTypeRequestValidator : AbstractValidator<UpsertSh
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(60);
         RuleFor(x => x.DisplayOrder).GreaterThanOrEqualTo(0);
+
+        RuleFor(x => x.Weekdays)
+            .NotEmpty().WithMessage("Choose at least one day of the week.")
+            .Must(days => days.Distinct().Count() == days.Count)
+            .WithMessage("The same day was listed twice.");
         // A night shift crossing midnight (22:00-06:00) is normal and deliberately allowed,
         // so start and end are only required to differ, not ordered.
         RuleFor(x => x)

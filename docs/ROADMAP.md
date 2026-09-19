@@ -206,8 +206,9 @@ Sonradan tablo eklemek kolay; yanlış ilişki kurmak pahalı.
 - `ClockEvent` (userId, type In/Out, occurredAt UTC, source Auto/Manual, lat/lon, accuracy, deviceId, syncedAt, clientGeneratedId)
 - `OvertimeDeclaration` (tarih, süre, açıklama, onay durumu)
 - `HolidayRequest` (start, end, workingDays, status, approvedBy, decidedAt)
-- `ShiftType` (ad, başlangıç, bitiş, isActive — **silme yok, pasife alma var**)
-- `ShiftAssignment` (user, date, shiftType, createdBy)
+- `ShiftType` (ad, başlangıç, bitiş, günler, başlangıç tarihi — şablon, **silinebilir**)
+- `ActiveShift` (şablonun havuzdaki kopyası), `ShiftRosterEntry` (user, activeShift, tarih aralığı),
+  `ShiftOverride` (yerine geçme / izinli, tarih aralığı)
 
 **Messaging**
 
@@ -372,13 +373,16 @@ Bu uygulama gerçek çalışanların **konumunu** ve **çalışma saatlerini** k
 ## FAZ 7 — Shift Planning
 
 - [ ] Varsayılan 3 shift (06:00–14:00 / 14:00–22:00 / 22:00–06:00), saatler düzenlenebilir, yeni tip eklenebilir, **silme yok → aktif/pasif toggle**
-- [ ] Web: **drag & drop planner** — solda çalışanlar, tabloda günler × shift'ler, sürükle-bırak ata, haftalar arası gezinme, birkaç hafta/ay ileri planlama
+- [ ] Web: **sabit roster planlayıcı** — üç kolon (ekip / çizilmiş vardiyalar / havuz), vardiya havuza kopyalanır, kişi taşınır, geçerlilik tarihi manager'da; tarihe göre gezinme ayrı sayfada
 - [ ] Mobil (Maintenance Manager): basit akış — tarih seç → shift seç → çalışan seç → ekle/çıkar
 - [ ] Çalışan görünümü: bugünkü + sıradaki shift'ler, tarih/saat
 - [ ] Shift oluşturma yetkisi web'de tüm manager'larda; mobilde şimdilik sadece Maintenance Manager'da
 
-> **Netleşmesi gereken (Faz 7 başında sorulacak):** rotating shift var mı, 4-on/4-off,
-> molalar, yerine geçme (swap), worker değişiklik talebi + onay, absence/holiday çakışması.
+> **Cevaplandı (2026-09-18):** sabit haftalık roster + tarih aralıklı yerine geçme.
+> Absence/holiday çakışması: onaylı izne denk gelen cover 409 ile reddedilir.
+> **Kapsam dışı bırakıldı:** rotating shift ve 4-on/4-off — haftalık modele oturmuyor,
+> ayrı bir "döngü uzunluğu + başlangıç tarihi" kavramı gerektirir. Molalar ve çalışanın
+> değişiklik talebi + onay akışı da bu fazda yok.
 
 **Model:** Veri modeli + drag & drop state yönetimi → **Opus**. Ekranlar → **Sonnet**.
 

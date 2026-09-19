@@ -14,9 +14,16 @@ public sealed record ReassignTaskRequest(IReadOnlyCollection<int> AssignedUserId
 
 public sealed record CompleteTaskRequest(string Note, int? PhotoAssetId);
 
+/// <summary>Today's word on a task that is not finished yet - the task stays open.</summary>
+public sealed record LogTaskProgressRequest(string Note, int? PhotoAssetId);
+
 public sealed record TaskAssigneeDto(int UserId, string FullName);
 
-public sealed record TaskCompletionDto(int UserId, string FullName, string Note, DateTimeOffset CompletedAt, bool HasPhoto);
+public sealed record TaskCompletionDto(
+    int UserId, string FullName, string Note, DateTimeOffset CompletedAt, int? PhotoAssetId);
+
+public sealed record TaskProgressNoteDto(
+    int UserId, string FullName, string Note, DateTimeOffset LoggedAt, int? PhotoAssetId);
 
 public sealed record TaskSummaryDto(
     int Id,
@@ -35,7 +42,8 @@ public sealed record TaskDetailDto(
     DateOnly ScheduledDate,
     TaskPriority? Priority,
     IReadOnlyCollection<TaskAssigneeDto> Assignees,
-    IReadOnlyCollection<TaskCompletionDto> Completions);
+    IReadOnlyCollection<TaskCompletionDto> Completions,
+    IReadOnlyCollection<TaskProgressNoteDto> ProgressNotes);
 
 public sealed record CreatePartOrderRequest(string PartName, int Quantity, bool IsUrgent);
 

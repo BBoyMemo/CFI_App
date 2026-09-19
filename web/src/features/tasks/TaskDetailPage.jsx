@@ -1,25 +1,47 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import AsyncSection from '../../components/ui/AsyncSection';
+import AuthenticatedImage from '../../components/ui/AuthenticatedImage';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
-import ConfirmButton from '../../components/ui/ConfirmButton';
 import ErrorBanner from '../../components/ui/ErrorBanner';
+import PhotoLightbox from '../../components/ui/PhotoLightbox';
 import { describeApiError } from '../../api/apiClient';
-import { completeTask, deleteTask, getTask } from '../../api/endpoints';
+import { completeTask, getTask, logTaskProgress } from '../../api/endpoints';
 import { taskKindKey, taskKindTone, taskPriorityKey } from '../../api/enums';
 import { Permissions } from '../../api/permissions';
 import { useAuth } from '../../auth/useAuth';
 import { useApiData } from '../../hooks/useApiData';
 import PhotoUploader from '../workorders/PhotoUploader';
 
+/** A completion or a progress note, shown the same way except for its heading colour. */
+function LogEntry({ entry, dateKey, dateValue, onOpenPhoto }) {
+  return (
+    <div className="border-b border-cfi-rule/60 pb-2 text-sm last:border-b-0">
+      <p className="font-medium text-cfi-ink">
+        {entry.fullName}
+        <span className="ml-2 font-normal text-cfi-muted">{new Date(dateValue).toLocaleString()}</span>
+      </p>
+      <p className="text-cfi-muted">{entry.note}</p>
+      {entry.photoAssetId != null && (
+        <button type="button" onClick={() => onOpenPhoto(entry.photoAssetId)} className="mt-1 block">
+          <AuthenticatedImage
+            mediaId={entry.photoAssetId}
+            alt={dateKey}
+            className="h-16 w-16 rounded object-cover"
+          />
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function TaskDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
-  const navigate = useNavigate();
   const { me, hasPermission } = useAuth();
 
   const task = useApiData(() => getTask(id), [id]);
@@ -27,6 +49,7 @@ export default function TaskDetailPage() {
   const [photoAssetIds, setPhotoAssetIds] = useState([]);
   const [actionError, setActionError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [openPhotoId, setOpenPhotoId] = useState(null);
 
   const runAction = useCallback(async (action, after) => {
     setActionError(null);
@@ -40,6 +63,12 @@ export default function TaskDetailPage() {
       setBusy(false);
     }
   }, []);
+
+  const resetForm = () => {
+    setNote('');
+    setPhotoAssetIds([]);
+    task.refetch();
+  };
 
   const detail = task.data;
 
@@ -98,24 +127,54 @@ export default function TaskDetailPage() {
                   <PhotoUploader assetIds={photoAssetIds} onChange={setPhotoAssetIds} />
                 </div>
 
-                <Button
-                  className="mt-3"
-                  disabled={busy || !note.trim()}
-                  onClick={() =>
-                    runAction(
-                      () => completeTask(detail.id, {
-                        note,
-                        photoAssetId: photoAssetIds[0] ?? null,
-                      }),
-                      () => {
-                        setNote('');
-                        setPhotoAssetIds([]);
-                        task.refetch();
-                      },
-                    )}
-                >
-                  {t('task.markDone')}
-                </Button>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    disabled={busy || !note.trim()}
+                    onClick={() =>
+                      runAction(
+                        () => completeTask(detail.id, { note, photoAssetId: photoAssetIds[0] ?? null }),
+                        resetForm,
+                      )}
+                  >
+                    {t('task.markDone')}
+                  </Button>
+
+                  {/* Not every task fits in one shift. This leaves the same note and photo
+                      on the record without marking it done, so the task is still there,
+                      still assigned, for whoever picks it up next - which is often the
+                      same person, on the next shift. */}
+                  <Button
+                    variant="secondary"
+                    disabled={busy || !note.trim()}
+                    onClick={() =>
+                      runAction(
+                        () => logTaskProgress(detail.id, { note, photoAssetId: photoAssetIds[0] ?? null }),
+                        resetForm,
+                      )}
+                  >
+                    {t('task.continueTomorrow')}
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {detail.progressNotes.length > 0 && (
+              <Card className="mt-4">
+                <h2 className="mb-3 font-semibold text-cfi-brown-dark">{t('task.progressNotes')}</h2>
+                <div className="flex flex-col gap-3">
+                  {detail.progressNotes.map((entry, index) => (
+                    <LogEntry
+                      // Nothing on a progress note is unique on its own - the same person
+                      // can leave several - so the position in an otherwise-stable,
+                      // server-ordered list is the key.
+                      key={`${entry.userId}-${entry.loggedAt}-${index}`}
+                      entry={entry}
+                      dateKey={t('task.progressNotes')}
+                      dateValue={entry.loggedAt}
+                      onOpenPhoto={setOpenPhotoId}
+                    />
+                  ))}
+                </div>
               </Card>
             )}
 
@@ -123,38 +182,25 @@ export default function TaskDetailPage() {
               <Card className="mt-4">
                 <h2 className="mb-3 font-semibold text-cfi-brown-dark">{t('task.completions')}</h2>
                 <div className="flex flex-col gap-3">
-                  {detail.completions.map((completion) => (
-                    <div
-                      key={`${completion.userId}-${completion.completedAt}`}
-                      className="border-b border-cfi-rule/60 pb-2 text-sm last:border-b-0"
-                    >
-                      <p className="font-medium text-cfi-ink">
-                        {completion.fullName}
-                        <span className="ml-2 font-normal text-cfi-muted">
-                          {new Date(completion.completedAt).toLocaleString()}
-                        </span>
-                      </p>
-                      <p className="text-cfi-muted">{completion.note}</p>
-                      {completion.hasPhoto && <p className="text-xs text-cfi-muted">📷</p>}
-                    </div>
+                  {detail.completions.map((entry) => (
+                    <LogEntry
+                      key={`${entry.userId}-${entry.completedAt}`}
+                      entry={entry}
+                      dateKey={t('task.completions')}
+                      dateValue={entry.completedAt}
+                      onOpenPhoto={setOpenPhotoId}
+                    />
                   ))}
                 </div>
               </Card>
             )}
-
-            {hasPermission(Permissions.TaskManage) && (
-              <ConfirmButton
-                variant="danger"
-                className="mt-4"
-                disabled={busy}
-                onConfirm={() => runAction(() => deleteTask(detail.id), () => navigate('/tasks'))}
-              >
-                {t('task.delete')}
-              </ConfirmButton>
-            )}
           </>
         )}
       </AsyncSection>
+
+      {openPhotoId != null && (
+        <PhotoLightbox mediaId={openPhotoId} onClose={() => setOpenPhotoId(null)} />
+      )}
     </div>
   );
 }

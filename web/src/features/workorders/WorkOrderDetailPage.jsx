@@ -7,6 +7,7 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import ErrorBanner from '../../components/ui/ErrorBanner';
+import PhotoLightbox from '../../components/ui/PhotoLightbox';
 import { describeApiError } from '../../api/apiClient';
 import { priorityKey, priorityTone, statusTone, workOrderStatusKey } from '../../api/enums';
 import {
@@ -45,6 +46,7 @@ export default function WorkOrderDetailPage() {
   const [busy, setBusy] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [rejecting, setRejecting] = useState(false);
+  const [openPhotoId, setOpenPhotoId] = useState(null);
 
   // Only fetched for someone who can actually hand a job to somebody else.
   const canAssign = hasPermission(Permissions.WorkOrderAssign);
@@ -158,15 +160,25 @@ export default function WorkOrderDetailPage() {
           <h2 className="mb-3 font-semibold text-cfi-brown-dark">{t('common.photos')}</h2>
           <div className="flex flex-wrap gap-2">
             {detail.photos.map((photo) => (
-              <AuthenticatedImage
+              <button
                 key={photo.id}
-                mediaId={photo.mediaAssetId}
-                alt={t('common.photos')}
-                className="h-24 w-24 rounded object-cover"
-              />
+                type="button"
+                onClick={() => setOpenPhotoId(photo.mediaAssetId)}
+                className="rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-cfi-yellow-dark"
+              >
+                <AuthenticatedImage
+                  mediaId={photo.mediaAssetId}
+                  alt={t('common.photos')}
+                  className="h-24 w-24 rounded object-cover"
+                />
+              </button>
             ))}
           </div>
         </Card>
+      )}
+
+      {openPhotoId != null && (
+        <PhotoLightbox mediaId={openPhotoId} onClose={() => setOpenPhotoId(null)} />
       )}
 
       <ErrorBanner error={actionError} />

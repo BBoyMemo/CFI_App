@@ -171,7 +171,7 @@ public sealed class WorkOrderLifecycleTests(CfiAppApiFactory factory)
     }
 
     [Fact]
-    public async Task Claiming_moves_a_job_from_the_pool_to_the_engineers_own_list_with_a_photo_attached()
+    public async Task Claiming_puts_a_job_on_the_engineers_list_but_leaves_it_in_the_pool_showing_who_has_it()
     {
         var (reporterClient, _) = await SignedInAsAsync(Permissions.Roles.Operator);
         var (engineerClient, engineerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
@@ -182,8 +182,19 @@ public sealed class WorkOrderLifecycleTests(CfiAppApiFactory factory)
         (await engineerClient.PostAsync($"/api/v1/workorders/{workOrderId}/claim", null))
             .StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
+        // Taking a job does not hide it. It stays in the pool until it is finished, now
+        // carrying its status and the name of whoever has it, so the shift can see the job
+        // is in hand rather than wondering whether anybody ever looked at it.
         var pool = await engineerClient.GetFromJsonAsync<PagedResult<WorkOrderSummaryDto>>("/api/v1/workorders/pool");
-        pool!.Items.ShouldNotContain(x => x.Id == workOrderId);
+        var stillListed = pool!.Items.Single(x => x.Id == workOrderId);
+        stillListed.Status.ShouldBe(WorkOrderStatus.Accepted);
+        stillListed.AssignedEngineerName.ShouldNotBeNullOrWhiteSpace();
+
+        // It is no longer one of the free ones though - that is the separate count the
+        // dashboard's "in pool" tile shows.
+        var free = await engineerClient.GetFromJsonAsync<PagedResult<WorkOrderSummaryDto>>(
+            "/api/v1/workorders/pool?unclaimed=true");
+        free!.Items.ShouldNotContain(x => x.Id == workOrderId);
 
         var mine = await engineerClient.GetFromJsonAsync<PagedResult<WorkOrderSummaryDto>>("/api/v1/workorders/mine");
         var claimed = mine!.Items.Single(x => x.Id == workOrderId);
@@ -349,6 +360,10 @@ public sealed class WorkOrderLifecycleTests(CfiAppApiFactory factory)
         detail.LabourMinutes.ShouldNotBeNull();
         detail.LabourMinutes!.Value.ShouldBeGreaterThanOrEqualTo(0);
         detail.Closures.Single().DowntimeMinutes.ShouldBe(45, "downtime is what the engineer typed, not the labour time");
+
+        // Finished is the one thing that does take a job off the pool screen.
+        var pool = await engineerClient.GetFromJsonAsync<PagedResult<WorkOrderSummaryDto>>("/api/v1/workorders/pool");
+        pool!.Items.ShouldNotContain(x => x.Id == workOrderId);
     }
 
     [Fact]

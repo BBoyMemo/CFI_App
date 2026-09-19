@@ -1,35 +1,74 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 
 import AsyncSection from '../../components/ui/AsyncSection';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import ErrorBanner from '../../components/ui/ErrorBanner';
+import Icon from '../../components/ui/Icon';
 import { describeApiError } from '../../api/apiClient';
 import {
-  createShiftAssignment, deleteShiftAssignment, getShiftBoard, getShiftTypes, getTeam,
+  addShiftToPool, createCover, deleteCover, deleteShiftType, endRoster, getRoster,
+  getShiftTypes, removeShiftFromPool, setRoster, upsertShiftType,
 } from '../../api/endpoints';
 import { useApiData } from '../../hooks/useApiData';
-import { addDays, weekStart } from '../attendance/hours';
+import { todayIso } from '../attendance/hours';
+import NewShiftForm from './NewShiftForm';
+import PersonChip from './PersonChip';
+import ShiftCard from './ShiftCard';
+import ShiftTemplateCard from './ShiftTemplateCard';
+import { sourceName } from './shiftModel';
 
+/**
+ * The rota, in the three columns it is actually thought about: who there is, what shifts have
+ * been drawn up, and which of those are running.
+ *
+ * The two levels are the point. A shift is drawn up once in the middle column and copied into
+ * the pool on the right; the template stays where it is, because it is a sketch you keep. So
+ * deleting a template later takes nothing away from the people working its copy.
+ */
 export default function ShiftPlannerPage() {
   const { t } = useTranslation();
+  const today = todayIso();
 
-  const [from, setFrom] = useState(() => weekStart(new Date()));
-  const [dragging, setDragging] = useState(null);
+  const [selected, setSelected] = useState(null);
+  const [targetShiftId, setTargetShiftId] = useState(null);
+  const [addingShift, setAddingShift] = useState(false);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(from, i)), [from]);
-  const to = days[6];
+  // What is being dragged, kept in a ref as well as in state. A drag starts and ends inside a
+  // single burst of native events, before React has re-rendered with the new state, so the
+  // drop handlers have to read something that is already true - otherwise the first pull does
+  // nothing and you have to click once to "arm" it before dragging works.
+  const draggingRef = useRef(null);
 
-  const team = useApiData(() => getTeam({ pageSize: 100 }));
-  const shiftTypes = useApiData(() => getShiftTypes({ pageSize: 50 }));
-  const board = useApiData(() => getShiftBoard({ from, to }), [from, to]);
+  const board = useApiData(() => getRoster({ on: today }), [today]);
+  const templates = useApiData(() => getShiftTypes({ pageSize: 100 }));
 
-  const members = team.data?.items ?? [];
-  const types = (shiftTypes.data?.items ?? []).filter((x) => x.isActive);
-  const assignments = board.data ?? [];
+  const shifts = board.data?.shifts ?? [];
+  const unassigned = board.data?.unassigned ?? [];
+  const library = (templates.data?.items ?? []).filter((x) => x.isActive);
+
+  const clearSelection = useCallback(() => {
+    draggingRef.current = null;
+    setSelected(null);
+    setTargetShiftId(null);
+  }, []);
+
+  // Escape is the way out of a half-finished move on a keyboard, and the only way out that
+  // does not involve hunting for the cancel button.
+  useEffect(() => {
+    if (!selected) return undefined;
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') clearSelection();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selected, clearSelection]);
 
   const runAction = useCallback(async (action) => {
     setError(null);
@@ -37,131 +76,204 @@ export default function ShiftPlannerPage() {
     try {
       await action();
       board.refetch();
+      templates.refetch();
+      clearSelection();
     } catch (actionError) {
       setError(describeApiError(actionError));
     } finally {
       setBusy(false);
     }
-  }, [board]);
+  }, [board, templates, clearSelection]);
 
-  const cellAssignments = (day, shiftTypeId) =>
-    assignments.filter((x) => x.date === day && x.shiftTypeId === shiftTypeId);
-
-  const drop = (day, shiftTypeId) => {
-    if (!dragging) return;
-
-    // A move is a delete plus a create: the API has no "move" verb, and doing it in that
-    // order means a rejected create leaves the person where they already were.
-    runAction(async () => {
-      if (dragging.assignmentId) await deleteShiftAssignment(dragging.assignmentId);
-      await createShiftAssignment({ userId: dragging.userId, date: day, shiftTypeId });
-    });
-
-    setDragging(null);
+  /** Lifting somebody: the same thing whether they were tapped or dragged. */
+  const pickPerson = (person, fromShiftId) => {
+    draggingRef.current = { kind: 'person', ...person, fromShiftId };
+    setSelected(draggingRef.current);
+    setTargetShiftId(null);
   };
+
+  /** A template heading for the pool. It is copied, so nothing leaves the middle column. */
+  const pickTemplate = (template) => {
+    draggingRef.current = { kind: 'template', ...template };
+    setSelected(null);
+    setTargetShiftId(null);
+  };
+
+  const dropOnShift = (shift) => {
+    const lifted = draggingRef.current;
+    if (!lifted || lifted.kind !== 'person') return;
+
+    setSelected(lifted);
+    setTargetShiftId(shift.activeShiftId);
+  };
+
+  const dropOnPool = () => {
+    const lifted = draggingRef.current;
+    if (!lifted || lifted.kind !== 'template' || lifted.inPool) return;
+
+    runAction(() => addShiftToPool(lifted.id));
+  };
+
+  const confirmPlacement = (shift, placement) => runAction(() =>
+    placement.mode === 'cover'
+      ? createCover({
+        userId: selected.userId,
+        activeShiftId: shift.activeShiftId,
+        fromDate: placement.fromDate,
+        toDate: placement.toDate,
+        note: placement.note,
+      })
+      : setRoster({
+        userId: selected.userId,
+        activeShiftId: shift.activeShiftId,
+        effectiveFrom: placement.effectiveFrom,
+      }));
+
+  /**
+   * Taking somebody off a shift removes whatever put them there. For cover that is the cover
+   * itself - ending their standing rota instead would take them off a shift they are not even
+   * on today, and leave the cover running.
+   */
+  const takeOffPerson = (person) => runAction(() =>
+    person.coverId
+      ? deleteCover(person.coverId)
+      : endRoster(person.userId, { effectiveFrom: today }));
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-bold text-cfi-brown-dark">{t('nav.shiftPlanner')}</h1>
 
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => setFrom(addDays(from, -7))}>←</Button>
-          <span className="text-sm text-cfi-muted">{from} → {to}</span>
-          <Button variant="secondary" onClick={() => setFrom(addDays(from, 7))}>→</Button>
-          <Button variant="secondary" onClick={() => setFrom(weekStart(new Date()))}>
-            {t('shift.thisWeek')}
+        <Link to="/shifts/history">
+          <Button variant="secondary" className="gap-2">
+            <Icon name="history" size={16} />
+            {t('shift.browseByDate')}
           </Button>
-        </div>
+        </Link>
       </div>
 
       <ErrorBanner error={error} />
 
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <Card className="lg:w-56 lg:shrink-0">
-          <h2 className="mb-2 font-semibold text-cfi-brown-dark">{t('shift.people')}</h2>
-          <AsyncSection {...team} isEmpty={members.length === 0} emptyKey="shift.noPeople">
-            <div className="flex flex-wrap gap-2 lg:flex-col">
-              {members.map((member) => (
-                <div
-                  key={member.id}
-                  draggable
-                  onDragStart={() => setDragging({ userId: member.id, assignmentId: null })}
-                  onDragEnd={() => setDragging(null)}
-                  className="cursor-grab rounded border border-cfi-rule bg-white px-2 py-1 text-sm active:cursor-grabbing"
-                >
-                  {member.fullName}
-                </div>
-              ))}
+      <div className="grid gap-4 xl:grid-cols-[15rem_15rem_minmax(0,1fr)]">
+        {/* ---- who there is ---- */}
+        <Card className="self-start">
+          <div className="mb-3 flex items-center gap-2 text-cfi-brown-dark">
+            <Icon name="users" size={18} />
+            <h2 className="font-semibold">{t('shift.team')}</h2>
+          </div>
+
+          <AsyncSection {...board} isEmpty={unassigned.length === 0} emptyKey="shift.everyoneOnAShift">
+            <div className="flex flex-col gap-2">
+              {unassigned.map((person) => {
+                const source = sourceName(person.source);
+                const away = source === 'Holiday' || source === 'Off' || source === 'PublicHoliday';
+
+                return (
+                  <PersonChip
+                    key={person.userId}
+                    person={person}
+                    selected={selected?.userId === person.userId && selected.fromShiftId == null}
+                    onSelect={() => pickPerson(person, null)}
+                    onDragStart={() => pickPerson(person, null)}
+                  >
+                    {away && (
+                      <span className="flex shrink-0 items-center gap-1 text-xs text-cfi-muted">
+                        <Icon name="calendar" size={13} />
+                        {t(`shift.away_${source}`)}
+                      </span>
+                    )}
+                  </PersonChip>
+                );
+              })}
             </div>
           </AsyncSection>
         </Card>
 
-        <div className="min-w-0 flex-1 overflow-x-auto">
-          <AsyncSection {...board} isEmpty={false}>
-            <table className="w-full min-w-[46rem] border-collapse text-sm">
-              <thead>
-                <tr>
-                  <th className="border border-cfi-rule bg-cfi-sunk p-2 text-left">{t('shift.shift')}</th>
-                  {days.map((day) => (
-                    <th key={day} className="border border-cfi-rule bg-cfi-sunk p-2 text-left">
-                      {new Date(`${day}T00:00:00`).toLocaleDateString(undefined, {
-                        weekday: 'short', day: 'numeric', month: 'short',
-                      })}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+        {/* ---- what has been drawn up ---- */}
+        <Card className="self-start">
+          <div className="mb-3 flex items-center justify-between gap-2 text-cfi-brown-dark">
+            <div className="flex items-center gap-2">
+              <Icon name="clock" size={18} />
+              <h2 className="font-semibold">{t('shift.shifts')}</h2>
+            </div>
 
-              <tbody>
-                {types.map((type) => (
-                  <tr key={type.id}>
-                    <th className="border border-cfi-rule bg-cfi-sunk p-2 text-left align-top">
-                      <div className="font-semibold text-cfi-brown-dark">{type.name}</div>
-                      <div className="text-xs font-normal text-cfi-muted">
-                        {type.startTime.slice(0, 5)}–{type.endTime.slice(0, 5)}
-                      </div>
-                    </th>
+            {!addingShift && (
+              <button
+                type="button"
+                onClick={() => setAddingShift(true)}
+                aria-label={t('shift.newShift')}
+                className="min-h-8 rounded border border-cfi-rule bg-cfi-sunk px-2 font-bold text-cfi-brown-dark hover:border-cfi-yellow-dark"
+              >
+                +
+              </button>
+            )}
+          </div>
 
-                    {days.map((day) => (
-                      <td
-                        key={day}
-                        onDragOver={(event) => event.preventDefault()}
-                        onDrop={() => drop(day, type.id)}
-                        className="min-w-28 border border-cfi-rule p-1 align-top"
-                      >
-                        <div className="flex min-h-12 flex-col gap-1">
-                          {cellAssignments(day, type.id).map((assignment) => (
-                            <div
-                              key={assignment.id}
-                              draggable
-                              onDragStart={() =>
-                                setDragging({ userId: assignment.userId, assignmentId: assignment.id })}
-                              onDragEnd={() => setDragging(null)}
-                              className="group flex cursor-grab items-center justify-between gap-1 rounded bg-cfi-yellow/25 px-2 py-1 text-xs active:cursor-grabbing"
-                            >
-                              <span className="truncate">{assignment.userFullName}</span>
-                              <button
-                                type="button"
-                                disabled={busy}
-                                onClick={() => runAction(() => deleteShiftAssignment(assignment.id))}
-                                className="font-bold text-cfi-red"
-                                aria-label={t('common.delete')}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {addingShift && (
+            <div className="mb-3">
+              <NewShiftForm
+                today={today}
+                busy={busy}
+                onCancel={() => setAddingShift(false)}
+                onSubmit={(payload) => {
+                  setAddingShift(false);
+                  runAction(() => upsertShiftType(payload));
+                }}
+              />
+            </div>
+          )}
+
+          <AsyncSection {...templates} isEmpty={library.length === 0} emptyKey="shift.noShiftsDrawnUp">
+            <div className="flex flex-col gap-2">
+              {library.map((template) => (
+                <ShiftTemplateCard
+                  key={template.id}
+                  template={template}
+                  busy={busy}
+                  onDragStart={() => pickTemplate(template)}
+                  onDragEnd={() => { draggingRef.current = null; }}
+                  onAdd={() => runAction(() => addShiftToPool(template.id))}
+                  onDelete={() => runAction(() => deleteShiftType(template.id))}
+                />
+              ))}
+            </div>
           </AsyncSection>
 
-          <p className="mt-2 text-xs text-cfi-muted">{t('shift.dragHint')}</p>
+          <p className="mt-3 text-xs text-cfi-muted">{t('shift.poolHint')}</p>
+        </Card>
+
+        {/* ---- what is running ---- */}
+        <div
+          onDragOver={(event) => event.preventDefault()}
+          onDrop={dropOnPool}
+          className="flex min-w-0 flex-col gap-4 rounded-lg border border-dashed border-cfi-rule p-3"
+        >
+          <div className="flex items-center gap-2 text-cfi-brown-dark">
+            <Icon name="box" size={18} />
+            <h2 className="font-semibold">{t('shift.pool')}</h2>
+          </div>
+
+          <AsyncSection {...board} isEmpty={shifts.length === 0} emptyKey="shift.poolEmpty">
+            {shifts.map((shift) => (
+              <ShiftCard
+                key={shift.activeShiftId}
+                shift={shift}
+                selected={selected}
+                isTarget={targetShiftId === shift.activeShiftId}
+                busy={busy}
+                today={today}
+                onPick={pickPerson}
+                onDropHere={dropOnShift}
+                onCancelPlacement={clearSelection}
+                onConfirmPlacement={confirmPlacement}
+                onRemovePerson={takeOffPerson}
+                onRemoveShift={(shiftToRemove) =>
+                  runAction(() => removeShiftFromPool(shiftToRemove.activeShiftId))}
+              />
+            ))}
+          </AsyncSection>
+
+          <p className="text-xs text-cfi-muted">{t('shift.dragHint')}</p>
         </div>
       </div>
     </div>

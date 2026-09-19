@@ -11,9 +11,10 @@ import Button from './Button';
  * *which* machine is about to go. Here the question replaces the button in place, so the
  * name of the thing stays on screen next to it.
  *
- * Nothing is truly deleted anywhere in this app - reference data is switched off, people
- * are disabled, jobs are rejected - but "did I just do that to the wrong row" is the same
- * worry either way, so every one of them comes through here.
+ * Almost nothing is truly deleted in this app - reference data is switched off, people are
+ * disabled, jobs are rejected. A shift drawn up but not yet used is the exception, and it is
+ * exactly the case where "did I just do that to the wrong row" matters most, so every one of
+ * them comes through here.
  */
 export default function ConfirmButton({
   onConfirm,

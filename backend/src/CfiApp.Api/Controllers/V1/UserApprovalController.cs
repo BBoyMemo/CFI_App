@@ -136,6 +136,38 @@ public sealed class UserApprovalController(
         return NoContent();
     }
 
+    /// <summary>
+    /// Turning a registration down - not a real starter, a duplicate, or not this
+    /// manager's to approve. Unlike <see cref="Disable"/> the account was never active,
+    /// so nothing needs revoking; it simply stops showing up on the pending list, with
+    /// the reason kept for whoever asks later why it never went through.
+    /// </summary>
+    [HttpPost("{id:int}/reject")]
+    [Authorize(Policy = Permissions.UserApprove)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Reject(int id, RejectPendingUserRequest request, CancellationToken cancellationToken)
+    {
+        var user = await context.Users.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (user is null) return NotFound();
+
+        if (user.Status != UserStatus.PendingApproval)
+        {
+            return Problem(
+                title: "Account is not awaiting approval",
+                detail: $"This account is already {user.Status}.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        user.Status = UserStatus.Rejected;
+        user.RejectedAt = clock.UtcNow;
+        user.RejectedByUserId = currentUser.UserId;
+        user.RejectionReason = request.Reason.Trim();
+
+        await context.SaveChangesAsync(cancellationToken);
+        return NoContent();
+    }
 
     private async Task<int?> DepartmentIdForRoleAsync(string roleName, CancellationToken cancellationToken)
     {

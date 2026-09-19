@@ -1,5 +1,6 @@
 using CfiApp.Api.Security;
 using CfiApp.Application.Maintenance;
+using CfiApp.Application.Scheduling;
 using CfiApp.Domain.Maintenance;
 using CfiApp.Infrastructure.Attendance;
 using CfiApp.Infrastructure.Messaging;
@@ -28,6 +29,8 @@ public sealed class DomainExceptionHandler : IExceptionHandler
             InvalidWorkOrderTransitionException => (StatusCodes.Status409Conflict, exception.Message),
             ClockRejectedException => (StatusCodes.Status409Conflict, exception.Message),
             UnknownMessageTargetException => (StatusCodes.Status400BadRequest, exception.Message),
+            ShiftRuleException => (StatusCodes.Status400BadRequest, exception.Message),
+            ShiftClashException => (StatusCodes.Status409Conflict, exception.Message),
             _ => (0, null)
         };
 

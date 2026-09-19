@@ -287,11 +287,13 @@ public sealed class AdminCrudTests(CfiAppApiFactory factory)
         var managerClient = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
 
         var night = await managerClient.PostAsJsonAsync("/api/v1/admin/shift-types",
-            new UpsertShiftTypeRequest($"Night {_counter}", new TimeOnly(22, 0), new TimeOnly(6, 0), 9));
+            new UpsertShiftTypeRequest($"Night {_counter}", new TimeOnly(22, 0), new TimeOnly(6, 0),
+                [DayOfWeek.Sunday, DayOfWeek.Monday], new DateOnly(2026, 1, 1), 9));
         night.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var invalid = await managerClient.PostAsJsonAsync("/api/v1/admin/shift-types",
-            new UpsertShiftTypeRequest("Zero Length", new TimeOnly(9, 0), new TimeOnly(9, 0), 9));
+            new UpsertShiftTypeRequest("Zero Length", new TimeOnly(9, 0), new TimeOnly(9, 0),
+                [DayOfWeek.Monday], new DateOnly(2026, 1, 1), 9));
         invalid.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 
@@ -301,7 +303,8 @@ public sealed class AdminCrudTests(CfiAppApiFactory factory)
         var productionManagerClient = await SignedInAsAsync(Permissions.Roles.ProductionManager);
 
         var shiftAttempt = await productionManagerClient.PostAsJsonAsync("/api/v1/admin/shift-types",
-            new UpsertShiftTypeRequest($"Swing {_counter}", new TimeOnly(10, 0), new TimeOnly(18, 0), 9));
+            new UpsertShiftTypeRequest($"Swing {_counter}", new TimeOnly(10, 0), new TimeOnly(18, 0),
+                [DayOfWeek.Monday], new DateOnly(2026, 1, 1), 9));
         shiftAttempt.StatusCode.ShouldBe(HttpStatusCode.Created);
 
         var unitAttempt = await productionManagerClient.PostAsJsonAsync("/api/v1/admin/units",

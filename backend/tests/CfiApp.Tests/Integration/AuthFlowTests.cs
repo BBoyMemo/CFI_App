@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using CfiApp.Api.Controllers.V1;
 using CfiApp.Application.Auth;
 using CfiApp.Domain.Identity;
 using CfiApp.Infrastructure.Persistence;
@@ -45,6 +46,18 @@ public sealed class AuthFlowTests(CfiAppApiFactory factory)
         return user.Id;
     }
 
+    private async Task RejectAsync(string email)
+    {
+        await using var scope = factory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+        var user = await context.Users.SingleAsync(x => x.Email == email);
+
+        user.Status = UserStatus.Rejected;
+        user.RejectedAt = DateTimeOffset.UtcNow;
+        user.RejectionReason = "Duplicate registration.";
+        await context.SaveChangesAsync();
+    }
+
     private async Task<AuthTokens> SignInAsync(HttpClient client, string email)
     {
         var response = await client.PostAsJsonAsync("/api/v1/auth/login",
@@ -78,6 +91,26 @@ public sealed class AuthFlowTests(CfiAppApiFactory factory)
             new LoginRequest(email, Password, null));
 
         afterApproval.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task A_rejected_registration_cannot_sign_in()
+    {
+        var client = factory.CreateClient();
+        var email = NewEmail();
+
+        var registration = await RegisterAsync(client, email);
+        registration.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+
+        await RejectAsync(email);
+
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new LoginRequest(email, Password, null));
+
+        // Authenticated correctly but the account was never approved: 403, not 401 and
+        // absolutely not 200 - a rejected registration handing out a valid session was
+        // exactly the bug this test exists to catch.
+        login.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -335,6 +368,50 @@ public sealed class AuthFlowTests(CfiAppApiFactory factory)
         // Nobody chose Production on the form: it comes from being an operator.
         me.Department.ShouldBe("Production");
         me.AreaIds.ShouldContain(areaId);
+    }
+
+    [Fact]
+    public async Task A_manager_can_reject_a_pending_registration()
+    {
+        var client = factory.CreateClient();
+
+        var managerEmail = NewEmail();
+        await RegisterAsync(client, managerEmail);
+        await ApproveAsync(managerEmail, Permissions.Roles.MaintenanceManager);
+
+        var newStarterEmail = NewEmail();
+        await RegisterAsync(client, newStarterEmail);
+
+        int newStarterId;
+        await using (var scope = factory.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+            newStarterId = (await context.Users.SingleAsync(x => x.Email == newStarterEmail)).Id;
+        }
+
+        Authorise(client, await SignInAsync(client, managerEmail));
+
+        var reject = await client.PostAsJsonAsync($"/api/v1/users/{newStarterId}/reject",
+            new RejectPendingUserRequest("Duplicate registration."));
+
+        reject.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // Rejecting twice is a conflict, not a silent second rejection.
+        var again = await client.PostAsJsonAsync($"/api/v1/users/{newStarterId}/reject",
+            new RejectPendingUserRequest("again"));
+
+        again.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        var pending = await client.GetFromJsonAsync<PagedResult<PendingUserResponse>>(
+            "/api/v1/users/pending?page=1&pageSize=50");
+        pending!.Items.ShouldNotContain(x => x.Id == newStarterId);
+
+        // And the rejected starter, who never got tokens in the first place, still can't get any.
+        client.DefaultRequestHeaders.Authorization = null;
+        var login = await client.PostAsJsonAsync("/api/v1/auth/login",
+            new LoginRequest(newStarterEmail, Password, null));
+
+        login.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]

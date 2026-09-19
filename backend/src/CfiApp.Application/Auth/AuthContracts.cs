@@ -22,6 +22,9 @@ public sealed record ApproveUserRequest(
     int? OccupationId,
     IReadOnlyCollection<int> AreaIds);
 
+/// <summary>Turning a registration down - not a real starter, a duplicate, or not theirs to approve.</summary>
+public sealed record RejectPendingUserRequest(string Reason);
+
 public sealed record AuthTokens(
     string AccessToken,
     DateTimeOffset AccessTokenExpiresAt,
@@ -59,7 +62,8 @@ public enum AuthFailure
     AccountNotApproved = 2,
     AccountDisabled = 3,
     AccountLocked = 4,
-    InvalidRefreshToken = 5
+    InvalidRefreshToken = 5,
+    AccountRejected = 6
 }
 
 public sealed record AuthResult(AuthTokens? Tokens, AuthFailure Failure)

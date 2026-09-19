@@ -15,6 +15,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
         builder.Property(x => x.SecurityStamp).HasMaxLength(64).IsRequired();
         builder.Property(x => x.PreferredLanguage).HasMaxLength(5).IsRequired();
+        builder.Property(x => x.RejectionReason).HasMaxLength(500);
 
         builder.Property(x => x.Status).HasConversion<int>();
 

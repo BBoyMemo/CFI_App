@@ -36,13 +36,31 @@ public sealed class WorkOrdersController(
         return CreatedAtAction(nameof(Detail), new { id = workOrder.Id }, dto);
     }
 
-    /// <summary>Unclaimed reports, newest first - what an engineer sees to pick up work.</summary>
+    /// <summary>
+    /// Every breakdown still live on the floor, free ones first. A job stays here from the
+    /// moment it is reported until it is genuinely finished, carrying its own status and
+    /// the name of whoever took it, so the pool answers "what is broken right now, and who
+    /// has it" instead of hiding a job the moment somebody picks it up - work in hand is
+    /// still work the shift needs to see.
+    ///
+    /// unclaimed=true narrows it to the jobs nobody has taken. That is a different number
+    /// and the dashboard counts it separately: "waiting for someone" is not "open".
+    /// </summary>
     [HttpGet("pool")]
     [Authorize(Policy = Permissions.WorkOrderClaim)]
     [ProducesResponseType(typeof(PagedResult<WorkOrderSummaryDto>), StatusCodes.Status200OK)]
     public Task<ActionResult<PagedResult<WorkOrderSummaryDto>>> Pool(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken cancellationToken = default) =>
-        ListAsync(BaseQuery().Where(x => x.Status == WorkOrderStatus.New), page, pageSize, cancellationToken);
+        [FromQuery] bool? unclaimed = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var query = unclaimed == true
+            ? BaseQuery().Where(x => x.Status == WorkOrderStatus.New)
+            : BaseQuery().Where(x => !FinishedStatuses.Contains(x.Status));
+
+        return ListAsync(query, page, pageSize, cancellationToken, freeFirst: true);
+    }
 
     /// <summary>
     /// Everything still on the signed-in engineer's plate. A job stays here until it is
@@ -105,8 +123,7 @@ public sealed class WorkOrdersController(
 
         if (open == true)
         {
-            var finished = new[] { WorkOrderStatus.Completed, WorkOrderStatus.Rejected };
-            query = query.Where(x => !finished.Contains(x.Status));
+            query = query.Where(x => !FinishedStatuses.Contains(x.Status));
         }
 
         if (waitingParts == true)
@@ -385,6 +402,10 @@ public sealed class WorkOrdersController(
 
     // ---------------------------------------------------------------- queries
 
+    /// <summary>The two ways a job stops being live work: it was done, or it was turned down.</summary>
+    private static readonly WorkOrderStatus[] FinishedStatuses =
+        [WorkOrderStatus.Completed, WorkOrderStatus.Rejected];
+
     private IQueryable<WorkOrder> BaseQuery() => context.WorkOrders.AsNoTracking();
 
     private static IQueryable<WorkOrderSummaryDto> ToSummaries(IQueryable<WorkOrder> query) =>
@@ -446,15 +467,30 @@ public sealed class WorkOrdersController(
         int page,
         int pageSize,
         CancellationToken cancellationToken,
-        bool needsMeFirst = false)
+        bool needsMeFirst = false,
+        bool freeFirst = false)
     {
-        // Newest first everywhere, except on a personal list where a job QA has sent back
-        // outranks a newer one: it is already late, and somebody is waiting on it.
-        query = needsMeFirst
-            ? query
+        // Newest first everywhere, with two exceptions. On a personal list a job QA has
+        // sent back outranks a newer one: it is already late and somebody is waiting on it.
+        // In the pool a job nobody has taken outranks one that already has an engineer -
+        // an engineer scanning for work should not have to read past jobs in hand.
+        if (needsMeFirst)
+        {
+            query = query
                 .OrderByDescending(x => x.Status == WorkOrderStatus.QaFailed)
-                .ThenByDescending(x => x.ReportedAt)
-            : query.OrderByDescending(x => x.ReportedAt);
+                .ThenByDescending(x => x.ReportedAt);
+        }
+        else if (freeFirst)
+        {
+            query = query
+                .OrderByDescending(x => x.Status == WorkOrderStatus.New)
+                .ThenByDescending(x => x.ReportedAt);
+        }
+        else
+        {
+            query = query.OrderByDescending(x => x.ReportedAt);
+        }
+
         var total = await query.CountAsync(cancellationToken);
 
         var items = await ToSummaries(query
