@@ -7,48 +7,38 @@ import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
-import { getRoster } from '../../api/endpoints';
+import { getShiftHistory } from '../../api/endpoints';
 import { useApiData } from '../../hooks/useApiData';
 import WeekdayStrip from './WeekdayStrip';
-import { addDays, todayIso } from '../attendance/hours';
-import { shiftIcon, sourceName, timeRange } from './shiftModel';
-
-const longDate = (isoDay) =>
-  new Date(`${isoDay}T00:00:00`).toLocaleDateString(undefined, {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+import { fullDate, shiftIcon, timeRange } from './shiftModel';
 
 /**
- * Pick a day and see what the factory was running: which shifts, and who was on each.
+ * Every shift that has been in the pool. Only the pool is history: a shift that was drawn up
+ * but never put in has nothing to show, so it is not here.
  *
- * It is the same board endpoint the planner uses, asked about a different date. That is the
- * whole trick - because a change closes the old row rather than overwriting it, asking about
- * last March answers with last March rather than with today.
+ * One search box for a shift's name or the name of anybody who was on it, and a date to see
+ * what was running that day. Open a shift for the week-by-week detail.
  */
 export default function ShiftHistoryPage() {
   const { t } = useTranslation();
-  const today = todayIso();
 
-  const [date, setDate] = useState(today);
   const [search, setSearch] = useState('');
+  const [on, setOn] = useState('');
 
-  const board = useApiData(() => getRoster({ on: date }), [date]);
+  const term = search.trim();
 
-  const term = search.trim().toLowerCase();
-  const shifts = (board.data?.shifts ?? [])
-    .map((shift) => (term
-      ? { ...shift, people: shift.people.filter((p) => p.fullName.toLowerCase().includes(term)) }
-      : shift))
-    // A search for a name hides the shifts that name is not on; a search that matches the
-    // shift itself keeps it whole, so "night" answers "who was on nights".
-    .filter((shift) => !term || shift.name.toLowerCase().includes(term) || shift.people.length > 0);
+  const history = useApiData(
+    () => getShiftHistory({ search: term || undefined, on: on || undefined }),
+    [term, on],
+  );
 
-  const nobodyMatches = term.length > 0 && shifts.length === 0;
+  const shifts = history.data ?? [];
+  const filtered = term.length > 0 || on.length > 0;
 
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-cfi-brown-dark">{t('shift.browseByDate')}</h1>
+        <h1 className="text-xl font-bold text-cfi-brown-dark">{t('shift.historyTitle')}</h1>
 
         <Link to="/shifts">
           <Button variant="secondary">{t('common.back')}</Button>
@@ -57,24 +47,6 @@ export default function ShiftHistoryPage() {
 
       <Card className="mb-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-xs font-medium text-cfi-muted">
-            {t('shift.date')}
-            <div className="mt-1 flex items-center gap-1">
-              <Button variant="secondary" aria-label={t('shift.previousDay')} onClick={() => setDate(addDays(date, -1))}>
-                ‹
-              </Button>
-              <input
-                type="date"
-                value={date}
-                onChange={(event) => event.target.value && setDate(event.target.value)}
-                className="min-h-11 rounded border border-cfi-rule bg-white px-2 text-sm"
-              />
-              <Button variant="secondary" aria-label={t('shift.nextDay')} onClick={() => setDate(addDays(date, 1))}>
-                ›
-              </Button>
-            </div>
-          </label>
-
           <label className="min-w-48 flex-1 text-xs font-medium text-cfi-muted">
             {t('common.search')}
             <input
@@ -86,63 +58,65 @@ export default function ShiftHistoryPage() {
             />
           </label>
 
-          {date !== today && (
-            <Button variant="secondary" onClick={() => setDate(today)}>{t('shift.today')}</Button>
+          <label className="text-xs font-medium text-cfi-muted">
+            {t('shift.date')}
+            <input
+              type="date"
+              value={on}
+              onChange={(event) => setOn(event.target.value)}
+              className="mt-1 block min-h-11 rounded border border-cfi-rule bg-white px-2 text-sm"
+            />
+          </label>
+
+          {filtered && (
+            <Button variant="secondary" onClick={() => { setSearch(''); setOn(''); }}>
+              {t('shift.clearSearch')}
+            </Button>
           )}
         </div>
-
-        <p className="mt-2 text-sm font-semibold text-cfi-brown-dark">{longDate(date)}</p>
       </Card>
 
       <AsyncSection
-        {...board}
+        {...history}
         isEmpty={shifts.length === 0}
-        emptyKey={nobodyMatches ? 'common.noResults' : 'shift.nothingRanThatDay'}
+        emptyKey={filtered ? 'common.noResults' : 'shift.historyEmpty'}
       >
         <div className="flex flex-col gap-3">
           {shifts.map((shift) => (
-            <Card key={shift.activeShiftId}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-cfi-brown-dark">
-                      <Icon name={shiftIcon(shift.startTime)} size={20} />
-                    </span>
-                    <h2 className="font-semibold text-cfi-brown-dark">{shift.name}</h2>
-                    <span className="font-mono text-sm text-cfi-muted">
-                      {timeRange(shift.startTime, shift.endTime)}
-                    </span>
+            <Link key={shift.activeShiftId} to={`/shifts/history/${shift.activeShiftId}`}>
+              <Card className="transition-colors hover:border-cfi-yellow-dark">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-cfi-brown-dark"><Icon name={shiftIcon(shift.startTime)} size={20} /></span>
+                      <h2 className="font-semibold text-cfi-brown-dark">{shift.name}</h2>
+                      <span className="font-mono text-sm text-cfi-muted">{timeRange(shift.startTime, shift.endTime)}</span>
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                      <WeekdayStrip days={shift.weekdays} />
+                      <span className="flex items-center gap-1 text-xs text-cfi-muted">
+                        <Icon name="calendar" size={12} />
+                        {fullDate(shift.startsOn)} → {shift.endsOn ? fullDate(shift.endsOn) : t('shift.now')}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="mt-1.5">
-                    <WeekdayStrip days={shift.weekdays} />
-                  </div>
+                  {shift.endsOn ? (
+                    <Badge>{t('shift.ended')}</Badge>
+                  ) : (
+                    <Badge tone="bg-cfi-green/15 text-cfi-green-dark">{t('shift.inPool')}</Badge>
+                  )}
                 </div>
 
-                <Badge tone={shift.people.length === 0 ? 'bg-cfi-sunk text-cfi-muted' : 'bg-cfi-green/15 text-cfi-green-dark'}>
-                  {shift.people.length}
-                </Badge>
-              </div>
-
-              {shift.people.length === 0 ? (
-                <p className="mt-3 text-sm text-cfi-muted">{t('shift.nobodyOnIt')}</p>
-              ) : (
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {shift.people.map((person) => (
-                    <li
-                      key={person.userId}
-                      className="flex items-center justify-between gap-2 rounded border border-cfi-rule bg-white px-2 py-1.5"
-                    >
-                      <span className="truncate text-sm text-cfi-ink">{person.fullName}</span>
-
-                      {sourceName(person.source) === 'Cover' && (
-                        <Badge tone="bg-cfi-yellow/25 text-cfi-yellow-dark">{t('shift.cover')}</Badge>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+                {shift.people.length > 0 && (
+                  <p className="mt-2 truncate text-sm text-cfi-ink-soft">
+                    <Icon name="users" size={13} className="mr-1 inline" />
+                    {shift.people.join(', ')}
+                  </p>
+                )}
+              </Card>
+            </Link>
           ))}
         </div>
       </AsyncSection>

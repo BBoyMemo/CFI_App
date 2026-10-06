@@ -45,7 +45,12 @@ public sealed record TaskDetailDto(
     IReadOnlyCollection<TaskCompletionDto> Completions,
     IReadOnlyCollection<TaskProgressNoteDto> ProgressNotes);
 
-public sealed record CreatePartOrderRequest(string PartName, int Quantity, bool IsUrgent);
+/// <summary>Photos are optional and already uploaded - this only says which ones belong here.</summary>
+public sealed record CreatePartOrderRequest(
+    string PartName,
+    int Quantity,
+    bool IsUrgent,
+    IReadOnlyCollection<int>? PhotoAssetIds = null);
 
 public sealed record PartOrderRequestDto(
     int Id,
@@ -55,4 +60,5 @@ public sealed record PartOrderRequestDto(
     string RequestedByName,
     DateTimeOffset RequestedAt,
     string Status,
-    DateTimeOffset? OrderedAt);
+    DateTimeOffset? OrderedAt,
+    IReadOnlyCollection<int> PhotoAssetIds);

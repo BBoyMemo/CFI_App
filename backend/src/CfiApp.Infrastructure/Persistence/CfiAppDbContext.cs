@@ -54,6 +54,7 @@ public sealed class CfiAppDbContext(DbContextOptions<CfiAppDbContext> options) :
     public DbSet<TaskProgressNote> TaskProgressNotes => Set<TaskProgressNote>();
     public DbSet<TaskProgressNotePhoto> TaskProgressNotePhotos => Set<TaskProgressNotePhoto>();
     public DbSet<PartOrderRequest> PartOrderRequests => Set<PartOrderRequest>();
+    public DbSet<PartOrderPhoto> PartOrderPhotos => Set<PartOrderPhoto>();
 
     // ---- Attendance (Phase 1) ----
     public DbSet<ClockEvent> ClockEvents => Set<ClockEvent>();
@@ -63,6 +64,7 @@ public sealed class CfiAppDbContext(DbContextOptions<CfiAppDbContext> options) :
 
     // ---- Scheduling (Phase 1) ----
     public DbSet<ShiftType> ShiftTypes => Set<ShiftType>();
+    public DbSet<ShiftTypeMember> ShiftTypeMembers => Set<ShiftTypeMember>();
     public DbSet<ActiveShift> ActiveShifts => Set<ActiveShift>();
     public DbSet<ShiftRosterEntry> ShiftRosterEntries => Set<ShiftRosterEntry>();
     public DbSet<ShiftOverride> ShiftOverrides => Set<ShiftOverride>();

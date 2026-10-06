@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mainty — QA Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page:#F5EFE2;
+    --bg-base:#FFFFFF;
+    --bg-surface:#FBF7EE;
+    --bg-raised:#F1E6D0;
+    --bg-raised-2:#E8DAB9;
+    --border:#E1D3B3;
+    --border-soft:#ECE1C8;
+    --text:#3B2A19;
+    --text-muted:#8A7355;
+    --text-dim:#A8926B;
+    --brown:#6B4A2E;
+    --brown-dark:#4A3320;
+    --brown-bg:#EFE1CC;
+    --green:#4E7A3B;
+    --green-dark:#2F4F22;
+    --green-bg:#E4EFDA;
+    --yellow:#E7A93A;
+    --yellow-dark:#8A5E15;
+    --yellow-bg:#FBEBC9;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, #FBF3E1 0%, var(--bg-page) 45%),
+      var(--bg-page);
+    min-height:100vh;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 12px;
+  }
+  .caption{
+    position:fixed; top:10px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--text-dim); z-index:50;
+  }
+  .phone{
+    width:390px; max-width:100%;
+    background:var(--bg-base);
+    border:1px solid var(--border);
+    border-radius:34px;
+    padding:10px;
+    box-shadow:0 30px 70px -25px rgba(80,60,30,.25), 0 0 0 1px rgba(255,255,255,.5) inset;
+    position:relative;
+  }
+  .screen{
+    background:var(--bg-base);
+    border-radius:26px;
+    overflow:hidden;
+    position:relative;
+    height:800px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .status-strip{
+    display:flex; align-items:center; gap:6px;
+    padding:10px 16px 8px 16px;
+    background:var(--bg-base);
+    flex-shrink:0;
+  }
+  .led{width:6px;height:6px;border-radius:50%;background:var(--border);}
+  .led.on{background:var(--green); box-shadow:0 0 6px 1px rgba(78,122,59,.45);}
+  .led.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .status-strip .label{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.14em;
+    color:var(--text-muted); text-transform:uppercase; margin-left:4px;
+  }
+  .status-strip .spacer{flex:1;}
+  .status-strip .clock{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted);
+  }
+
+  .appbar{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 14px 16px 14px;
+    flex-shrink:0;
+  }
+  .appbar-text{min-width:0; overflow:hidden;}
+  .burger{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:4px; cursor:pointer; position:relative;
+  }
+  .burger span{width:16px;height:2px;background:var(--brown); border-radius:2px;}
+  .burger .dot{
+    position:absolute; top:-3px; right:-3px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-base); display:none;
+  }
+  .appbar-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15.5px; color:var(--brown-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .appbar-sub{font-size:10.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .back-btn{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft); color:var(--brown);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:18px;
+  }
+
+  .floating-controls{
+    position:absolute; top:48px; right:14px; z-index:30;
+    display:flex; align-items:center; gap:8px;
+  }
+  .hdr-status-text{font-size:11px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+
+  .content{flex:1; overflow-y:auto; padding:0 16px 24px 16px;}
+  .content::-webkit-scrollbar{display:none;}
+
+  /* --- hero cards --- */
+  .report-hero, .task-hero{
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:22px 20px;
+    margin-bottom:16px;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .report-hero{background:linear-gradient(160deg, var(--brown-bg), var(--bg-surface) 70%);}
+  .task-hero{background:linear-gradient(160deg, var(--green-bg), var(--bg-surface) 70%);}
+  .report-hero::after{
+    content:""; position:absolute; right:-30px; top:-30px; width:140px; height:140px;
+    background:radial-gradient(circle, rgba(231,169,58,.35), transparent 70%);
+  }
+  .task-hero::after{
+    content:""; position:absolute; right:-30px; top:-30px; width:140px; height:140px;
+    background:radial-gradient(circle, rgba(78,122,59,.28), transparent 70%);
+  }
+  .report-hero .eyebrow{color:var(--yellow-dark);}
+  .task-hero .eyebrow{color:var(--green-dark);}
+  .report-hero .eyebrow, .task-hero .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em;
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  .report-hero h1, .task-hero h1{
+    font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;
+    margin:0 0 6px 0; line-height:1.15; color:var(--brown-dark);
+  }
+  .report-hero p, .task-hero p{margin:0; color:var(--text-muted); font-size:13px; line-height:1.5; max-width:230px;}
+  .report-hero .go, .task-hero .go{
+    margin-top:16px; display:inline-flex; align-items:center; gap:6px;
+    font-weight:700; font-size:13.5px; padding:11px 18px; border-radius:11px;
+  }
+  .report-hero .go{background:var(--yellow); color:var(--brown-dark);}
+  .task-hero .go{background:var(--green); color:#fff;}
+
+  .section-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    color:var(--text-dim); text-transform:uppercase; margin:22px 0 10px 2px;
+  }
+  .section-label:first-child{margin-top:2px;}
+
+  .active-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px; margin-bottom:10px; cursor:pointer;
+  }
+  .active-card .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .active-card .line{font-size:13.5px; font-weight:600; color:var(--text);}
+  .active-card .part{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .badge{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    padding:4px 8px; border-radius:7px; white-space:nowrap; text-transform:uppercase; flex-shrink:0;
+  }
+  .badge.pool{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .badge.taken{background:var(--green-bg); color:var(--green-dark);}
+  .badge.rejected{background:#F7DEDA; color:#9B3B26;}
+  .active-card .meta{font-size:11px; color:var(--text-dim); margin-top:10px; display:flex; align-items:center; gap:6px;}
+
+  .empty-note{color:var(--text-dim); font-size:12.5px; padding:6px 2px 0 2px; line-height:1.5;}
+
+  /* --- selection grids --- */
+  .grid-cards{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .pick-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px 14px; cursor:pointer; transition:border-color .15s;
+  }
+  .pick-card:active{border-color:var(--yellow);}
+  .pick-card .icon-wrap{
+    width:40px;height:40px;border-radius:11px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+    color:var(--brown);
+  }
+  .pick-card .name{font-weight:600; font-size:14px; color:var(--text);}
+  .pick-card .sub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  .grid-icons{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .icon-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:14px 8px; text-align:center; cursor:pointer;
+  }
+  .icon-card.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .icon-card .icon-wrap{
+    width:44px;height:44px;border-radius:12px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 8px auto;
+    color:var(--text-muted);
+  }
+  .icon-card.selected .icon-wrap{color:var(--yellow-dark); background:#F6DFA8;}
+  .icon-card .name{font-size:11.5px; font-weight:500; line-height:1.25; color:var(--text);}
+
+  /* --- form elements --- */
+  .field-label{font-size:12px; color:var(--text-muted); margin:18px 2px 8px 2px; font-weight:500;}
+  .field-label:first-child{margin-top:0;}
+  textarea, input[type="text"]{
+    width:100%; background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:14px; padding:14px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:13.5px;
+  }
+  textarea{resize:none; min-height:90px;}
+  textarea:focus, input[type="text"]:focus{outline:none; border-color:var(--yellow);}
+
+  .severity-row, .verify-row{display:flex; gap:10px;}
+  .sev-btn, .verify-btn{
+    flex:1; padding:14px 10px; border-radius:14px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); text-align:left; cursor:pointer;
+  }
+  .sev-btn.critical.selected{border-color:var(--brown-dark); background:var(--brown-bg);}
+  .sev-btn.minor.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .verify-btn.pass.selected{border-color:var(--green); background:var(--green-bg);}
+  .verify-btn.fail.selected{border-color:#C24C3A; background:#F7DEDA;}
+  .sev-btn .t, .verify-btn .t{font-weight:700; font-size:13px; color:var(--text);}
+  .sev-btn .s, .verify-btn .s{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+  .sev-btn.critical.selected .t{color:var(--brown-dark);}
+  .sev-btn.minor.selected .t{color:var(--yellow-dark);}
+  .verify-btn.pass.selected .t{color:var(--green-dark);}
+  .verify-btn.fail.selected .t{color:#8B2E1F;}
+
+  .photo-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .photo-add, .photo-thumb{
+    width:64px;height:64px;border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    border:1px dashed var(--border); color:var(--text-dim); font-size:22px;
+    background:var(--bg-surface); cursor:pointer; position:relative; overflow:hidden;
+  }
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;}
+  .photo-thumb .rm{
+    position:absolute; top:2px; right:2px; width:16px;height:16px; border-radius:50%;
+    background:rgba(0,0,0,.55); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center;
+  }
+
+  .primary-btn{
+    width:100%; padding:16px; border-radius:14px; border:none;
+    background:var(--yellow); color:var(--brown-dark); font-weight:700; font-size:14.5px;
+    margin-top:22px; cursor:pointer;
+  }
+  .primary-btn.green{background:var(--green); color:#fff;}
+  .primary-btn:disabled{background:var(--bg-raised); color:var(--text-dim);}
+  .ghost-btn{
+    width:100%; padding:14px; border-radius:14px; border:1px solid var(--border-soft);
+    background:transparent; color:var(--brown); font-weight:600; font-size:13px;
+    margin-top:10px; cursor:pointer;
+  }
+
+  .crumb{font-size:11px; color:var(--text-dim); margin-bottom:14px; font-family:'JetBrains Mono',monospace;}
+  .crumb b{color:var(--yellow-dark);}
+
+  .confirm-wrap{text-align:center; padding-top:60px;}
+  .confirm-check{
+    width:64px;height:64px;border-radius:50%; background:var(--green-bg); color:var(--green-dark);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:28px;
+  }
+  .confirm-wrap h2{font-family:'Space Grotesk',sans-serif; font-size:19px; margin:0 0 8px 0; color:var(--brown-dark);}
+  .confirm-wrap p{color:var(--text-muted); font-size:13px; line-height:1.6; max-width:250px; margin:0 auto;}
+
+  .timeline{margin-top:10px;}
+  .tl-item{display:flex; gap:12px; padding-bottom:22px; position:relative;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{
+    content:""; position:absolute; left:5px; top:16px; bottom:0; width:1px; background:var(--border);
+  }
+  .tl-item:last-child::before{display:none;}
+  .tl-dot{width:11px;height:11px;border-radius:50%; background:var(--bg-raised); border:2px solid var(--border); flex-shrink:0; margin-top:2px;}
+  .tl-dot.done{background:var(--green); border-color:var(--green);}
+  .tl-dot.active{background:var(--yellow); border-color:var(--yellow); box-shadow:0 0 0 4px rgba(231,169,58,.2);}
+  .tl-t{font-size:13px; font-weight:600; color:var(--text);}
+  .tl-s{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  /* --- overlay menu --- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(40,28,14,.35); opacity:0; pointer-events:none;
+    transition:opacity .25s; z-index:20;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .side-panel{
+    position:absolute; top:0; bottom:0; left:0; width:82%;
+    background:var(--bg-base); border-right:1px solid var(--border);
+    transform:translateX(-100%); transition:transform .28s ease; z-index:21;
+    display:flex; flex-direction:column;
+  }
+  .side-panel.show{transform:translateX(0);}
+  .side-header{padding:20px 18px 14px 18px; border-bottom:1px solid var(--border-soft);}
+  .side-header-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .side-header .name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--brown-dark);}
+  .side-header .role{font-size:11.5px; color:var(--text-dim); margin-top:2px;}
+  .conn-row{display:flex; align-items:center; gap:7px; margin-top:12px;}
+  .conn-row span{font-size:11px; color:var(--green-dark); font-family:'JetBrains Mono',monospace;}
+  .side-body{flex:1; overflow-y:auto; padding:16px 18px 24px 18px;}
+
+  .hdr-clock{display:flex; align-items:center; gap:5px; flex-shrink:0;}
+  .hdr-led{width:7px;height:7px;border-radius:50%; background:var(--border);}
+  .hdr-led.on{background:var(--green); box-shadow:0 0 7px 2px rgba(78,122,59,.5);}
+  .hdr-clock-btn{
+    padding:7px 11px; border-radius:16px; border:none; font-weight:700; font-size:10.5px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .hdr-clock-btn.out{background:var(--green); color:#0F2A08;}
+  .hdr-clock-btn.in{background:var(--yellow); color:var(--brown-dark);}
+
+  .notif-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+  }
+  .notif-item.unread{border-color:var(--yellow);}
+  .notif-item .top{display:flex; align-items:flex-start; gap:7px;}
+  .notif-item .udot{width:7px;height:7px;border-radius:50%;background:#D64545; margin-top:5px; flex-shrink:0;}
+  .notif-item .title{flex:1; font-size:13px; font-weight:700; color:var(--text);}
+  .notif-item.unread .title{color:var(--brown-dark);}
+  .notif-item .time{font-size:10px; color:var(--text-dim); white-space:nowrap; flex-shrink:0; margin-top:1px;}
+  .notif-item .body{font-size:12px; color:var(--text-muted); margin-top:5px; line-height:1.45; padding-left:14px;}
+
+  .screen-el{display:none;}
+  .screen-el.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="caption">Mainty — QA Prototype (clickable mockup, no real data)</div>
+
+<div class="phone">
+  <div class="screen" id="screen">
+
+    <div class="status-strip">
+      <div class="led on pulse"></div>
+      <div class="led on"></div>
+      <div class="led"></div>
+      <div class="led"></div>
+      <div class="label">Factory Network · Connected</div>
+      <div class="spacer"></div>
+      <div class="clock" id="topClock">08:42</div>
+    </div>
+
+    <div class="floating-controls" id="floatingControls">
+      <div class="hdr-status-text" id="hdrStatusText">Clock In</div>
+    </div>
+
+    <div class="appbar">
+      <div class="burger" id="burgerBtn" onclick="openMenu()"><span></span><span></span><span></span><span class="dot" id="burgerDot"></span></div>
+      <div class="back-btn screen-el" id="backBtn" onclick="goBack()" style="display:none;">←</div>
+      <div class="appbar-text">
+        <div class="appbar-title" id="appbarTitle">Hi, Emma</div>
+        <div class="appbar-sub" id="appbarSub">Quality Assurance</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <div class="screen-el active" id="home">
+        <div class="section-label">Swap Tests</div>
+        <div id="swapListWrap"></div>
+        <div id="swapHistoryWrap"></div>
+
+        <div class="report-hero" onclick="startReport()">
+          <div class="eyebrow">Report Breakdown</div>
+          <h1>Something wrong?</h1>
+          <p>Log a new breakdown, the same way operators do.</p>
+          <div class="go">Create Report →</div>
+        </div>
+        <div id="activeReportsWrap"></div>
+
+        <div class="task-hero" onclick="goto('taskNew')">
+          <div class="eyebrow">Create Task</div>
+          <h1>Flag something for engineering</h1>
+          <p>Not a breakdown — just something that needs doing. Goes straight to the team, not the pool.</p>
+          <div class="go">New Task →</div>
+        </div>
+
+        <div class="section-label">Your Tasks</div>
+        <div id="taskListWrap"></div>
+      </div>
+
+      <!-- SWAP TEST DETAIL -->
+      <div class="screen-el" id="swapDetail">
+        <div class="crumb" id="sdCrumb">Swap Test · WO-1041</div>
+        <div class="active-card" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="sdMachine">Capper · Line 1</div>
+              <div class="part" id="sdMeta">Repaired by James R. · 09:12</div>
+            </div>
+            <span class="badge pool">Pending</span>
+          </div>
+        </div>
+
+        <div class="field-label">Verification Result</div>
+        <div class="verify-row">
+          <div class="verify-btn pass" id="vPass" onclick="pickVerify('pass')">
+            <div class="t">Pass</div>
+            <div class="s">Repair confirmed</div>
+          </div>
+          <div class="verify-btn fail" id="vFail" onclick="pickVerify('fail')">
+            <div class="t">Fail</div>
+            <div class="s">Send back to engineer</div>
+          </div>
+        </div>
+
+        <div class="field-label">Notes</div>
+        <textarea id="swapNotes" placeholder="Optional — what did you check?" oninput="validateSwapSubmit()"></textarea>
+
+        <button class="primary-btn" id="swapSubmitBtn" disabled onclick="submitSwap()">Submit Verification</button>
+      </div>
+
+      <!-- SWAP CONFIRM -->
+      <div class="screen-el" id="swapConfirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check" id="swapConfirmIcon">✓</div>
+          <h2 id="swapConfirmTitle">Verification recorded</h2>
+          <p id="swapConfirmText">The result was logged against the work order. Engineering will see it on their side.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- BREAKDOWN — DETAILS -->
+      <div class="screen-el" id="details">
+        <div class="crumb" id="detailsCrumb">New Report</div>
+
+        <div class="field-label">What happened?</div>
+        <textarea id="descBox" placeholder="Briefly describe... (optional but recommended)"></textarea>
+
+        <div class="field-label">Photo</div>
+        <div class="photo-row" id="photoRow">
+          <div class="photo-add" onclick="document.getElementById('fileInput').click()">+</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
+
+        <div class="field-label">Severity</div>
+        <div class="severity-row">
+          <div class="sev-btn critical" id="sevCritical" onclick="pickSeverity('critical')">
+            <div class="t">Line Stopped</div>
+            <div class="s">Production fully stopped</div>
+          </div>
+          <div class="sev-btn minor" id="sevMinor" onclick="pickSeverity('minor')">
+            <div class="t">Minor Issue</div>
+            <div class="s">Production continues</div>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="submitBtn" disabled onclick="submitReport()">Submit</button>
+      </div>
+
+      <!-- BREAKDOWN — CONFIRM -->
+      <div class="screen-el" id="confirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2>Report submitted</h2>
+          <p>Your report went to the pool. An available engineer will pick it up.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- BREAKDOWN — REPORT DETAIL / TIMELINE -->
+      <div class="screen-el" id="reportDetail">
+        <div class="crumb">Report <b>#WO-1042</b></div>
+        <div class="active-card" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="rdLine">General Report</div>
+              <div class="part" id="rdSeverity">Line stopped — critical</div>
+            </div>
+            <span class="badge" id="rdBadge">Pool</span>
+          </div>
+        </div>
+        <div class="section-label">Status</div>
+        <div class="timeline" id="timelineBox"></div>
+      </div>
+
+      <!-- TASK — NEW -->
+      <div class="screen-el" id="taskNew">
+        <div class="crumb">Send a task to engineering</div>
+
+        <div class="field-label">Where?</div>
+        <input type="text" id="taskLocation" placeholder="e.g. Break room, Warehouse yard">
+
+        <div class="field-label">What needs doing?</div>
+        <input type="text" id="taskTitle" placeholder="e.g. Fit insect control lamp">
+
+        <div class="field-label">Details</div>
+        <textarea id="taskDesc" placeholder="Optional — any extra context"></textarea>
+
+        <div class="field-label">Photo</div>
+        <div class="photo-row" id="taskPhotoRow">
+          <div class="photo-add" onclick="document.getElementById('taskFileInput').click()">+</div>
+        </div>
+        <input type="file" id="taskFileInput" accept="image/*" multiple style="display:none" onchange="addTaskPhotos(event)">
+
+        <button class="primary-btn green" id="taskSubmitBtn" disabled onclick="submitTask()">Send Task</button>
+      </div>
+
+      <!-- TASK — CONFIRM -->
+      <div class="screen-el" id="taskConfirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2>Task sent</h2>
+          <p>This went directly to engineering as a task — it won't show up in the breakdown pool.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- NOTIFICATIONS SCREEN -->
+      <div class="screen-el" id="notifScreen">
+        <div class="crumb">All announcements</div>
+        <div id="notifList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDE MENU -->
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  <div class="side-panel" id="sidePanel">
+    <div class="side-header">
+      <div class="side-header-top">
+        <div>
+          <div class="name">Emma Clarke</div>
+          <div class="role">Quality Assurance</div>
+        </div>
+        <div class="hdr-clock" id="hdrClockWrap">
+          <div class="hdr-led" id="headerLed"></div>
+          <button class="hdr-clock-btn out" id="clockBtn" onclick="toggleClock()">Clock In</button>
+        </div>
+      </div>
+      <div class="conn-row"><div class="led on pulse" style="width:7px;height:7px;"></div><span>CONNECTED</span></div>
+    </div>
+    <div class="side-body">
+
+      <div class="menu-list">
+        <div class="menu-nav-item" onclick="closeMenu(); goto('notifScreen');">
+          <div class="ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+            <span class="dot" id="menuNotifDot"></span>
+          </div>
+          <div class="lbl">Notifications</div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ================= navigation =================
+const CHROME = {
+  home:["Hi, Emma","Quality Assurance"],
+  swapDetail:["Swap Test","Verify the repair"],
+  swapConfirm:["Recorded",""],
+  details:["Report Breakdown","Details"],
+  confirm:["Submitted",""],
+  reportDetail:["Report Status","#WO-1042"],
+  taskNew:["New Task","Send to engineering"],
+  taskConfirm:["Sent",""],
+  notifScreen:["Notifications","Factory announcements"]
+};
+
+const stack = ['home'];
+function goto(id){
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  stack.push(id);
+  updateChrome(id);
+  if(id==='home'){ renderSwapList(); renderTaskList(); }
+}
+function goBack(){
+  if(stack.length>1){ stack.pop(); }
+  const prev = stack[stack.length-1] || 'home';
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(prev).classList.add('active');
+  updateChrome(prev);
+  if(prev==='home'){ renderSwapList(); renderTaskList(); }
+}
+function updateChrome(id){
+  const c = CHROME[id];
+  document.getElementById('appbarTitle').textContent = c[0];
+  document.getElementById('appbarSub').textContent = c[1];
+  const isHome = id==='home';
+  document.getElementById('burgerBtn').style.display = isHome ? 'flex':'none';
+  document.getElementById('backBtn').style.display = isHome ? 'none':'flex';
+  document.getElementById('floatingControls').style.display = isHome ? 'flex':'none';
+}
+
+// ---------- side menu ----------
+function openMenu(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sidePanel').classList.add('show');
+}
+function closeMenu(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sidePanel').classList.remove('show');
+}
+
+// ---------- clock in/out ----------
+let clockedIn=false;
+function toggleClock(){
+  clockedIn=!clockedIn;
+  const btn=document.getElementById('clockBtn');
+  const headerLed=document.getElementById('headerLed');
+  if(clockedIn){
+    btn.className='hdr-clock-btn in';
+    headerLed.classList.add('on');
+  } else {
+    btn.className='hdr-clock-btn out';
+    headerLed.classList.remove('on');
+  }
+  updateClockBtnLabel();
+}
+function updateClockBtnLabel(){
+  document.getElementById('clockBtn').textContent = clockedIn ? 'Clock Out' : 'Clock In';
+  document.getElementById('hdrStatusText').textContent = clockedIn ? 'Clocked In' : 'Clocked Out';
+}
+
+// ---------- top clock ----------
+function tickTopClock(){
+  const d=new Date();
+  document.getElementById('topClock').textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+tickTopClock(); setInterval(tickTopClock,15000);
+
+// ================= SWAP TESTS =================
+let swapTests = [
+  {id:'ST-231', woId:'WO-1041', machine:'Capper', line:'Line 1', engineer:'James R.', time:'09:12'},
+  {id:'ST-232', woId:'WO-1038', machine:'Sieve', line:'Line 2', engineer:'Marek P.', time:'08:47'}
+];
+let swapHistory = [];
+let currentSwap = null;
+let swapVerify = null;
+
+function renderSwapList(){
+  const wrap = document.getElementById('swapListWrap');
+  wrap.innerHTML='';
+  if(swapTests.length===0){
+    wrap.innerHTML = '<div class="empty-note">No pending swap tests.</div>';
+  } else {
+    swapTests.forEach(st=>{
+      const card=document.createElement('div');
+      card.className='active-card';
+      card.onclick=()=>openSwapDetail(st);
+      card.innerHTML =
+        '<div class="row1"><div><div class="line">'+st.machine+' · '+st.line+'</div>'+
+        '<div class="part">Repaired by '+st.engineer+'</div></div>'+
+        '<span class="badge pool">Pending</span></div>'+
+        '<div class="meta">'+st.woId+' · reported '+st.time+'</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  const hWrap = document.getElementById('swapHistoryWrap');
+  hWrap.innerHTML='';
+  if(swapHistory.length>0){
+    const label=document.createElement('div');
+    label.className='section-label';
+    label.textContent='Verified Today';
+    hWrap.appendChild(label);
+    swapHistory.forEach(st=>{
+      const card=document.createElement('div');
+      card.className='active-card';
+      card.style.cursor='default';
+      const badge = st.result==='pass'
+        ? '<span class="badge taken">Pass</span>'
+        : '<span class="badge rejected">Fail</span>';
+      card.innerHTML =
+        '<div class="row1"><div><div class="line">'+st.machine+' · '+st.line+'</div>'+
+        '<div class="part">'+st.woId+'</div></div>'+badge+'</div>';
+      hWrap.appendChild(card);
+    });
+  }
+}
+
+function openSwapDetail(st){
+  currentSwap = st;
+  swapVerify = null;
+  document.getElementById('sdCrumb').textContent = 'Swap Test · '+st.woId;
+  document.getElementById('sdMachine').textContent = st.machine+' · '+st.line;
+  document.getElementById('sdMeta').textContent = 'Repaired by '+st.engineer+' · '+st.time;
+  document.getElementById('vPass').classList.remove('selected');
+  document.getElementById('vFail').classList.remove('selected');
+  document.getElementById('swapNotes').value='';
+  document.getElementById('swapNotes').placeholder='Optional — what did you check?';
+  document.getElementById('swapSubmitBtn').disabled = true;
+  goto('swapDetail');
+}
+function pickVerify(result){
+  swapVerify = result;
+  document.getElementById('vPass').classList.toggle('selected', result==='pass');
+  document.getElementById('vFail').classList.toggle('selected', result==='fail');
+  document.getElementById('swapNotes').placeholder = result==='fail'
+    ? "Required — what needs fixing before this can pass?"
+    : "Optional — what did you check?";
+  validateSwapSubmit();
+}
+function validateSwapSubmit(){
+  const notes = document.getElementById('swapNotes').value.trim();
+  document.getElementById('swapSubmitBtn').disabled = !swapVerify || (swapVerify==='fail' && !notes);
+}
+function submitSwap(){
+  if(!currentSwap || !swapVerify) return;
+  currentSwap.result = swapVerify;
+  currentSwap.notes = document.getElementById('swapNotes').value.trim();
+  swapTests = swapTests.filter(s=>s.id!==currentSwap.id);
+  swapHistory.unshift(currentSwap);
+  const icon = document.getElementById('swapConfirmIcon');
+  const title = document.getElementById('swapConfirmTitle');
+  const text = document.getElementById('swapConfirmText');
+  if(swapVerify==='pass'){
+    icon.textContent='✓';
+    title.textContent='Passed — job closed';
+    text.textContent='The work order is now fully closed. Engineering will see it as complete.';
+  } else {
+    icon.textContent='↩';
+    title.textContent='Sent back to engineer';
+    text.textContent="The job stays open. James will see your notes and can fix it, then resubmit for another swab test.";
+  }
+  goto('swapConfirm');
+}
+
+// ================= BREAKDOWN REPORTING =================
+let selection = {severity:null};
+let breakdownReports = [];
+
+// QA only ever files a General report (not tied to a specific line/part),
+// so tapping "Create Report" on Home goes straight to the details screen.
+function startReport(){
+  selection = {severity:null};
+  document.getElementById('descBox').value='';
+  document.getElementById('photoRow').innerHTML = '<div class="photo-add" onclick="document.getElementById(\'fileInput\').click()">+</div>';
+  document.getElementById('sevCritical').classList.remove('selected');
+  document.getElementById('sevMinor').classList.remove('selected');
+  document.getElementById('submitBtn').disabled=true;
+  goto('details');
+}
+function reportLineText(){
+  return 'General Report';
+}
+function pickSeverity(level){
+  selection.severity=level;
+  document.getElementById('sevCritical').classList.toggle('selected', level==='critical');
+  document.getElementById('sevMinor').classList.toggle('selected', level==='minor');
+  validateSubmit();
+}
+function validateSubmit(){
+  document.getElementById('submitBtn').disabled = !selection.severity;
+}
+function addPhotos(e){
+  const files=Array.from(e.target.files);
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const thumb=document.createElement('div');
+      thumb.className='photo-thumb';
+      thumb.innerHTML='<img src="'+ev.target.result+'"><div class="rm">✕</div>';
+      thumb.querySelector('.rm').onclick=(ev2)=>{ ev2.stopPropagation(); thumb.remove(); };
+      document.getElementById('photoRow').appendChild(thumb);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function submitReport(){
+  const report = {line: reportLineText(), severity: selection.severity, state:'pool'};
+  breakdownReports = [report];
+  goto('confirm');
+  renderActiveCard('pool');
+  setTimeout(()=>renderActiveCard('taken'), 4500);
+}
+function renderActiveCard(state){
+  window._lastState = state;
+  const wrap=document.getElementById('activeReportsWrap');
+  wrap.innerHTML = '<div class="section-label">Your Active Report</div>';
+  const card=document.createElement('div');
+  card.className='active-card';
+  card.onclick=()=>openDetail(state);
+  const badge = state==='pool'
+    ? '<span class="badge pool">In Pool</span>'
+    : '<span class="badge taken">Assigned</span>';
+  const meta = state==='pool' ? 'Waiting for engineer' : '⬤ James R. (Engineer) picked it up';
+  const sevText = selection.severity==='critical' ? 'Line stopped — critical' : 'Minor issue';
+  card.innerHTML =
+    '<div class="row1"><div><div class="line">'+reportLineText()+'</div>'+
+    '<div class="part">'+sevText+'</div></div>'+badge+'</div>'+
+    '<div class="meta">'+meta+'</div>';
+  wrap.appendChild(card);
+}
+function openDetail(state){
+  window._lastState = state;
+  document.getElementById('rdLine').textContent = reportLineText();
+  document.getElementById('rdSeverity').textContent = selection.severity==='critical' ? 'Line stopped — critical' : 'Minor issue';
+  document.getElementById('rdBadge').className = 'badge '+(state==='pool'?'pool':'taken');
+  document.getElementById('rdBadge').textContent = state==='pool' ? 'In Pool' : 'Assigned';
+
+  const tl=document.getElementById('timelineBox');
+  tl.innerHTML='';
+  const steps=[
+    {t:'Reported', s:'You · '+new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}), done:true},
+    {t:'Sent to pool', s:'Visible to available engineers', done:true},
+    {t:'Engineer assigned', s: state==='taken' ? 'James R.' : 'Waiting…', done: state==='taken', active: state==='pool'}
+  ];
+  steps.forEach(st=>{
+    const el=document.createElement('div');
+    el.className='tl-item';
+    el.innerHTML='<div class="tl-dot '+(st.done?'done':(st.active?'active':''))+'"></div>'+
+      '<div><div class="tl-t">'+st.t+'</div><div class="tl-s">'+st.s+'</div></div>';
+    tl.appendChild(el);
+  });
+  goto('reportDetail');
+}
+
+// ================= TASKS =================
+let tasks = [];
+let taskIdCounter = 1;
+
+function checkTaskValid(){
+  const loc = document.getElementById('taskLocation').value.trim();
+  const title = document.getElementById('taskTitle').value.trim();
+  document.getElementById('taskSubmitBtn').disabled = !(loc && title);
+}
+document.addEventListener('input', (e)=>{
+  if(e.target && (e.target.id==='taskLocation' || e.target.id==='taskTitle')){
+    checkTaskValid();
+  }
+});
+function addTaskPhotos(e){
+  const files=Array.from(e.target.files);
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const thumb=document.createElement('div');
+      thumb.className='photo-thumb';
+      thumb.innerHTML='<img src="'+ev.target.result+'"><div class="rm">✕</div>';
+      thumb.querySelector('.rm').onclick=(ev2)=>{ ev2.stopPropagation(); thumb.remove(); };
+      document.getElementById('taskPhotoRow').appendChild(thumb);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function submitTask(){
+  const loc = document.getElementById('taskLocation').value.trim();
+  const title = document.getElementById('taskTitle').value.trim();
+  const desc = document.getElementById('taskDesc').value.trim();
+  if(!loc || !title) return;
+  const task = {id:'TSK-'+String(taskIdCounter++).padStart(3,'0'), location:loc, title:title, desc:desc, status:'sent'};
+  tasks.unshift(task);
+  document.getElementById('taskLocation').value='';
+  document.getElementById('taskTitle').value='';
+  document.getElementById('taskDesc').value='';
+  document.getElementById('taskPhotoRow').querySelectorAll('.photo-thumb').forEach(t=>t.remove());
+  document.getElementById('taskSubmitBtn').disabled = true;
+  goto('taskConfirm');
+  setTimeout(()=>{ task.status='ack'; renderTaskList(); }, 4500);
+}
+function renderTaskList(){
+  const wrap=document.getElementById('taskListWrap');
+  wrap.innerHTML='';
+  if(tasks.length===0){
+    wrap.innerHTML='<div class="empty-note">No tasks sent yet.</div>';
+    return;
+  }
+  tasks.forEach(t=>{
+    const card=document.createElement('div');
+    card.className='active-card';
+    card.style.cursor='default';
+    const badge = t.status==='sent'
+      ? '<span class="badge pool">Sent</span>'
+      : '<span class="badge taken">Acknowledged</span>';
+    card.innerHTML =
+      '<div class="row1"><div><div class="line">'+t.title+'</div>'+
+      '<div class="part">'+t.location+'</div></div>'+badge+'</div>';
+    wrap.appendChild(card);
+  });
+}
+
+// ---------- notifications ----------
+const notifMock = [
+  {title:"Planned maintenance — Line 2", time:"2h ago", body:"Line 2 will stop Thursday 06:00–08:00 for scheduled maintenance."},
+  {title:"BRC audit prep — next week", time:"Yesterday", body:"Internal walk-through Tuesday morning ahead of the BRC audit."},
+  {title:"Safety reminder", time:"3 days ago", body:"PPE is mandatory in Unit 1 while contractor works are ongoing."},
+  {title:"Early finish before bank holiday", time:"1 week ago", body:"Site closes at 14:00 on Friday ahead of the bank holiday."}
+];
+let notifRead = [false,false,true,true];
+function buildNotifications(){
+  const wrap=document.getElementById('notifList');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  notifMock.forEach((n,i)=>{
+    const unread = !notifRead[i];
+    const el=document.createElement('div');
+    el.className='notif-item'+(unread?' unread':'');
+    el.onclick=()=>{ notifRead[i]=true; buildNotifications(); };
+    el.innerHTML =
+      '<div class="top">'+(unread?'<span class="udot"></span>':'')+
+      '<div class="title">'+n.title+'</div>'+
+      '<div class="time">'+n.time+'</div></div>'+
+      '<div class="body">'+n.body+'</div>';
+    wrap.appendChild(el);
+  });
+  updateNotifBadge();
+}
+function updateNotifBadge(){
+  const anyUnread = notifRead.some(r=>!r);
+  const menuDot=document.getElementById('menuNotifDot');
+  const burgerDot=document.getElementById('burgerDot');
+  if(menuDot) menuDot.style.display = anyUnread ? 'block':'none';
+  if(burgerDot) burgerDot.style.display = anyUnread ? 'block':'none';
+}
+
+// ================= init =================
+renderSwapList();
+renderTaskList();
+buildNotifications();
+updateClockBtnLabel();
+</script>
+</body>
+</html>

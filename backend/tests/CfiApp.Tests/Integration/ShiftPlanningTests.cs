@@ -104,8 +104,10 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
         return (await created.Content.ReadFromJsonAsync<ShiftTypeDto>())!;
     }
 
-    /// <summary>Draws a shift up and puts it in the pool, which is where people can go on it.</summary>
-    private static async Task<int> PooledShiftAsync(
+    private sealed record Pooled(int TemplateId, int ShiftId);
+
+    /// <summary>Draws a shift up and puts it in the pool, which is what makes it run.</summary>
+    private static async Task<Pooled> PooledAsync(
         HttpClient client,
         DateOnly startsOn,
         params DayOfWeek[] weekdays)
@@ -115,24 +117,87 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
         (await client.PostAsJsonAsync("/api/v1/shifts/pool", new AddShiftToPoolRequest(template.Id)))
             .StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var board = await BoardAsync(client, startsOn);
-        return board.Shifts.Single(x => x.SourceShiftTypeId == template.Id).ActiveShiftId;
+        var planner = await PlannerAsync(client);
+        return new Pooled(template.Id, planner.Pool.Single(x => x.SourceShiftTypeId == template.Id).ActiveShiftId);
     }
+
+    private static async Task<int> PooledShiftAsync(
+        HttpClient client,
+        DateOnly startsOn,
+        params DayOfWeek[] weekdays) =>
+        (await PooledAsync(client, startsOn, weekdays)).ShiftId;
 
     private static async Task<RosterBoardDto> BoardAsync(HttpClient client, DateOnly on) =>
         (await client.GetFromJsonAsync<RosterBoardDto>($"/api/v1/shifts/roster?on={on:yyyy-MM-dd}"))!;
 
+    private static async Task<PlannerDto> PlannerAsync(HttpClient client) =>
+        (await client.GetFromJsonAsync<PlannerDto>("/api/v1/shifts/planner"))!;
+
+    private static async Task<HistoryShiftDetailDto> HistoryDetailAsync(HttpClient client, int shiftId, DateOnly week) =>
+        (await client.GetFromJsonAsync<HistoryShiftDetailDto>(
+            $"/api/v1/shifts/history/{shiftId}?week={week:yyyy-MM-dd}"))!;
+
+    private static readonly DayOfWeek[] EveryDay =
+    [
+        DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+        DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
+    ];
+
     private static RosterShiftCardDto Card(RosterBoardDto board, int activeShiftId) =>
         board.Shifts.Single(x => x.ActiveShiftId == activeShiftId);
 
-    private static Task<HttpResponseMessage> SetRosterAsync(
-        HttpClient client, int userId, int activeShiftId, DateOnly from) =>
-        client.PostAsJsonAsync("/api/v1/shifts/roster", new SetRosterRequest(userId, activeShiftId, from));
+    /// <summary>
+    /// Puts somebody on the crew of the shift a pool entry was drawn up from - the same drag the
+    /// planner makes in the shift column. Kept in terms of the pool entry because that is what
+    /// the board and the history answer in.
+    /// </summary>
+    private async Task<HttpResponseMessage> SetRosterAsync(
+        HttpClient client, int userId, int activeShiftId, DateOnly from)
+    {
+        int templateId;
+
+        await using (var scope = factory.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+            templateId = (await context.ActiveShifts.SingleAsync(x => x.Id == activeShiftId)).SourceShiftTypeId!.Value;
+        }
+
+        // "Set the rota" in these tests means "put them here", so a clash is confirmed.
+        return await PlaceAsync(client, userId, templateId, from, moveFromClashing: true);
+    }
+
+    private static Task<HttpResponseMessage> PlaceAsync(
+        HttpClient client, int userId, int shiftTypeId, DateOnly? from = null, bool moveFromClashing = false) =>
+        client.PostAsJsonAsync("/api/v1/shifts/crew", new PlaceOnCrewRequest(userId, shiftTypeId, from, moveFromClashing));
+
+    private async Task<int> TemplateOfAsync(int activeShiftId)
+    {
+        await using var scope = factory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+        return (await context.ActiveShifts.SingleAsync(x => x.Id == activeShiftId)).SourceShiftTypeId!.Value;
+    }
+
+    private static Task<HttpResponseMessage> RemoveAsync(
+        HttpClient client, int userId, int shiftTypeId, DateOnly? from) =>
+        client.PostAsJsonAsync($"/api/v1/shifts/crew/{userId}/remove", new RemoveFromCrewRequest(shiftTypeId, from));
+
+    /// <summary>Gives a test worker a name of their own, so a search can find exactly them.</summary>
+    private async Task<string> RenameAsync(int userId, string firstName)
+    {
+        var name = $"{firstName} {Guid.NewGuid():N}"[..20];
+
+        await using var scope = factory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+        (await context.Users.SingleAsync(x => x.Id == userId)).FullName = name;
+        await context.SaveChangesAsync();
+
+        return name;
+    }
 
     // ---------------------------------------------------------------- the pool
 
     [Fact]
-    public async Task A_shift_only_takes_people_once_it_is_in_the_pool()
+    public async Task A_crew_put_together_on_a_shift_outside_the_pool_leaves_no_history()
     {
         var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
         var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
@@ -140,18 +205,72 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
         var startsOn = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
         var template = await NewShiftTypeAsync(managerClient, startsOn, DayOfWeek.Monday);
 
-        // Drawn up but not in the pool: it is not on the board and nobody can be put on it.
-        var before = await BoardAsync(managerClient, startsOn);
-        before.Shifts.ShouldNotContain(x => x.SourceShiftTypeId == template.Id);
+        // Drafting a crew is allowed and changes nothing on record: the shift is not running.
+        (await PlaceAsync(managerClient, workerId, template.Id)).StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        (await SetRosterAsync(managerClient, workerId, template.Id, startsOn))
-            .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        var planner = await PlannerAsync(managerClient);
+        var drafted = planner.Shifts.Single(x => x.ShiftTypeId == template.Id);
+        drafted.RunningShiftId.ShouldBeNull();
+        drafted.People.ShouldContain(x => x.UserId == workerId);
+        // Still in the team - dragging assigns, it does not move - and the team says where.
+        planner.Team.Single(x => x.UserId == workerId).ShiftNames.ShouldContain(template.Name);
+
+        (await BoardAsync(managerClient, startsOn)).Shifts.ShouldNotContain(x => x.SourceShiftTypeId == template.Id);
+
+        await using var scope = factory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+        (await context.ShiftRosterEntries.AnyAsync(x => x.UserId == workerId)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Putting_a_shift_in_the_pool_starts_its_history_with_the_crew_it_has()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var startsOn = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var template = await NewShiftTypeAsync(managerClient, startsOn, DayOfWeek.Monday);
+
+        await PlaceAsync(managerClient, workerId, template.Id);
 
         (await managerClient.PostAsJsonAsync("/api/v1/shifts/pool", new AddShiftToPoolRequest(template.Id)))
             .StatusCode.ShouldBe(HttpStatusCode.Created);
 
-        var after = await BoardAsync(managerClient, startsOn);
-        after.Shifts.ShouldContain(x => x.SourceShiftTypeId == template.Id);
+        var shiftId = (await PlannerAsync(managerClient)).Pool.Single(x => x.SourceShiftTypeId == template.Id).ActiveShiftId;
+
+        // From its first day, the crew it went in with is who works it - and that is on record.
+        Card(await BoardAsync(managerClient, startsOn), shiftId)
+            .People.ShouldContain(x => x.UserId == workerId);
+
+        (await HistoryDetailAsync(managerClient, shiftId, startsOn))
+            .Changes.ShouldContain(x => x.UserId == workerId && x.Kind == ShiftChangeKind.Joined && x.FromDate == startsOn);
+    }
+
+    [Fact]
+    public async Task Taking_a_shift_out_of_the_pool_keeps_its_crew_for_next_time()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var pooled = await PooledAsync(managerClient, Tomorrow, EveryDay);
+        await PlaceAsync(managerClient, workerId, pooled.TemplateId, Tomorrow);
+
+        (await managerClient.DeleteAsync($"/api/v1/shifts/pool/{pooled.ShiftId}"))
+            .StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        // Out of the pool only: the shift and its crew are still there in the shift column.
+        var planner = await PlannerAsync(managerClient);
+        var shift = planner.Shifts.Single(x => x.ShiftTypeId == pooled.TemplateId);
+        shift.RunningShiftId.ShouldBeNull();
+        shift.People.ShouldContain(x => x.UserId == workerId);
+
+        // Back into the pool, and the same crew is working it again.
+        (await managerClient.PostAsJsonAsync("/api/v1/shifts/pool", new AddShiftToPoolRequest(pooled.TemplateId)))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        var again = (await PlannerAsync(managerClient)).Shifts.Single(x => x.ShiftTypeId == pooled.TemplateId);
+        again.RunningShiftId.ShouldNotBeNull();
+        again.People.ShouldContain(x => x.UserId == workerId && x.Source == ShiftSource.Roster);
     }
 
     [Fact]
@@ -193,26 +312,142 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
     }
 
     [Fact]
-    public async Task Taking_a_shift_out_of_the_pool_keeps_the_weeks_that_were_worked_on_it()
+    public async Task Taking_a_shift_out_of_the_pool_keeps_the_days_that_were_worked_on_it()
     {
         var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
         var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
 
-        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
-        var shiftId = await PooledShiftAsync(managerClient, monday, DayOfWeek.Monday);
+        var today = Tomorrow.AddDays(-1);
+        int shiftId;
 
-        await SetRosterAsync(managerClient, workerId, shiftId, monday);
+        // Ten days of real history. The API refuses to backdate a rota on purpose, so the
+        // past is written straight in - which is also exactly what ten days of using it leaves.
+        await using (var scope = factory.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+
+            var shift = new ActiveShift
+            {
+                Name = $"Worked {Guid.NewGuid():N}",
+                StartTime = new TimeOnly(6, 0),
+                EndTime = new TimeOnly(14, 0),
+                Weekdays = Weekdays.EveryDay,
+                StartsOn = today.AddDays(-10)
+            };
+
+            context.ActiveShifts.Add(shift);
+            await context.SaveChangesAsync();
+            shiftId = shift.Id;
+
+            context.ShiftRosterEntries.Add(new ShiftRosterEntry
+            {
+                UserId = workerId,
+                ActiveShiftId = shiftId,
+                EffectiveFrom = today.AddDays(-10)
+            });
+            await context.SaveChangesAsync();
+        }
 
         (await managerClient.DeleteAsync($"/api/v1/shifts/pool/{shiftId}"))
             .StatusCode.ShouldBe(HttpStatusCode.NoContent);
 
-        // Gone from next week...
-        (await BoardAsync(managerClient, monday.AddDays(7)))
-            .Shifts.ShouldNotContain(x => x.ActiveShiftId == shiftId);
+        // Gone today - closing it "as of today" left it on screen and looked like the button
+        // did nothing...
+        (await PlannerAsync(managerClient)).Pool.ShouldNotContain(x => x.ActiveShiftId == shiftId);
+        (await BoardAsync(managerClient, today)).Shifts.ShouldNotContain(x => x.ActiveShiftId == shiftId);
 
-        // ...but the day it was actually worked still reads back.
-        Card(await BoardAsync(managerClient, monday), shiftId)
+        // ...but yesterday, when it was actually worked, still reads back.
+        Card(await BoardAsync(managerClient, today.AddDays(-1)), shiftId)
             .People.ShouldContain(x => x.UserId == workerId);
+    }
+
+    [Fact]
+    public async Task A_shift_that_never_ran_is_removed_from_the_pool_entirely()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var pooled = await PooledAsync(managerClient, Tomorrow, EveryDay);
+        await PlaceAsync(managerClient, workerId, pooled.TemplateId, Tomorrow);
+
+        (await managerClient.DeleteAsync($"/api/v1/shifts/pool/{pooled.ShiftId}"))
+            .StatusCode.ShouldBe(HttpStatusCode.NoContent);
+
+        (await PlannerAsync(managerClient)).Pool.ShouldNotContain(x => x.ActiveShiftId == pooled.ShiftId);
+
+        await using var scope = factory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+        (await context.ActiveShifts.AnyAsync(x => x.Id == pooled.ShiftId)).ShouldBeFalse("no day was ever worked on it");
+        (await context.ShiftRosterEntries.AnyAsync(x => x.UserId == workerId)).ShouldBeFalse("nor was anybody on it");
+    }
+
+    // ---------------------------------------------------------------- the planner
+
+    [Fact]
+    public async Task A_shift_that_starts_later_is_on_the_planner_before_it_starts()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+
+        // A night shift that begins on a Sunday is put in the pool during the week. Leaving it
+        // off the planner until Sunday made it look as though putting it in had failed.
+        var startsOn = Tomorrow.AddDays(5);
+        var shiftId = await PooledShiftAsync(managerClient, startsOn, DayOfWeek.Sunday);
+
+        var card = (await PlannerAsync(managerClient)).Pool.Single(x => x.ActiveShiftId == shiftId);
+        card.StartsOn.ShouldBe(startsOn);
+    }
+
+    [Fact]
+    public async Task The_planner_shows_who_is_on_a_shift_even_on_a_day_it_does_not_run()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        // A shift that only runs on a day other than tomorrow. On a "who works today" board the
+        // worker would look free; on the planner they are on it, because they are.
+        var notTomorrow = Tomorrow.AddDays(1).DayOfWeek;
+        var shiftId = await PooledShiftAsync(managerClient, Tomorrow, notTomorrow);
+
+        await SetRosterAsync(managerClient, workerId, shiftId, Tomorrow);
+
+        var planner = await PlannerAsync(managerClient);
+
+        var onIt = planner.Shifts.Single(x => x.RunningShiftId == shiftId).People.Single(x => x.UserId == workerId);
+        onIt.FromDate.ShouldBe(Tomorrow, "the move has not started yet, so the card says when it does");
+        planner.Team.Single(x => x.UserId == workerId).ShiftNames.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task Moving_someone_who_already_has_a_move_queued_never_leaves_them_on_two_shifts()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var start = Tomorrow;
+        var firstShift = await PooledShiftAsync(managerClient, start, EveryDay);
+        var secondShift = await PooledShiftAsync(managerClient, start, EveryDay);
+
+        await SetRosterAsync(managerClient, workerId, firstShift, start);
+
+        // A move is queued for a fortnight's time, which gives the first row an end date...
+        await SetRosterAsync(managerClient, workerId, secondShift, start.AddDays(14));
+
+        // ...and then brought forward to next week. The row with an end date still covers the
+        // days in between and has to be shortened too, not just the open-ended one.
+        await SetRosterAsync(managerClient, workerId, secondShift, start.AddDays(7));
+
+        var inBetween = start.AddDays(10);
+
+        var board = await BoardAsync(managerClient, inBetween);
+        board.Shifts.Count(x => x.People.Any(p => p.UserId == workerId)).ShouldBe(1);
+        Card(board, secondShift).People.ShouldContain(x => x.UserId == workerId);
+
+        await using var scope = factory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
+
+        (await context.ShiftRosterEntries.CountAsync(x =>
+                x.UserId == workerId && x.EffectiveFrom <= inBetween && x.EffectiveTo >= inBetween))
+            .ShouldBe(1);
     }
 
     // ---------------------------------------------------------------- the standing rota
@@ -311,8 +546,8 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
 
         await SetRosterAsync(managerClient, workerId, shiftId, firstMonday);
 
-        (await managerClient.PostAsJsonAsync($"/api/v1/shifts/roster/{workerId}/end",
-            new EndRosterRequest(leavingMonday))).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await RemoveAsync(managerClient, workerId, await TemplateOfAsync(shiftId), leavingMonday))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
 
         Card(await BoardAsync(managerClient, leavingMonday), shiftId)
             .People.ShouldNotContain(x => x.UserId == workerId);
@@ -355,7 +590,7 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
 
         var from = Tomorrow;
         var to = from.AddDays(1);
-        var shiftId = await PooledShiftAsync(managerClient, from, DayOfWeek.Monday);
+        var shiftId = await PooledShiftAsync(managerClient, from, EveryDay);
 
         (await managerClient.PostAsJsonAsync("/api/v1/shifts/cover",
             new CreateCoverRequest(standInId, shiftId, from, to, "Covering for Ahmet")))
@@ -365,7 +600,7 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
             .People.Single(x => x.UserId == standInId);
 
         standIn.Source.ShouldBe(ShiftSource.Cover);
-        standIn.CoverTo.ShouldBe(to);
+        standIn.ToDate.ShouldBe(to);
 
         // The day after it ends, the cover is simply gone - nothing had to be undone.
         Card(await BoardAsync(managerClient, to.AddDays(1)), shiftId)
@@ -465,7 +700,8 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
         var (operatorClient, _) = await SignedInAsAsync(Permissions.Roles.Operator);
 
         (await operatorClient.GetAsync("/api/v1/shifts/roster")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        (await operatorClient.GetAsync("/api/v1/shifts/changes")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await operatorClient.GetAsync("/api/v1/shifts/planner")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await operatorClient.GetAsync("/api/v1/shifts/history")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
     [Fact]
@@ -542,15 +778,224 @@ public sealed class ShiftPlanningTests(CfiAppApiFactory factory)
         var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
 
         var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
-        var shiftId = await PooledShiftAsync(managerClient, monday, DayOfWeek.Monday);
+        var shiftId = await PooledShiftAsync(managerClient, monday, EveryDay);
 
         await SetRosterAsync(managerClient, workerId, shiftId, monday);
 
-        var changes = (await managerClient.GetFromJsonAsync<List<ShiftChangeDto>>(
-            $"/api/v1/shifts/changes?userId={workerId}"))!;
+        (await RemoveAsync(managerClient, workerId, await TemplateOfAsync(shiftId), monday.AddDays(3)))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
 
-        var entry = changes.ShouldHaveSingleItem();
-        entry.FromDate.ShouldBe(monday);
-        entry.ChangedByName.ShouldNotBeNullOrWhiteSpace("the audit answer is who did it, not just what changed");
+        var changes = (await HistoryDetailAsync(managerClient, shiftId, monday)).Changes
+            .Where(x => x.UserId == workerId)
+            .ToList();
+
+        changes.ShouldContain(x => x.Kind == ShiftChangeKind.Joined && x.FromDate == monday);
+        changes.ShouldContain(x => x.Kind == ShiftChangeKind.Left && x.FromDate == monday.AddDays(3));
+        changes.ShouldAllBe(x => !string.IsNullOrWhiteSpace(x.ChangedByName), "the audit answer is who did it");
+    }
+
+    [Fact]
+    public async Task The_history_week_shows_who_worked_each_day()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+        var (_, standInId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var shiftId = await PooledShiftAsync(managerClient, monday, DayOfWeek.Monday, DayOfWeek.Tuesday);
+
+        await SetRosterAsync(managerClient, workerId, shiftId, monday);
+
+        // Tuesday: off sick, and somebody else covers.
+        await managerClient.PostAsJsonAsync("/api/v1/shifts/cover",
+            new CreateCoverRequest(workerId, null, monday.AddDays(1), monday.AddDays(1), "Off sick"));
+        await managerClient.PostAsJsonAsync("/api/v1/shifts/cover",
+            new CreateCoverRequest(standInId, shiftId, monday.AddDays(1), monday.AddDays(1), "Covering"));
+
+        var week = await HistoryDetailAsync(managerClient, shiftId, monday.AddDays(3));
+
+        week.WeekStart.ShouldBe(monday, "any day in a week opens that whole week, Monday first");
+        week.Days.Count.ShouldBe(7);
+
+        var worker = week.People.Single(x => x.UserId == workerId).Days;
+        worker.Single(x => x.Date == monday).Source.ShouldBe(ShiftSource.Roster);
+        worker.Single(x => x.Date == monday.AddDays(1)).Source.ShouldBe(ShiftSource.Off);
+        worker.Single(x => x.Date == monday.AddDays(2)).Source.ShouldBe(ShiftSource.None, "not one of its days");
+
+        week.People.Single(x => x.UserId == standInId).Days
+            .Single(x => x.Date == monday.AddDays(1)).Source.ShouldBe(ShiftSource.Cover);
+    }
+
+    [Fact]
+    public async Task History_is_found_by_shift_name_by_a_name_on_it_and_by_date()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+        var workerName = await RenameAsync(workerId, "Oliver");
+
+        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var pooled = await PooledAsync(managerClient, monday, EveryDay);
+        await PlaceAsync(managerClient, workerId, pooled.TemplateId, monday);
+
+        var shiftName = (await PlannerAsync(managerClient)).Pool.Single(x => x.ActiveShiftId == pooled.ShiftId).Name;
+
+        async Task<List<HistoryShiftDto>> SearchAsync(string query) =>
+            (await managerClient.GetFromJsonAsync<List<HistoryShiftDto>>($"/api/v1/shifts/history?{query}"))!;
+
+        (await SearchAsync($"search={Uri.EscapeDataString(shiftName)}"))
+            .ShouldContain(x => x.ActiveShiftId == pooled.ShiftId);
+
+        (await SearchAsync($"search={Uri.EscapeDataString(workerName)}"))
+            .ShouldHaveSingleItem().ActiveShiftId.ShouldBe(pooled.ShiftId);
+
+        (await SearchAsync($"on={monday:yyyy-MM-dd}"))
+            .ShouldContain(x => x.ActiveShiftId == pooled.ShiftId);
+
+        (await SearchAsync($"on={monday.AddDays(-1):yyyy-MM-dd}"))
+            .ShouldNotContain(x => x.ActiveShiftId == pooled.ShiftId, "it had not started yet");
+    }
+
+    // ---------------------------------------------------------------- several shifts, clashes
+
+    [Fact]
+    public async Task Someone_can_be_on_two_shifts_that_never_share_a_day()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var weekdays = await PooledAsync(managerClient, monday, DayOfWeek.Monday, DayOfWeek.Tuesday,
+            DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday);
+        var weekend = await PooledAsync(managerClient, monday, DayOfWeek.Saturday, DayOfWeek.Sunday);
+
+        // No confirmation asked for, because nothing clashes.
+        (await PlaceAsync(managerClient, workerId, weekdays.TemplateId, monday)).StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await PlaceAsync(managerClient, workerId, weekend.TemplateId, monday)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        Card(await BoardAsync(managerClient, monday), weekdays.ShiftId)
+            .People.ShouldContain(x => x.UserId == workerId);
+        Card(await BoardAsync(managerClient, monday.AddDays(5)), weekend.ShiftId)
+            .People.ShouldContain(x => x.UserId == workerId);
+
+        var names = (await PlannerAsync(managerClient)).Team.Single(x => x.UserId == workerId).ShiftNames;
+        names.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Joining_a_shift_that_shares_days_with_one_they_are_on_needs_confirming_and_then_moves_them()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var morning = await PooledAsync(managerClient, monday, EveryDay);
+        var afternoon = await PooledAsync(managerClient, monday, EveryDay);
+
+        await PlaceAsync(managerClient, workerId, morning.TemplateId, monday);
+
+        // Without the confirmation: refused, and nothing changes.
+        (await PlaceAsync(managerClient, workerId, afternoon.TemplateId, monday.AddDays(7)))
+            .StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        Card(await BoardAsync(managerClient, monday.AddDays(7)), morning.ShiftId)
+            .People.ShouldContain(x => x.UserId == workerId);
+
+        // Confirmed: on afternoons from the date, off mornings from the same date.
+        (await PlaceAsync(managerClient, workerId, afternoon.TemplateId, monday.AddDays(7), moveFromClashing: true))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        Card(await BoardAsync(managerClient, monday), morning.ShiftId)
+            .People.ShouldContain(x => x.UserId == workerId, "the week before the move is untouched");
+
+        var afterMove = await BoardAsync(managerClient, monday.AddDays(7));
+        Card(afterMove, afternoon.ShiftId).People.ShouldContain(x => x.UserId == workerId);
+        Card(afterMove, morning.ShiftId).People.ShouldNotContain(x => x.UserId == workerId);
+
+        var team = (await PlannerAsync(managerClient)).Team.Single(x => x.UserId == workerId);
+        team.ShiftNames.ShouldHaveSingleItem();
+    }
+
+    [Fact]
+    public async Task The_same_person_cannot_be_put_on_the_same_shift_twice()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var template = await NewShiftTypeAsync(managerClient, Tomorrow, DayOfWeek.Monday);
+
+        await PlaceAsync(managerClient, workerId, template.Id);
+        (await PlaceAsync(managerClient, workerId, template.Id)).StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        (await PlannerAsync(managerClient)).Shifts.Single(x => x.ShiftTypeId == template.Id)
+            .People.Count(x => x.UserId == workerId).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Cover_on_another_shift_hands_them_back_to_their_own_afterwards()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var start = Tomorrow;
+        var own = await PooledShiftAsync(managerClient, start, EveryDay);
+        var other = await PooledShiftAsync(managerClient, start, EveryDay);
+
+        await SetRosterAsync(managerClient, workerId, own, start);
+
+        // A move with an end date: cover. Their own shift is not touched.
+        (await managerClient.PostAsJsonAsync("/api/v1/shifts/cover",
+            new CreateCoverRequest(workerId, other, start, start.AddDays(1), "Two days on the other line")))
+            .StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        Card(await BoardAsync(managerClient, start), other).People.ShouldContain(x => x.UserId == workerId);
+        Card(await BoardAsync(managerClient, start), own).People.ShouldNotContain(x => x.UserId == workerId);
+
+        // The day after it ends they are back where they were, without anybody putting them there.
+        Card(await BoardAsync(managerClient, start.AddDays(2)), own).People.ShouldContain(x => x.UserId == workerId);
+    }
+
+    [Fact]
+    public async Task Cover_only_counts_on_the_days_the_covered_shift_runs()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var weekdays = await PooledShiftAsync(managerClient, monday, DayOfWeek.Monday, DayOfWeek.Tuesday,
+            DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday);
+        var weekend = await PooledShiftAsync(managerClient, monday, DayOfWeek.Saturday, DayOfWeek.Sunday);
+
+        await SetRosterAsync(managerClient, workerId, weekend, monday);
+
+        // A week of cover on a Monday-to-Friday shift says nothing about the Saturday.
+        await managerClient.PostAsJsonAsync("/api/v1/shifts/cover",
+            new CreateCoverRequest(workerId, weekdays, monday, monday.AddDays(6), null));
+
+        Card(await BoardAsync(managerClient, monday.AddDays(2)), weekdays)
+            .People.ShouldContain(x => x.UserId == workerId);
+        Card(await BoardAsync(managerClient, monday.AddDays(5)), weekend)
+            .People.ShouldContain(x => x.UserId == workerId, "Saturday they are still on their weekend shift");
+    }
+
+    [Fact]
+    public async Task Taking_someone_off_one_shift_leaves_them_on_the_other()
+    {
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+        var (_, workerId) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var monday = NextOccurrenceOf(DayOfWeek.Monday, Tomorrow);
+        var weekdays = await PooledAsync(managerClient, monday, DayOfWeek.Monday, DayOfWeek.Tuesday);
+        var weekend = await PooledAsync(managerClient, monday, DayOfWeek.Saturday, DayOfWeek.Sunday);
+
+        await PlaceAsync(managerClient, workerId, weekdays.TemplateId, monday);
+        await PlaceAsync(managerClient, workerId, weekend.TemplateId, monday);
+
+        (await RemoveAsync(managerClient, workerId, weekend.TemplateId, monday))
+            .StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        Card(await BoardAsync(managerClient, monday), weekdays.ShiftId)
+            .People.ShouldContain(x => x.UserId == workerId);
+        (await PlannerAsync(managerClient)).Team.Single(x => x.UserId == workerId)
+            .ShiftNames.ShouldHaveSingleItem();
     }
 }

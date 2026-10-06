@@ -197,23 +197,43 @@ Mevcut roller: `Operator`, `Engineer`, `MaintenanceManager`, `QA`, `ProductionMa
 
 - Varsayılan 3 shift: **06:00–14:00 / 14:00–22:00 / 22:00–06:00**.
 - Manager saatleri düzenleyebilir, yeni shift tipi ekleyebilir.
-- **İki seviye: şablon ve havuz.** Vardiya önce *çizilir* (`ShiftType`: ad, saat, **hangi
-  günler**, başlangıç tarihi), sonra *havuza konur* (`ActiveShift`). Çalışanlar havuzdakine
-  atanır, şablona değil.
-- **Havuza koymak kopyalamadır.** Şablon yerinde kalır ve sonradan silinebilir/değiştirilebilir;
-  havuzdaki kopya bundan etkilenmez. İnsanlar kopyaya çalışıyor, bir isim düzeltmesi yüzünden
-  vardiya değişmemeli.
+- **İki seviye: shift kolonu ve havuz.** Vardiya shift kolonunda *çizilir* (`ShiftType`: ad,
+  saat, **hangi günler**, başlangıç tarihi — varsayılan oluşturulduğu gün) ve **ekibi orada
+  kurulur** (`ShiftTypeMember`). Sonra manager onu **kendisi sürükleyerek** havuza koyar
+  (`ActiveShift`) — otomatik değil.
+- **Havuzda olmak = running. Tarihe sadece havuz yazılır.** Shift kolonundaki ekip bir
+  taslaktır; vardiya havuzda değilken eleman eklemek/çıkarmak hiçbir kayıt bırakmaz. Havuza
+  konduğu anda o andaki ekip tarihli rotaya (`ShiftRosterEntry`) yazılır ve tarih başlar.
+- **Havuzdayken yapılan eleman değişikliği yine shift kolonunda yapılır**, otomatik olarak
+  havuzdaki rotaya yansır ve tarihli olarak tarihe geçer (kim, hangi tarihten, kim yaptı).
+  Geçerlilik tarihini manager seçer; taslak değişiklikte tarih sorulmaz.
+- **Team kolonu her zaman herkesi gösterir.** İsim sürüklemek *atamadır*, taşımak değil: isim
+  Team'de kalır, altında hangi vardiyalarda olduğu yazar.
+- **Çakışma günlere göre bakılır, vardiya adına göre değil.** Pzt–Cum sabah + Cmt–Paz weekend
+  aynı kişide olabilir. Aynı günü paylaşan iki vardiya olamaz: bırakınca uyarı çıkar ("zaten
+  Morning'de"), manager onaylarsa başlangıç tarihinden itibaren eski vardiyadan **otomatik
+  çıkarılır**. Sunucu da onaysız isteği 409 ile reddeder.
+- **Tek form: başlangıç zorunlu, bitiş isteğe bağlı.** Bitiş yoksa değiştirilene kadar kalıcı;
+  bitiş varsa geçicidir (cover) ve bitişten sonra kişi kendi vardiyasına kendiliğinden döner.
+  Cover sadece kapsadığı vardiyanın çalıştığı günlerde sayılır — Pzt–Cum vardiyasında bir
+  haftalık cover Cumartesiyi etkilemez.
+- **Aynı kişi aynı vardiyaya iki kez konamaz.**
+- **Havuza koymak kopyalamadır.** Shift yerinde kalır ve sonradan silinebilir/değiştirilebilir;
+  havuzdaki kopya bundan etkilenmez.
 - **Şablon silinebilir** (`DELETE /admin/shift-types/{id}`). Eski "silme yok" kuralının sebebi
   silinen vardiyanın rota satırlarını öksüz bırakmasıydı; artık hiçbir şey şablona bakmıyor,
   o yüzden silmek güvenli. Havuzdan çıkarmak ayrı bir iştir.
-- **Havuzdan çıkarmak** hiç kullanılmamışsa satırı siler, kullanılmışsa `EndsOn` ile kapatır —
-  o vardiyada çalışılmış günler okunabilir kalmalı.
+- **Havuzdan çıkarmak** sadece havuzdan çeker: shift ve ekibi shift kolonunda kalır, tekrar
+  havuza atılabilir. Son çalıştığı gün dün sayılır (bugün ekrandan kalkar). Hiç çalışılmamışsa
+  havuz kaydı tamamen silinir; çalışılmışsa `EndsOn` ile kapanır ve çalışılan günler tarihte
+  okunur kalır. Havuzdan çıkmak bir "eleman değişikliği" olarak listelenmez.
 - **Günler vardiyaya aittir, kişiye değil.** Gece vardiyası Pazar akşamı başlıyorsa bu
   vardiyanın özelliğidir; kişiyi koyarken sadece geçerlilik tarihi sorulur. Aynı soruyu iki
   yerde sormak, iki farklı cevap almak demek.
-- **Sabit rota.** Kişi bir havuz vardiyasına bir tarihten itibaren atanır ve değiştirilene
-  kadar kendiliğinden tekrar eder. Eski satır silinmez, `EffectiveTo` ile kapanır; yenisi
-  ertesi gün açılır. "Geçen ay kim gecedeydi" sorusunun cevabı budur.
+- **Sabit rota.** Havuzdaki vardiyada kişi bir tarihten itibaren durur ve değiştirilene kadar
+  kendiliğinden tekrar eder. Eski satır silinmez, `EffectiveTo` ile kapanır; yenisi ertesi gün
+  açılır. Taşırken kişinin o tarihten sonraki **bütün** satırları kapanır — sadece açık uçlu
+  olan değil — yoksa sıraya alınmış bir taşıma onu iki vardiyada bırakıyordu.
 - **Değişiklik geriye dönük yazılamaz** (400).
 - **Farklı saatler yeni vardiyadır.** 08:00–17:00 çalışan biri için kişiye özel saat alanı yok;
   "Day 08:00–17:00" diye yeni bir vardiya çizilir ve havuza konur.
@@ -225,9 +245,13 @@ Mevcut roller: `Operator`, `Engineer`, `MaintenanceManager`, `QA`, `ProductionMa
   ve başlangıç tarihi geçerliyse) → çalışmıyor. Tek yerde yazılı (`IShiftResolver`).
 - Web: **dokunma birincil, sürükle-bırak üstüne**. Fabrika tabletinde HTML5 drag hiç
   tetiklenmiyor. Kişiyi koyarken panel açılır, çünkü geçerlilik tarihini manager seçer.
-- **Tarihe göre gezinme ayrı bir sayfada** (`/shifts/history`): tarih + arama (isim veya
-  vardiya), o gün hangi vardiyalar çalışmış ve içinde kimler varmış. Planlayıcı ekranı bugünü
-  gösterir, geçmiş ona karışmaz.
+- **Shift History ayrı bir sayfada** (`/shifts/history`): havuzda bulunmuş bütün vardiyalar,
+  başlangıç–bitiş tarihleriyle. Arama: vardiya adı veya çalışan adı, ayrıca tarih (o gün ne
+  çalışıyordu). Bir vardiyaya girince hafta hafta gezilir: her gün kim çalışmış, yerine geçen,
+  izinli, resmi tatil; altında o vardiyanın bütün eleman değişiklikleri.
+- **Planlayıcı "kim hangi vardiyada"yı gösterir, "bugün kim çalışıyor"u değil.** İkincisini
+  göstermek Cumartesi günü bütün Pzt–Cum vardiyalarını boş, başlamamış bir vardiyayı ise hiç
+  yokmuş gibi gösteriyordu.
 - Mobil: basit touch akışı (tarih → shift → çalışan).
 - Shift oluşturma yetkisi web'de tüm manager'larda; **mobilde şimdilik sadece Maintenance Manager'da**.
 - Çalışan kendi haftalık tablosunu görür; vardiyası değiştiğinde **bildirim** alır
@@ -411,10 +435,11 @@ koymak olurdu. `admin.manage` yetkisi olanın profilinde "Open site setup" buton
 kayıt cebindeki telefonun işi; ofisteki masaüstü tarayıcısının "kapıda" olduğunu iddia
 etmek bordroya yanlış saat yazmak demek. Ekranda da yazıyor.
 
-**Vardiya planlayıcı** — üç kolon: ekip, çizilmiş vardiyalar, havuz (çalışanlar). Haftalık
-ızgara kaldırıldı: aynı insanlar her hafta aynı vardiyada olduğu için ızgara, işin şeklini
-yanlış modelliyordu ve manager her hafta aynı tabloyu elle dolduruyordu. Vardiya havuza
-sürüklenince **kopyalanır, yerinde kalır**; kişi sürüklenince **taşınır**. Kütüphane yok,
+**Vardiya planlayıcı** — üç kolon: Team (dar), Shifts (geniş — ekipler burada), Pool (dar,
+isimsiz özet). Haftalık ızgara kaldırıldı: aynı insanlar her hafta aynı vardiyada olduğu için
+ızgara, işin şeklini yanlış modelliyordu ve manager her hafta aynı tabloyu elle dolduruyordu.
+Vardiya havuza sürüklenince **kopyalanır, yerinde kalır**; kişi sürüklenince **taşınır**.
+Kişiyi Team kolonuna geri sürüklemek onu vardiyadan alır. Kütüphane yok,
 dokunma birincil + tarayıcının kendi drag & drop'u; sürüklenen şey state yerine ref'te
 tutuluyor, yoksa sayfanın ilk sürüklemesi yutuluyordu. Birini karttan kaldırmak, onu oraya
 ne koyduysa onu kaldırır: cover ise cover'ı, rota ise rotayı.

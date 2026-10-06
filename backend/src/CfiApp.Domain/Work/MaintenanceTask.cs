@@ -153,8 +153,23 @@ public sealed class PartOrderRequest : Entity, IAuditable
     public DateTimeOffset? DeletedAt { get; set; }
     public int? DeletedByUserId { get; set; }
 
+    /// <summary>
+    /// What the part looks like - the label, the old one in a hand. "A 6205 bearing" is often
+    /// not enough for whoever does the buying, and a photo settles it without a phone call.
+    /// </summary>
+    public ICollection<PartOrderPhoto> Photos { get; set; } = [];
+
     public DateTimeOffset CreatedAt { get; set; }
     public int? CreatedByUserId { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public int? UpdatedByUserId { get; set; }
+}
+
+public sealed class PartOrderPhoto : Entity
+{
+    public int PartOrderRequestId { get; set; }
+    public PartOrderRequest? PartOrderRequest { get; set; }
+
+    public int MediaAssetId { get; set; }
+    public MediaAsset? MediaAsset { get; set; }
 }

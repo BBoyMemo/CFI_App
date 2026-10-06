@@ -108,12 +108,13 @@ export const getShiftTypes = (params) => apiClient.get(v1('/admin/shift-types'),
 export const deleteShiftType = (id) => apiClient.delete(v1(`/admin/shift-types/${id}`));
 export const addShiftToPool = (shiftTypeId) => apiClient.post(v1('/shifts/pool'), { shiftTypeId });
 export const removeShiftFromPool = (id) => apiClient.delete(v1(`/shifts/pool/${id}`));
-export const getRoster = (params) => apiClient.get(v1('/shifts/roster'), { params });
-export const setRoster = (payload) => apiClient.post(v1('/shifts/roster'), payload);
-export const endRoster = (userId, payload) => apiClient.post(v1(`/shifts/roster/${userId}/end`), payload);
+export const getPlanner = () => apiClient.get(v1('/shifts/planner'));
+export const placeOnCrew = (payload) => apiClient.post(v1('/shifts/crew'), payload);
+export const removeFromCrew = (userId, payload) => apiClient.post(v1(`/shifts/crew/${userId}/remove`), payload);
 export const createCover = (payload) => apiClient.post(v1('/shifts/cover'), payload);
 export const deleteCover = (id) => apiClient.delete(v1(`/shifts/cover/${id}`));
-export const getShiftChanges = (params) => apiClient.get(v1('/shifts/changes'), { params });
+export const getShiftHistory = (params) => apiClient.get(v1('/shifts/history'), { params });
+export const getShiftHistoryDetail = (id, params) => apiClient.get(v1(`/shifts/history/${id}`), { params });
 export const getMyShifts = (params) => apiClient.get(v1('/shifts/mine'), { params });
 
 // ---------------------------------------------------------------- messages

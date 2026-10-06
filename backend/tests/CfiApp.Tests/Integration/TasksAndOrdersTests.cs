@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using CfiApp.Api.Controllers.V1;
 using CfiApp.Application.Auth;
+using CfiApp.Application.Media;
 using CfiApp.Application.Work;
 using CfiApp.Domain.Identity;
 using CfiApp.Domain.Work;
@@ -258,5 +259,56 @@ public sealed class TasksAndOrdersTests(CfiAppApiFactory factory)
         var response = await managerClient.DeleteAsync($"/api/v1/orders/{order.Id}");
 
         response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+    }
+
+    private static async Task<int> UploadPhotoAsync(HttpClient client)
+    {
+        using var content = new MultipartFormDataContent();
+        // Different bytes each time: the same photo uploaded twice is recognised and stored once.
+        byte[] bytes = [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, (byte)'J', (byte)'F', (byte)'I', (byte)'F', .. Guid.NewGuid().ToByteArray()];
+        var fileContent = new ByteArrayContent(bytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/jpeg");
+        content.Add(fileContent, "file", "part.jpg");
+
+        var response = await client.PostAsync("/api/v1/media", content);
+        response.StatusCode.ShouldBe(HttpStatusCode.Created);
+
+        return (await response.Content.ReadFromJsonAsync<MediaAssetDto>())!.Id;
+    }
+
+    [Fact]
+    public async Task An_order_request_can_carry_photos_of_the_part()
+    {
+        var (engineerClient, _) = await SignedInAsAsync(Permissions.Roles.Engineer);
+        var (managerClient, _) = await SignedInAsAsync(Permissions.Roles.MaintenanceManager);
+
+        var first = await UploadPhotoAsync(engineerClient);
+        var second = await UploadPhotoAsync(engineerClient);
+
+        var created = await engineerClient.PostAsJsonAsync("/api/v1/orders",
+            new CreatePartOrderRequest("Proximity sensor", 1, false, [first, second]));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+        var order = (await created.Content.ReadFromJsonAsync<PartOrderRequestDto>())!;
+        order.PhotoAssetIds.ShouldBe([first, second], ignoreOrder: true);
+
+        // Whoever does the buying sees what it looks like, not only what it is called.
+        var managerList = await managerClient.GetFromJsonAsync<PagedResult<PartOrderRequestDto>>("/api/v1/orders?pageSize=100");
+        managerList!.Items.Single(x => x.Id == order.Id).PhotoAssetIds.Count.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task An_order_without_photos_is_still_fine_and_a_photo_that_was_never_uploaded_is_refused()
+    {
+        var (engineerClient, _) = await SignedInAsAsync(Permissions.Roles.Engineer);
+
+        var plain = await engineerClient.PostAsJsonAsync("/api/v1/orders",
+            new CreatePartOrderRequest("Cable ties", 100, false));
+        plain.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await plain.Content.ReadFromJsonAsync<PartOrderRequestDto>())!.PhotoAssetIds.ShouldBeEmpty();
+
+        (await engineerClient.PostAsJsonAsync("/api/v1/orders",
+                new CreatePartOrderRequest("Ghost part", 1, false, [999_999])))
+            .StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
 }

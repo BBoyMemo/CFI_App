@@ -28,3 +28,14 @@ export function shiftIcon(startTime) {
 }
 
 export const timeRange = (start, end) => `${start.slice(0, 5)}–${end.slice(0, 5)}`;
+
+/** "5 Oct" - how a date reads on a chip or a card. */
+export const shortDate = (isoDay) =>
+  new Date(`${isoDay}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+/** "5 Oct 2026" - for anything that may be from another year. */
+export const fullDate = (isoDay) =>
+  new Date(`${isoDay}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** 0 = Sunday, matching the server's DayOfWeek and JavaScript's getDay(). */
+export const dayOfWeek = (isoDay) => new Date(`${isoDay}T00:00:00`).getDay();

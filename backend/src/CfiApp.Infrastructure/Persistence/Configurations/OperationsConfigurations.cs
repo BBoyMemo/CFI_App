@@ -120,6 +120,18 @@ public sealed class PartOrderRequestConfiguration : IEntityTypeConfiguration<Par
     }
 }
 
+public sealed class PartOrderPhotoConfiguration : IEntityTypeConfiguration<PartOrderPhoto>
+{
+    public void Configure(EntityTypeBuilder<PartOrderPhoto> builder)
+    {
+        builder.HasOne(x => x.PartOrderRequest).WithMany(x => x.Photos)
+            .HasForeignKey(x => x.PartOrderRequestId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.MediaAsset).WithMany()
+            .HasForeignKey(x => x.MediaAssetId).OnDelete(DeleteBehavior.Restrict);
+    }
+}
+
 // ---------------------------------------------------------------- attendance
 
 public sealed class ClockEventConfiguration : IEntityTypeConfiguration<ClockEvent>
@@ -206,6 +218,25 @@ public sealed class ShiftTypeConfiguration : IEntityTypeConfiguration<ShiftType>
     }
 }
 
+public sealed class ShiftTypeMemberConfiguration : IEntityTypeConfiguration<ShiftTypeMember>
+{
+    public void Configure(EntityTypeBuilder<ShiftTypeMember> builder)
+    {
+        // The crew is part of the drawn-up shift: delete the shift and its draft crew goes too.
+        // Nothing historical is lost, because history lives on the pool's rota, not here.
+        builder.HasOne(x => x.ShiftType).WithMany()
+            .HasForeignKey(x => x.ShiftTypeId).OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.User).WithMany()
+            .HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
+
+        // On a crew once. Being on several crews is fine - which of those may share days
+        // is a rule about the shifts' weekdays, so the service decides it, not an index.
+        builder.HasIndex(x => new { x.ShiftTypeId, x.UserId }).IsUnique();
+        builder.HasIndex(x => x.UserId);
+    }
+}
+
 public sealed class ActiveShiftConfiguration : IEntityTypeConfiguration<ActiveShift>
 {
     public void Configure(EntityTypeBuilder<ActiveShift> builder)
@@ -235,10 +266,12 @@ public sealed class ShiftRosterEntryConfiguration : IEntityTypeConfiguration<Shi
         builder.HasOne(x => x.ActiveShift).WithMany()
             .HasForeignKey(x => x.ActiveShiftId).OnDelete(DeleteBehavior.Restrict);
 
-        // Nobody is on two shifts at once. Because a row still in force always carries
-        // DateOnly.MaxValue, including EffectiveTo in the key makes this "one current row
-        // per person" while still allowing any number of closed, historical rows behind it.
-        builder.HasIndex(x => new { x.UserId, x.EffectiveTo }).IsUnique();
+        // One current row per person per shift. Because a row still in force always carries
+        // DateOnly.MaxValue, including EffectiveTo in the key allows any number of closed,
+        // historical rows behind it. A person may hold current rows on two shifts at once -
+        // weekdays and a weekend - and keeping those from sharing a day is the service's job.
+        builder.HasIndex(x => new { x.UserId, x.ActiveShiftId, x.EffectiveTo }).IsUnique();
+        builder.HasIndex(x => new { x.UserId, x.EffectiveTo });
 
         builder.HasIndex(x => new { x.ActiveShiftId, x.EffectiveFrom, x.EffectiveTo });
 

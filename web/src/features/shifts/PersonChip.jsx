@@ -1,35 +1,55 @@
 import { useTranslation } from 'react-i18next';
 
 import Icon from '../../components/ui/Icon';
-import { sourceName } from './shiftModel';
+import { shortDate, sourceName } from './shiftModel';
 
 /**
- * One name, wherever it appears - in the team column or on a shift in the pool.
+ * One name, wherever it appears - in the team column or on a shift's crew.
  *
  * Tapping is the real gesture here and dragging is the shortcut on top of it. A factory
  * tablet has no drag, and the HTML5 drag events simply never fire on touch, so a screen
  * that only dragged would be a screen half the site could not use.
+ *
+ * Both handlers stop the event: the chip sits inside a shift card that is itself draggable
+ * and tappable, and without that a drag of a name would also start dragging the whole shift.
  */
-export default function PersonChip({ person, selected = false, onSelect, onDragStart, onDragEnd, children }) {
+export default function PersonChip({ person, selected = false, detail, onSelect, onDragStart, onDragEnd, children }) {
   const { t } = useTranslation();
 
-  const source = sourceName(person.source);
-  const isCover = source === 'Cover';
+  const isCover = sourceName(person.source) === 'Cover';
 
   const tone = isCover
     ? 'border-dashed border-cfi-yellow-dark bg-cfi-yellow/10'
     : 'border-cfi-rule bg-white';
 
+  let when = null;
+  if (isCover && person.fromDate) {
+    when = person.fromDate === person.toDate
+      ? shortDate(person.fromDate)
+      : `${shortDate(person.fromDate)} → ${shortDate(person.toDate)}`;
+  } else if (person.fromDate) {
+    when = t('shift.from', { date: shortDate(person.fromDate) });
+  } else if (person.toDate) {
+    when = t('shift.until', { date: shortDate(person.toDate) });
+  }
+
   return (
     <div
       draggable
-      onDragStart={onDragStart}
+      onDragStart={(event) => {
+        event.stopPropagation();
+        onDragStart?.(event);
+      }}
       onDragEnd={onDragEnd}
       aria-pressed={selected}
-      onClick={onSelect}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect?.();
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
+          event.stopPropagation();
           onSelect?.();
         }
       }}
@@ -44,15 +64,13 @@ export default function PersonChip({ person, selected = false, onSelect, onDragS
         {children}
       </div>
 
-      {isCover && person.coverFrom && (
-        <div className="mt-1 flex items-center gap-1 text-xs text-cfi-yellow-dark">
-          <Icon name="calendar" size={13} />
-          <span>
-            {person.coverFrom === person.coverTo
-              ? person.coverFrom.slice(5)
-              : `${person.coverFrom.slice(5)} → ${person.coverTo.slice(5)}`}
-          </span>
-          <span className="font-semibold">· {t('shift.cover')}</span>
+      {detail && <p className="mt-0.5 truncate text-xs text-cfi-muted">{detail}</p>}
+
+      {when && (
+        <div className={`mt-0.5 flex items-center gap-1 text-xs ${isCover ? 'text-cfi-yellow-dark' : 'text-cfi-muted'}`}>
+          <Icon name="calendar" size={12} />
+          <span>{when}</span>
+          {isCover && <span className="font-semibold">· {t('shift.cover')}</span>}
         </div>
       )}
     </div>

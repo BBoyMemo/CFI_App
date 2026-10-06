@@ -2,107 +2,122 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import Button from '../../components/ui/Button';
+import Icon from '../../components/ui/Icon';
 
 /**
- * What opens when somebody is put on a shift. There is no silent drop: the manager chooses
- * the date the change takes effect, because a rota that quietly rewrote itself from today
- * would be rewriting a day people have already worked.
+ * What opens when somebody is put on a shift and it matters: the shift is in the pool, or
+ * they are already on another shift that works the same days.
  *
- * Which days of the week they will be in is not asked here - that belongs to the shift, and
- * asking twice is asking for two answers that disagree.
+ * One form, not two modes. A start date, and an end date only if they are not staying: leave
+ * it empty and the move holds until the manager changes it; fill it in and it is temporary,
+ * and afterwards they are back on their own shift without anybody putting them there.
+ *
+ * A clash is spelled out before anything happens - who, and which shift - because the manager
+ * is the one who knows whether moving them is right.
  */
-export default function PlacementPanel({ personName, shiftName, today, busy, onCancel, onSubmit }) {
+export default function PlacementPanel({
+  personName,
+  shiftName,
+  today,
+  clashes,
+  needsDates,
+  allowEnd,
+  busy,
+  onCancel,
+  onSubmit,
+}) {
   const { t } = useTranslation();
 
-  const [mode, setMode] = useState('roster');
-  const [effectiveFrom, setEffectiveFrom] = useState(today);
-  const [fromDate, setFromDate] = useState(today);
-  const [toDate, setToDate] = useState(today);
+  const [startDate, setStartDate] = useState(today);
+  const [endDate, setEndDate] = useState('');
   const [note, setNote] = useState('');
 
-  const canSubmit = mode === 'cover' ? fromDate && toDate && toDate >= fromDate : Boolean(effectiveFrom);
-
-  const submit = () =>
-    onSubmit(mode === 'cover'
-      ? { mode, fromDate, toDate, note: note.trim() || null }
-      : { mode, effectiveFrom });
+  const clashNames = clashes.map((x) => x.name).join(', ');
+  const temporary = Boolean(endDate);
+  const canSubmit = !needsDates || (startDate && (!endDate || endDate >= startDate));
 
   return (
-    <div className="mt-3 rounded border border-cfi-yellow-dark bg-cfi-yellow/5 p-3">
+    <div
+      className="mt-3 rounded border border-cfi-yellow-dark bg-cfi-yellow/5 p-3"
+      // The panel sits inside a tappable shift card; clicks in here are for the panel.
+      onClick={(event) => event.stopPropagation()}
+      role="presentation"
+    >
       <p className="text-sm font-semibold text-cfi-brown-dark">
         {t('shift.placing', { person: personName, shift: shiftName })}
       </p>
 
-      <div className="mt-2 flex gap-2">
-        {['roster', 'cover'].map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => setMode(option)}
-            className={`min-h-9 flex-1 rounded border px-2 text-sm font-semibold transition-colors ${
-              mode === option
-                ? 'border-cfi-yellow-dark bg-cfi-yellow/30 text-cfi-brown-dark'
-                : 'border-cfi-rule bg-white text-cfi-muted hover:border-cfi-yellow-dark'
-            }`}
-          >
-            {t(option === 'roster' ? 'shift.modeStanding' : 'shift.modeCover')}
-          </button>
-        ))}
-      </div>
-
-      {mode === 'roster' ? (
-        <label className="mt-3 block text-xs font-medium text-cfi-muted">
-          {t('shift.effectiveFrom')}
-          <input
-            type="date"
-            min={today}
-            value={effectiveFrom}
-            onChange={(event) => setEffectiveFrom(event.target.value)}
-            className="mt-1 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
-          />
-        </label>
-      ) : (
-        <>
-          <div className="mt-3 flex gap-2">
-            <label className="flex-1 text-xs font-medium text-cfi-muted">
-              {t('shift.coverFrom')}
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(event) => {
-                  setFromDate(event.target.value);
-                  if (toDate < event.target.value) setToDate(event.target.value);
-                }}
-                className="mt-1 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
-              />
-            </label>
-
-            <label className="flex-1 text-xs font-medium text-cfi-muted">
-              {t('shift.coverTo')}
-              <input
-                type="date"
-                min={fromDate}
-                value={toDate}
-                onChange={(event) => setToDate(event.target.value)}
-                className="mt-1 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
-              />
-            </label>
+      {clashes.length > 0 && (
+        <div className="mt-2 flex gap-2 rounded bg-cfi-yellow/20 px-2 py-2 text-sm text-cfi-brown-dark">
+          <span className="mt-0.5 shrink-0 text-cfi-yellow-dark"><Icon name="bell" size={16} /></span>
+          <div>
+            <p className="font-semibold">{t('shift.clashWarning', { person: personName, shifts: clashNames })}</p>
+            <p className="mt-0.5">
+              {temporary
+                ? t('shift.clashBack', { shifts: clashNames })
+                : t('shift.clashMove', { shifts: clashNames })}
+            </p>
           </div>
+        </div>
+      )}
 
-          <input
-            type="text"
-            maxLength={200}
-            value={note}
-            placeholder={t('shift.coverNotePlaceholder')}
-            onChange={(event) => setNote(event.target.value)}
-            className="mt-2 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
-          />
-        </>
+      {needsDates && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <label className="min-w-36 flex-1 text-xs font-medium text-cfi-muted">
+            {t('shift.startDate')}
+            <input
+              type="date"
+              min={today}
+              value={startDate}
+              onChange={(event) => {
+                setStartDate(event.target.value);
+                if (endDate && endDate < event.target.value) setEndDate(event.target.value);
+              }}
+              className="mt-1 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
+            />
+          </label>
+
+          {allowEnd && (
+            <label className="min-w-36 flex-1 text-xs font-medium text-cfi-muted">
+              {t('shift.endDate')}
+              <input
+                type="date"
+                min={startDate}
+                value={endDate}
+                onChange={(event) => setEndDate(event.target.value)}
+                className="mt-1 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
+              />
+            </label>
+          )}
+        </div>
+      )}
+
+      {needsDates && allowEnd && !temporary && (
+        <p className="mt-1 text-xs text-cfi-muted">{t('shift.endHint')}</p>
+      )}
+
+      {temporary && (
+        <input
+          type="text"
+          maxLength={200}
+          value={note}
+          placeholder={t('shift.coverNotePlaceholder')}
+          onChange={(event) => setNote(event.target.value)}
+          className="mt-2 min-h-10 w-full rounded border border-cfi-rule bg-white px-2 text-sm"
+        />
       )}
 
       <div className="mt-3 flex gap-2">
-        <Button disabled={busy || !canSubmit} onClick={submit} className="flex-1">
-          {t('common.confirm')}
+        <Button
+          disabled={busy || !canSubmit}
+          className="flex-1"
+          onClick={() => onSubmit({
+            startDate: needsDates ? startDate : null,
+            endDate: temporary ? endDate : null,
+            note: note.trim() || null,
+          })}
+        >
+          {clashes.length > 0 && !temporary ? t('shift.move') : t('common.confirm')}
         </Button>
         <Button variant="secondary" disabled={busy} onClick={onCancel}>{t('common.cancel')}</Button>
       </div>

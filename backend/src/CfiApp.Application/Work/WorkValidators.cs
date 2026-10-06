@@ -48,5 +48,9 @@ public sealed class CreatePartOrderRequestValidator : AbstractValidator<CreatePa
     {
         RuleFor(x => x.PartName).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Quantity).GreaterThan(0);
+
+        RuleFor(x => x.PhotoAssetIds)
+            .Must(ids => ids!.Count <= 5).WithMessage("Attach at most 5 photos.")
+            .When(x => x.PhotoAssetIds is not null);
     }
 }

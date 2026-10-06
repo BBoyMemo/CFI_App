@@ -34,6 +34,14 @@ public sealed class OrdersController(
         var userId = currentUser.UserId!.Value;
         var now = clock.UtcNow;
 
+        var photoIds = request.PhotoAssetIds?.Distinct().ToArray() ?? [];
+
+        if (photoIds.Length > 0
+            && await context.MediaAssets.CountAsync(x => photoIds.Contains(x.Id), cancellationToken) != photoIds.Length)
+        {
+            return Problem(title: "Photo not found", statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var order = new PartOrderRequest
         {
             PartName = request.PartName.Trim(),
@@ -42,6 +50,11 @@ public sealed class OrdersController(
             RequestedByUserId = userId,
             RequestedAt = now
         };
+
+        foreach (var photoId in photoIds)
+        {
+            order.Photos.Add(new PartOrderPhoto { MediaAssetId = photoId });
+        }
 
         context.PartOrderRequests.Add(order);
         await context.SaveChangesAsync(cancellationToken);
@@ -128,7 +141,8 @@ public sealed class OrdersController(
 
     private static PartOrderRequestDto ToDto(PartOrderRequest order, string requesterName) => new(
         order.Id, order.PartName, order.Quantity, order.IsUrgent, requesterName,
-        order.RequestedAt, order.Status.ToString(), order.OrderedAt);
+        order.RequestedAt, order.Status.ToString(), order.OrderedAt,
+        [.. order.Photos.Select(x => x.MediaAssetId)]);
 
     private async Task<ActionResult<PagedResult<PartOrderRequestDto>>> ListAsync(
         IQueryable<PartOrderRequest> query, int page, int pageSize, CancellationToken cancellationToken)
@@ -141,7 +155,8 @@ public sealed class OrdersController(
             .Take(PagedResult.NormalisePageSize(pageSize))
             .Select(x => new PartOrderRequestDto(
                 x.Id, x.PartName, x.Quantity, x.IsUrgent, x.RequestedBy!.FullName,
-                x.RequestedAt, x.Status.ToString(), x.OrderedAt))
+                x.RequestedAt, x.Status.ToString(), x.OrderedAt,
+                x.Photos.OrderBy(p => p.Id).Select(p => p.MediaAssetId).ToList()))
             .ToListAsync(cancellationToken);
 
         return new PagedResult<PartOrderRequestDto>(items, total, page, pageSize);

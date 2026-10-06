@@ -37,6 +37,9 @@ public sealed class ShiftResolver(CfiAppDbContext context) : IShiftResolver
                 x.ActiveShift != null ? x.ActiveShift.Name : null,
                 x.ActiveShift != null ? x.ActiveShift.StartTime : null,
                 x.ActiveShift != null ? x.ActiveShift.EndTime : null,
+                x.ActiveShift != null ? x.ActiveShift.Weekdays : Weekdays.EveryDay,
+                x.ActiveShift != null ? x.ActiveShift.StartsOn : DateOnly.MinValue,
+                x.ActiveShift != null ? x.ActiveShift.EndsOn : DateOnly.MaxValue,
                 x.FromDate, x.ToDate, x.Note))
             .ToListAsync(cancellationToken);
 
@@ -79,7 +82,14 @@ public sealed class ShiftResolver(CfiAppDbContext context) : IShiftResolver
     {
         // Cover first: it is the most recent, most deliberate statement about this day, and
         // it is the one thing a manager types in precisely to contradict everything else.
-        var cover = overrides.FirstOrDefault(x => x.FromDate <= date && x.ToDate >= date);
+        //
+        // But only on a day the covered shift actually runs. Covering a Monday-to-Friday shift
+        // for a week says nothing about the Saturday; somebody also on a weekend shift is still
+        // on it. Time off (no shift) is every day of its range.
+        var cover = overrides.FirstOrDefault(x =>
+            x.FromDate <= date && x.ToDate >= date
+            && (x.ActiveShiftId is null
+                || (x.ShiftStartsOn <= date && x.ShiftEndsOn >= date && x.Weekdays.Runs(date))));
 
         if (cover is not null)
         {
@@ -121,6 +131,7 @@ public sealed class ShiftResolver(CfiAppDbContext context) : IShiftResolver
 
     private sealed record OverrideRow(
         int Id, int UserId, int? ActiveShiftId, string? ShiftName, TimeOnly? StartTime, TimeOnly? EndTime,
+        Weekdays Weekdays, DateOnly ShiftStartsOn, DateOnly ShiftEndsOn,
         DateOnly FromDate, DateOnly ToDate, string? Note);
 
     private sealed record LeaveRow(int UserId, DateOnly StartDate, DateOnly EndDate);

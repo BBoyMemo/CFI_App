@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mainty — Operator Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page:#F5EFE2;
+    --bg-base:#FFFFFF;
+    --bg-surface:#FBF7EE;
+    --bg-raised:#F1E6D0;
+    --bg-raised-2:#E8DAB9;
+    --border:#E1D3B3;
+    --border-soft:#ECE1C8;
+    --text:#3B2A19;
+    --text-muted:#8A7355;
+    --text-dim:#A8926B;
+    --brown:#6B4A2E;
+    --brown-dark:#4A3320;
+    --brown-bg:#EFE1CC;
+    --green:#4E7A3B;
+    --green-dark:#2F4F22;
+    --green-bg:#E4EFDA;
+    --yellow:#E7A93A;
+    --yellow-dark:#8A5E15;
+    --yellow-bg:#FBEBC9;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, #FBF3E1 0%, var(--bg-page) 45%),
+      var(--bg-page);
+    min-height:100vh;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 12px;
+  }
+  .caption{
+    position:fixed; top:10px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--text-dim); z-index:50;
+  }
+  .phone{
+    width:390px; max-width:100%;
+    background:var(--bg-base);
+    border:1px solid var(--border);
+    border-radius:34px;
+    padding:10px;
+    box-shadow:0 30px 70px -25px rgba(80,60,30,.25), 0 0 0 1px rgba(255,255,255,.5) inset;
+    position:relative;
+  }
+  .screen{
+    background:var(--bg-base);
+    border-radius:26px;
+    overflow:hidden;
+    position:relative;
+    height:800px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* --- signature element: status strip --- */
+  .status-strip{
+    display:flex; align-items:center; gap:6px;
+    padding:10px 16px 8px 16px;
+    background:var(--bg-base);
+    flex-shrink:0;
+  }
+  .led{width:6px;height:6px;border-radius:50%;background:var(--border);}
+  .led.on{background:var(--green); box-shadow:0 0 6px 1px rgba(78,122,59,.45);}
+  .led.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .status-strip .label{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.14em;
+    color:var(--text-muted); text-transform:uppercase; margin-left:4px;
+  }
+  .status-strip .spacer{flex:1;}
+  .status-strip .clock{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted);
+  }
+
+  /* --- top app bar --- */
+  .appbar{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 14px 16px 14px;
+    flex-shrink:0;
+  }
+  .appbar-text{min-width:0; overflow:hidden;}
+  .burger{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:4px; cursor:pointer; position:relative;
+  }
+  .burger span{width:16px;height:2px;background:var(--brown); border-radius:2px;}
+  .burger .dot{
+    position:absolute; top:-3px; right:-3px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-base); display:none;
+  }
+  .appbar-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15.5px; color:var(--brown-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .appbar-sub{font-size:10.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .back-btn{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft); color:var(--brown);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:18px;
+  }
+
+  .home-top-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; position:relative;}
+  .floating-controls{
+    position:absolute; top:48px; right:14px; z-index:30;
+    display:flex; align-items:center; gap:8px;
+  }
+  .lang-selector{position:relative; flex-shrink:0;}
+  .hdr-status-text{font-size:11px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+  .lang-current{
+    padding:7px 9px; border-radius:16px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); color:var(--text); font-weight:600; font-size:11px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .lang-dropdown{
+    position:absolute; top:calc(100% + 6px); right:0; background:var(--bg-base); border:1px solid var(--border);
+    border-radius:12px; padding:6px; display:none; flex-direction:column; gap:2px;
+    box-shadow:0 14px 34px -12px rgba(80,60,30,.3); z-index:8; min-width:120px;
+  }
+  .lang-dropdown.show{display:flex;}
+  .lang-opt{
+    padding:8px 10px; border-radius:8px; border:none; background:transparent;
+    color:var(--text-muted); font-size:12px; font-weight:600; text-align:left; cursor:pointer;
+  }
+  .lang-opt.active{color:var(--yellow-dark); background:var(--yellow-bg);}
+  .hdr-clock{display:flex; align-items:center; gap:5px; flex-shrink:0;}
+  .hdr-led{width:7px;height:7px;border-radius:50%; background:var(--border);}
+  .hdr-led.on{background:var(--green); box-shadow:0 0 7px 2px rgba(78,122,59,.5);}
+  .hdr-clock-btn{
+    padding:7px 11px; border-radius:16px; border:none; font-weight:700; font-size:10.5px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .hdr-clock-btn.out{background:var(--green); color:#0F2A08;}
+  .hdr-clock-btn.in{background:var(--yellow); color:var(--brown-dark);}
+
+  .content{flex:1; overflow-y:auto; padding:0 16px 24px 16px;}
+  .content::-webkit-scrollbar{display:none;}
+
+  /* --- home hero --- */
+  .report-hero{
+    background:linear-gradient(160deg, var(--brown-bg), var(--bg-surface) 70%);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:22px 20px;
+    margin-bottom:16px;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+  }
+  .report-hero::after{
+    content:"";
+    position:absolute; right:-30px; top:-30px; width:140px; height:140px;
+    background:radial-gradient(circle, rgba(231,169,58,.35), transparent 70%);
+  }
+  .report-hero .eyebrow{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em;
+    color:var(--yellow-dark); text-transform:uppercase; margin-bottom:10px;
+  }
+  .report-hero h1{
+    font-family:'Space Grotesk',sans-serif; font-size:24px; font-weight:700;
+    margin:0 0 6px 0; line-height:1.15; color:var(--brown-dark);
+  }
+  .report-hero p{margin:0; color:var(--text-muted); font-size:13px; line-height:1.5; max-width:230px;}
+  .report-hero .go{
+    margin-top:16px; display:inline-flex; align-items:center; gap:6px;
+    background:var(--yellow); color:var(--brown-dark); font-weight:700; font-size:13.5px;
+    padding:11px 18px; border-radius:11px;
+  }
+
+  .section-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    color:var(--text-dim); text-transform:uppercase; margin:22px 0 10px 2px;
+  }
+
+  .active-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px; margin-bottom:10px; cursor:pointer;
+  }
+  .active-card .row1{display:flex; justify-content:space-between; align-items:flex-start;}
+  .active-card .line{font-size:13.5px; font-weight:600; color:var(--text);}
+  .active-card .part{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .badge{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    padding:4px 8px; border-radius:7px; white-space:nowrap; text-transform:uppercase;
+  }
+  .badge.pool{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .badge.taken{background:var(--green-bg); color:var(--green-dark);}
+  .active-card .meta{font-size:11px; color:var(--text-dim); margin-top:10px; display:flex; align-items:center; gap:6px;}
+
+  .empty-note{color:var(--text-dim); font-size:12.5px; padding:6px 2px 0 2px; line-height:1.5;}
+
+  /* --- selection grids --- */
+  .grid-cards{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .pick-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px 14px; cursor:pointer; transition:border-color .15s;
+  }
+  .pick-card:active{border-color:var(--yellow);}
+  .pick-card .icon-wrap{
+    width:40px;height:40px;border-radius:11px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+    color:var(--brown);
+  }
+  .pick-card .name{font-weight:600; font-size:14px; color:var(--text);}
+  .pick-card .sub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  .grid-icons{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .icon-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:14px 8px; text-align:center; cursor:pointer;
+  }
+  .icon-card.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .icon-card .icon-wrap{
+    width:44px;height:44px;border-radius:12px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 8px auto;
+    color:var(--text-muted);
+  }
+  .icon-card.selected .icon-wrap{color:var(--yellow-dark); background:#F6DFA8;}
+  .icon-card .name{font-size:11.5px; font-weight:500; line-height:1.25; color:var(--text);}
+
+  /* --- form elements --- */
+  .field-label{font-size:12px; color:var(--text-muted); margin:18px 2px 8px 2px; font-weight:500;}
+  textarea{
+    width:100%; background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:14px; padding:14px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:13.5px; resize:none; min-height:90px;
+  }
+  textarea:focus{outline:none; border-color:var(--yellow);}
+
+  .severity-row{display:flex; gap:10px;}
+  .sev-btn{
+    flex:1; padding:14px 10px; border-radius:14px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); text-align:left; cursor:pointer;
+  }
+  .sev-btn.critical.selected{border-color:var(--brown-dark); background:var(--brown-bg);}
+  .sev-btn.minor.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .sev-btn .t{font-weight:700; font-size:13px; color:var(--text);}
+  .sev-btn .s{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+  .sev-btn.critical.selected .t{color:var(--brown-dark);}
+  .sev-btn.minor.selected .t{color:var(--yellow-dark);}
+
+  .photo-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .photo-add, .photo-thumb{
+    width:64px;height:64px;border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    border:1px dashed var(--border); color:var(--text-dim); font-size:22px;
+    background:var(--bg-surface); cursor:pointer; position:relative; overflow:hidden;
+  }
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;}
+  .photo-thumb .rm{
+    position:absolute; top:2px; right:2px; width:16px;height:16px; border-radius:50%;
+    background:rgba(0,0,0,.55); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center;
+  }
+
+  .primary-btn{
+    width:100%; padding:16px; border-radius:14px; border:none;
+    background:var(--yellow); color:var(--brown-dark); font-weight:700; font-size:14.5px;
+    margin-top:22px; cursor:pointer;
+  }
+  .primary-btn:disabled{background:var(--bg-raised); color:var(--text-dim);}
+  .ghost-btn{
+    width:100%; padding:14px; border-radius:14px; border:1px solid var(--border-soft);
+    background:transparent; color:var(--brown); font-weight:600; font-size:13px;
+    margin-top:10px; cursor:pointer;
+  }
+
+  .crumb{font-size:11px; color:var(--text-dim); margin-bottom:14px; font-family:'JetBrains Mono',monospace;}
+  .crumb b{color:var(--yellow-dark);}
+
+  /* --- confirmation --- */
+  .confirm-wrap{text-align:center; padding-top:60px;}
+  .confirm-check{
+    width:64px;height:64px;border-radius:50%; background:var(--green-bg); color:var(--green-dark);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:28px;
+  }
+  .confirm-wrap h2{font-family:'Space Grotesk',sans-serif; font-size:19px; margin:0 0 8px 0; color:var(--brown-dark);}
+  .confirm-wrap p{color:var(--text-muted); font-size:13px; line-height:1.6; max-width:250px; margin:0 auto;}
+
+  /* --- timeline --- */
+  .timeline{margin-top:10px;}
+  .tl-item{display:flex; gap:12px; padding-bottom:22px; position:relative;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{
+    content:""; position:absolute; left:5px; top:16px; bottom:0; width:1px; background:var(--border);
+  }
+  .tl-item:last-child::before{display:none;}
+  .tl-dot{width:11px;height:11px;border-radius:50%; background:var(--bg-raised); border:2px solid var(--border); flex-shrink:0; margin-top:2px;}
+  .tl-dot.done{background:var(--green); border-color:var(--green);}
+  .tl-dot.active{background:var(--yellow); border-color:var(--yellow); box-shadow:0 0 0 4px rgba(231,169,58,.2);}
+  .tl-t{font-size:13px; font-weight:600; color:var(--text);}
+  .tl-s{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  /* --- overlay menu --- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(40,28,14,.35); opacity:0; pointer-events:none;
+    transition:opacity .25s; z-index:20;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .side-panel{
+    position:absolute; top:0; bottom:0; left:0; width:82%;
+    background:var(--bg-base); border-right:1px solid var(--border);
+    transform:translateX(-100%); transition:transform .28s ease; z-index:21;
+    display:flex; flex-direction:column;
+  }
+  .side-panel.show{transform:translateX(0);}
+  .side-header{padding:20px 18px 14px 18px; border-bottom:1px solid var(--border-soft);}
+  .side-header-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .side-header .name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--brown-dark);}
+  .side-header .role{font-size:11.5px; color:var(--text-dim); margin-top:2px;}
+  .conn-row{display:flex; align-items:center; gap:7px; margin-top:12px;}
+  .conn-row span{font-size:11px; color:var(--green-dark); font-family:'JetBrains Mono',monospace;}
+  .side-body{flex:1; overflow-y:auto; padding:16px 18px 24px 18px;}
+
+  .clock-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:18px; text-align:center; margin-bottom:16px;
+  }
+
+  .stat-row{display:flex; gap:10px; margin-bottom:16px;}
+  .stat-box{flex:1; background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px; padding:13px;}
+  .stat-box .v{font-family:'JetBrains Mono',monospace; font-size:17px; font-weight:600; color:var(--brown-dark);}
+  .stat-box .l{font-size:10px; color:var(--text-dim); margin-top:3px; text-transform:uppercase; letter-spacing:.06em;}
+
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-top:10px;}
+  .cal-day{
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border-radius:8px; font-size:11px; color:var(--text-muted); background:var(--bg-surface);
+    border:1px solid transparent; cursor:pointer;
+  }
+  .cal-day.today{border-color:var(--yellow); color:var(--yellow-dark); font-weight:700;}
+  .cal-day.dim{color:var(--text-dim); opacity:.3; pointer-events:none;}
+  .cal-day.picked{background:var(--bg-raised-2); color:var(--text);}
+  .cal-dow{font-size:9.5px; color:var(--text-dim); text-align:center; text-transform:uppercase;}
+  .cal-info{
+    margin-top:10px; background:var(--bg-surface); border-radius:12px; padding:12px 14px;
+    font-size:12px; color:var(--text-muted); display:none;
+  }
+  .cal-info.show{display:block;}
+  .cal-info b{color:var(--text);}
+
+  .ot-list{margin-top:8px;}
+  .ot-item{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--bg-surface); border-radius:12px; padding:11px 14px; margin-bottom:8px; font-size:12px;
+  }
+  .ot-item .d{color:var(--text-dim);}
+  .ot-item .v{font-family:'JetBrains Mono',monospace; color:var(--yellow-dark); font-weight:600;}
+  .ot-form{display:flex; gap:8px; margin-top:8px;}
+  .ot-form select{
+    flex:1; background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:10px;
+    color:var(--text); font-size:12.5px; padding:10px;
+  }
+  .ot-form button{
+    background:var(--yellow); color:var(--brown-dark); border:none; border-radius:10px; padding:0 16px; font-weight:700; font-size:12.5px; cursor:pointer;
+  }
+
+  /* --- side menu nav list --- */
+  .menu-list{margin-top:16px; display:flex; flex-direction:column; gap:9px;}
+  .menu-nav-item{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .menu-nav-item .ic{
+    width:36px;height:36px;border-radius:10px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; color:var(--brown); flex-shrink:0; position:relative;
+  }
+  .menu-nav-item .ic .dot{
+    position:absolute; top:-2px; right:-2px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-surface); display:none;
+  }
+  .menu-nav-item .lbl{flex:1; font-size:13.5px; font-weight:600; color:var(--text);}
+  .menu-nav-item .chev{color:var(--text-dim); font-size:15px;}
+
+  /* --- shifts screen --- */
+  .shift-item{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px;
+  }
+  .shift-item.today{border-color:var(--yellow); background:var(--yellow-bg);}
+  .shift-item .date{font-size:13px; font-weight:700; color:var(--text);}
+  .shift-item .day{font-size:10.5px; color:var(--text-dim); margin-top:2px; text-transform:uppercase; letter-spacing:.05em;}
+  .shift-item .time{font-family:'JetBrains Mono',monospace; font-size:13px; color:var(--brown-dark); font-weight:600;}
+
+  /* --- notifications screen --- */
+  .notif-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+  }
+  .notif-item.unread{border-color:var(--yellow);}
+  .notif-item .top{display:flex; align-items:flex-start; gap:7px;}
+  .notif-item .udot{width:7px;height:7px;border-radius:50%;background:#D64545; margin-top:5px; flex-shrink:0;}
+  .notif-item .title{flex:1; font-size:13px; font-weight:700; color:var(--text);}
+  .notif-item.unread .title{color:var(--brown-dark);}
+  .notif-item .time{font-size:10px; color:var(--text-dim); white-space:nowrap; flex-shrink:0; margin-top:1px;}
+  .notif-item .body{font-size:12px; color:var(--text-muted); margin-top:5px; line-height:1.45; padding-left:14px;}
+
+  /* --- holiday screen --- */
+  .badge.rejected{background:#F7DEDA; color:#9B3B26;}
+  .holiday-form{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:16px; margin-bottom:8px;
+  }
+  .holiday-dates-row{display:flex; gap:10px;}
+  .holiday-field{flex:1;}
+  .holiday-field .field-label{margin-top:0;}
+  input[type="date"]{
+    width:100%; background:var(--bg-base); border:1px solid var(--border-soft);
+    border-radius:12px; padding:11px 12px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:12.5px;
+  }
+  input[type="date"]:focus{outline:none; border-color:var(--yellow);}
+  .holiday-duration-box{
+    display:none; align-items:center; justify-content:space-between;
+    margin-top:14px; background:var(--yellow-bg); border-radius:12px; padding:11px 14px;
+  }
+  .holiday-duration-box .lbl{font-size:11px; color:var(--yellow-dark); text-transform:uppercase; letter-spacing:.05em;}
+  .holiday-duration-box .val{font-size:13px; color:var(--yellow-dark); font-weight:700;}
+  .holiday-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px;
+  }
+  .holiday-item .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .holiday-item .dates{font-size:13px; font-weight:700; color:var(--text);}
+  .holiday-item .duration{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .holiday-item .submitted{font-size:10.5px; color:var(--text-dim); margin-top:9px;}
+
+  .screen-el{display:none;}
+  .screen-el.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="caption">Mainty — Operator Prototype (clickable mockup, no real data)</div>
+
+<div class="phone">
+  <div class="screen" id="screen">
+
+    <div class="status-strip">
+      <div class="led on pulse"></div>
+      <div class="led on"></div>
+      <div class="led"></div>
+      <div class="led"></div>
+      <div class="label" data-i18n="networkStatus">Factory Network · Connected</div>
+      <div class="spacer"></div>
+      <div class="clock" id="topClock">08:42</div>
+    </div>
+
+    <div class="floating-controls" id="floatingControls">
+      <div class="hdr-status-text" id="hdrStatusText">Clock In</div>
+      <div class="lang-selector" id="langSelector">
+        <button class="lang-current" id="langCurrentBtn" onclick="toggleLangExpand()">🇬🇧 EN ▾</button>
+        <div class="lang-dropdown" id="langDropdown">
+          <button class="lang-opt" data-lang="en" onclick="applyLanguage('en')">🇬🇧 EN</button>
+          <button class="lang-opt" data-lang="pl" onclick="applyLanguage('pl')">🇵🇱 PL</button>
+          <button class="lang-opt" data-lang="bg" onclick="applyLanguage('bg')">🇧🇬 BG</button>
+          <button class="lang-opt" data-lang="es" onclick="applyLanguage('es')">🇪🇸 ES</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="appbar">
+      <div class="burger" id="burgerBtn" onclick="openMenu()"><span></span><span></span><span></span><span class="dot" id="burgerDot"></span></div>
+      <div class="back-btn screen-el" id="backBtn" onclick="goBack()" style="display:none;">←</div>
+      <div class="appbar-text">
+        <div class="appbar-title" id="appbarTitle">Hi, Deniz</div>
+        <div class="appbar-sub" id="appbarSub">Operator</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <div class="screen-el active" id="home">
+        <div class="report-hero" onclick="goto('line')">
+          <div class="eyebrow" data-i18n="reportEyebrow">Report Breakdown</div>
+          <h1 data-i18n="reportTitle">Something wrong?</h1>
+          <p data-i18n="reportDesc">Select the line and part, report it in seconds.</p>
+          <div class="go" data-i18n="reportGo">Create Report →</div>
+        </div>
+
+        <div id="activeReportsWrap"></div>
+
+        <div class="section-label" data-i18n="today">Today</div>
+        <div class="empty-note" data-i18n="noReportsToday">No other reports for today.</div>
+      </div>
+
+      <!-- REPORT DETAIL / TIMELINE -->
+      <div class="screen-el" id="reportDetail">
+        <div class="crumb"><span data-i18n="reportCrumb">Report</span> <b>#WO-1042</b></div>
+        <div class="active-card" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="rdLine">Line 1 · Separator</div>
+              <div class="part" id="rdSeverity">Line stopped — critical</div>
+            </div>
+            <span class="badge" id="rdBadge">Pool</span>
+          </div>
+        </div>
+        <div class="section-label" data-i18n="status">Status</div>
+        <div class="timeline" id="timelineBox"></div>
+      </div>
+
+      <!-- LINE SELECT -->
+      <div class="screen-el" id="line">
+        <div class="crumb" data-i18n="step1">Step 1 / 3 — Select Line</div>
+        <div class="grid-cards">
+          <div class="pick-card" onclick="pickLine('Line 1')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="4" width="12" height="16" rx="3"/><path d="M6 14h12"/></svg></div>
+            <div class="name">Line 1</div>
+            <div class="sub" data-i18n="lineSub1">Liquid Production</div>
+          </div>
+          <div class="pick-card" onclick="pickLine('Line 2')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4h10l-2 9a3 3 0 0 1-6 0z"/><path d="M10 20h4M12 13v7"/></svg></div>
+            <div class="name">Line 2</div>
+            <div class="sub" data-i18n="lineSub2">Powder Blending</div>
+          </div>
+          <div class="pick-card" onclick="pickLine('Line 3')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4v16M19 4v16M5 9h14M5 15h14"/></svg></div>
+            <div class="name">Line 3</div>
+            <div class="sub" data-i18n="lineSub3">Storage</div>
+          </div>
+          <div class="pick-card" onclick="pickGeneral()">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1z"/><rect x="6" y="5" width="12" height="16" rx="2"/><path d="M9 11h6M9 15h4"/></svg></div>
+            <div class="name" data-i18n="generalLine">General</div>
+            <div class="sub" data-i18n="generalSub">Not line-specific</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PART SELECT -->
+      <div class="screen-el" id="part">
+        <div class="crumb" id="partCrumb">Step 2 / 3 — Line 1 part</div>
+        <div class="grid-icons" id="partGrid"></div>
+      </div>
+
+      <!-- DETAILS -->
+      <div class="screen-el" id="details">
+        <div class="crumb" id="detailsCrumb">Step 3 / 3 — Details</div>
+
+        <div class="field-label" data-i18n="whatHappened">What happened?</div>
+        <textarea id="descBox" data-i18n-placeholder="descPlaceholder" placeholder="Briefly describe... (optional but recommended)"></textarea>
+
+        <div class="field-label" data-i18n="photo">Photo</div>
+        <div class="photo-row" id="photoRow">
+          <div class="photo-add" onclick="document.getElementById('fileInput').click()">+</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
+
+        <div class="field-label" data-i18n="severity">Severity</div>
+        <div class="severity-row">
+          <div class="sev-btn critical" id="sevCritical" onclick="pickSeverity('critical')">
+            <div class="t" data-i18n="sevCriticalT">Line Stopped</div>
+            <div class="s" data-i18n="sevCriticalS">Production fully stopped</div>
+          </div>
+          <div class="sev-btn minor" id="sevMinor" onclick="pickSeverity('minor')">
+            <div class="t" data-i18n="sevMinorT">Minor Issue</div>
+            <div class="s" data-i18n="sevMinorS">Production continues</div>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="submitBtn" disabled onclick="submitReport()" data-i18n="submit">Submit</button>
+      </div>
+
+      <!-- CONFIRMATION -->
+      <div class="screen-el" id="confirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2 data-i18n="confirmTitle">Report submitted</h2>
+          <p data-i18n="confirmDesc">Your report went to the pool. An available engineer will pick it up and you'll be notified.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;" data-i18n="backHome">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- CALENDAR SCREEN -->
+      <div class="screen-el" id="calendarScreen">
+        <div class="stat-row">
+          <div class="stat-box">
+            <div class="v">142h 30m</div>
+            <div class="l" data-i18n="thisMonth">This Month</div>
+          </div>
+          <div class="stat-box">
+            <div class="v">6h 15m</div>
+            <div class="l" data-i18n="overtime">Overtime</div>
+          </div>
+        </div>
+
+        <div class="section-label" style="margin-top:6px;" data-i18n="calendar">Calendar</div>
+        <div class="cal-grid" id="calDow"></div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-info" id="calInfo"></div>
+
+        <div class="section-label" data-i18n="reportOvertime">Report Overtime</div>
+        <div class="ot-form">
+          <select id="otSelect"></select>
+          <button onclick="addOvertime()" data-i18n="add">Add</button>
+        </div>
+        <div class="ot-list" id="otList"></div>
+      </div>
+
+      <!-- SHIFTS SCREEN -->
+      <div class="screen-el" id="shiftsScreen">
+        <div class="crumb" data-i18n="shiftsCrumb">Planned by your manager</div>
+        <div id="shiftsList"></div>
+      </div>
+
+      <!-- NOTIFICATIONS SCREEN -->
+      <div class="screen-el" id="notifScreen">
+        <div class="crumb" data-i18n="notifCrumb">All announcements</div>
+        <div id="notifList"></div>
+      </div>
+
+      <!-- HOLIDAY SCREEN -->
+      <div class="screen-el" id="holidayScreen">
+        <div class="crumb" data-i18n="holidayCrumb">Request time off, manager approval required</div>
+
+        <div class="holiday-form">
+          <div class="field-label" style="margin-top:0;" data-i18n="holidayNewTitle">New Request</div>
+          <div class="holiday-dates-row">
+            <div class="holiday-field">
+              <div class="field-label" data-i18n="holidayStart">Start Date</div>
+              <input type="date" id="holStart" oninput="updateHolidayDuration()">
+            </div>
+            <div class="holiday-field">
+              <div class="field-label" data-i18n="holidayEnd">End Date</div>
+              <input type="date" id="holEnd" oninput="updateHolidayDuration()">
+            </div>
+          </div>
+          <div class="holiday-duration-box" id="holDurationBox">
+            <span class="lbl" data-i18n="holidayDuration">Duration</span>
+            <span class="val" id="holDurationVal"></span>
+          </div>
+          <button class="primary-btn" id="holSubmitBtn" disabled onclick="submitHoliday()" data-i18n="holidaySubmit">Submit Request</button>
+        </div>
+
+        <div class="section-label" data-i18n="holidayHistory">Your Requests</div>
+        <div id="holidayList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDE MENU -->
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  <div class="side-panel" id="sidePanel">
+    <div class="side-header">
+      <div class="side-header-top">
+        <div>
+          <div class="name">Deniz Aksoy</div>
+          <div class="role" data-i18n="sideRole">Operator</div>
+        </div>
+        <div class="hdr-clock" id="hdrClockWrap">
+          <div class="hdr-led" id="headerLed"></div>
+          <button class="hdr-clock-btn out" id="clockBtn" onclick="toggleClock()">Clock In</button>
+        </div>
+      </div>
+      <div class="conn-row"><div class="led on pulse" style="width:7px;height:7px;"></div><span data-i18n="connectedFactory">CONNECTED</span></div>
+    </div>
+    <div class="side-body">
+
+      <div class="menu-list">
+        <div class="menu-nav-item" onclick="closeMenu(); goto('calendarScreen');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="16" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></div>
+          <div class="lbl" data-i18n="calendar">Calendar</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('shiftsScreen');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 7v5l3.2 2"/><circle cx="12" cy="12" r="8.5"/></svg></div>
+          <div class="lbl" data-i18n="shifts">Shifts</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('notifScreen');">
+          <div class="ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+            <span class="dot" id="menuNotifDot"></span>
+          </div>
+          <div class="lbl" data-i18n="notifications">Notifications</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('holidayScreen');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div>
+          <div class="lbl" data-i18n="holiday">Holiday</div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ================= I18N =================
+const I18N = {
+  en: {
+    networkStatus:"Connected",
+    reportEyebrow:"Report Breakdown", reportTitle:"Something wrong?",
+    reportDesc:"Select the line and part, report it in seconds.", reportGo:"Create Report →",
+    today:"Today", noReportsToday:"No other reports for today.",
+    step1:"Step 1 / 3 — Select Line",
+    lineSub1:"Liquid Production", lineSub2:"Powder Blending", lineSub3:"Storage",
+    step2:(line)=>`Step 2 / 3 — ${line} part`, step3:(line,part)=>`Step 3 / 3 — ${line} · ${part}`,
+    whatHappened:"What happened?", descPlaceholder:"Briefly describe... (optional but recommended)",
+    photo:"Photo", severity:"Severity",
+    sevCriticalT:"Line Stopped", sevCriticalS:"Production fully stopped",
+    sevMinorT:"Minor Issue", sevMinorS:"Production continues",
+    submit:"Submit",
+    confirmTitle:"Report submitted",
+    confirmDesc:"Your report went to the pool. An available engineer will pick it up and you'll be notified.",
+    backHome:"Back to Home",
+    yourActiveReport:"Your Active Report",
+    badgePool:"In Pool", badgeTaken:"Assigned",
+    metaWaiting:"Waiting for engineer", metaTaken:(name)=>`⬤ ${name} (Engineer) picked it up`,
+    reportCrumb:"Report", status:"Status",
+    tlReported:"Reported", tlReportedSub:(who,time)=>`${who} · ${time}`, you:"You",
+    tlPool:"Sent to pool", tlPoolSub:"Visible to available engineers",
+    tlAssigned:"Engineer assigned", tlWaiting:"Waiting…",
+    parts:{separator:"Separator", tank:"Tank", filling:"Filling Line", capper:"Capping Machine", other:"Other",
+      blender1:"Blender 1", blender2:"Blender 2", sackfill:"Sack Fill", sieve:"Sieve",
+      racking:"Racking System", forklift:"Forklift Station", ramp:"Loading Ramp"},
+    chrome:{home:["Hi, Deniz","Operator"], line:["Select Line","Report Breakdown · Step 1"],
+      part:["Select Part","Report Breakdown · Step 2"], details:["Details","Report Breakdown · Step 3"],
+      confirm:["Submitted",""], reportDetail:["Report Status","#WO-1042"],
+      calendarScreen:["Calendar","Hours & overtime"], shiftsScreen:["Shifts","Your upcoming schedule"],
+      notifScreen:["Notifications","Factory announcements"], holidayScreen:["Holiday Requests","Time off & approvals"]},
+    sideRole:"Operator", connectedFactory:"CONNECTED",
+    clockIn:"Clock In", clockOut:"Clock Out", statusIn:"Clocked In", statusOut:"Clocked Out",
+    thisMonth:"This Month", overtime:"Overtime", calendar:"Calendar", reportOvertime:"Report Overtime", add:"Add",
+    shifts:"Shifts", notifications:"Notifications", shiftsCrumb:"Planned by your manager", notifCrumb:"All announcements",
+    holiday:"Holiday", holidayCrumb:"Request time off, manager approval required", holidayNewTitle:"New Request",
+    holidayStart:"Start Date", holidayEnd:"End Date", holidayDuration:"Duration",
+    holidayDurationLabel:(n)=>`${n} working ${n===1?'day':'days'}`,
+    holidaySubmit:"Submit Request", holidayHistory:"Your Requests", holidayNoRequests:"No requests yet.",
+    holidayRequestedOn:(date)=>`Requested ${date}`,
+    holidayStatusPending:"Pending", holidayStatusApproved:"Approved", holidayStatusRejected:"Rejected",
+    generalLine:"General", generalSub:"Not line-specific", generalCrumb:"General Report", generalReportTitle:"General Report",
+    otOptions:["+ 30 min","+ 1 hour","+ 1.5 hours","+ 2 hours"],
+    calInfo:(day,hrs)=>`${day} — ${hrs}h worked`,
+    dow:["Mo","Tu","We","Th","Fr","Sa","Su"],
+    months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+    language:"Language", critical:"Line stopped — critical", minor:"Minor issue",
+    notif:[
+      {title:"Planned maintenance — Line 2", time:"2h ago", body:"Line 2 will stop Thursday 06:00–08:00 for scheduled maintenance."},
+      {title:"New shift schedule published", time:"Yesterday", body:"Next month's shifts are now visible under Shifts."},
+      {title:"Safety reminder", time:"3 days ago", body:"PPE is mandatory in Unit 1 while contractor works are ongoing."},
+      {title:"Early finish before bank holiday", time:"1 week ago", body:"Site closes at 14:00 on Friday ahead of the bank holiday."}
+    ]
+  },
+  pl: {
+    networkStatus:"Połączono",
+    reportEyebrow:"Zgłoś awarię", reportTitle:"Coś nie działa?",
+    reportDesc:"Wybierz linię i część, zgłoś w kilka sekund.", reportGo:"Utwórz zgłoszenie →",
+    today:"Dziś", noReportsToday:"Brak innych zgłoszeń na dziś.",
+    step1:"Krok 1 / 3 — Wybierz linię",
+    lineSub1:"Produkcja płynna", lineSub2:"Powder Blending", lineSub3:"Magazyn",
+    step2:(line)=>`Krok 2 / 3 — część linii ${line}`, step3:(line,part)=>`Krok 3 / 3 — ${line} · ${part}`,
+    whatHappened:"Co się stało?", descPlaceholder:"Krótko opisz... (opcjonalne, ale zalecane)",
+    photo:"Zdjęcie", severity:"Priorytet",
+    sevCriticalT:"Linia zatrzymana", sevCriticalS:"Produkcja całkowicie wstrzymana",
+    sevMinorT:"Drobny problem", sevMinorS:"Produkcja trwa",
+    submit:"Wyślij",
+    confirmTitle:"Zgłoszenie wysłane",
+    confirmDesc:"Zgłoszenie trafiło do puli. Dostępny inżynier je przejmie, otrzymasz powiadomienie.",
+    backHome:"Powrót do ekranu głównego",
+    yourActiveReport:"Twoje aktywne zgłoszenie",
+    badgePool:"W puli", badgeTaken:"Przypisano",
+    metaWaiting:"Oczekiwanie na inżyniera", metaTaken:(name)=>`⬤ ${name} (inżynier) przejął zgłoszenie`,
+    reportCrumb:"Zgłoszenie", status:"Status",
+    tlReported:"Zgłoszono", tlReportedSub:(who,time)=>`${who} · ${time}`, you:"Ty",
+    tlPool:"Trafiło do puli", tlPoolSub:"Widoczne dla dostępnych inżynierów",
+    tlAssigned:"Inżynier przypisany", tlWaiting:"Oczekiwanie…",
+    parts:{separator:"Separator", tank:"Zbiornik", filling:"Linia napełniania", capper:"Zakrętarka", other:"Inne",
+      blender1:"Blender 1", blender2:"Blender 2", sackfill:"Pakowanie worków", sieve:"Sito",
+      racking:"System regałowy", forklift:"Stanowisko wózka widłowego", ramp:"Rampa załadunkowa"},
+    chrome:{home:["Cześć, Deniz","Operator"], line:["Wybierz linię","Zgłoś awarię · Krok 1"],
+      part:["Wybierz część","Zgłoś awarię · Krok 2"], details:["Szczegóły","Zgłoś awarię · Krok 3"],
+      confirm:["Wysłano",""], reportDetail:["Status zgłoszenia","#WO-1042"],
+      calendarScreen:["Kalendarz","Godziny i nadgodziny"], shiftsScreen:["Zmiany","Twój nadchodzący harmonogram"],
+      notifScreen:["Powiadomienia","Ogłoszenia zakładowe"], holidayScreen:["Wnioski urlopowe","Urlopy i akceptacje"]},
+    sideRole:"Operator", connectedFactory:"POŁĄCZONO",
+    clockIn:"Rozpocznij zmianę", clockOut:"Zakończ zmianę", statusIn:"Na zmianie", statusOut:"Poza zmianą",
+    thisMonth:"Ten miesiąc", overtime:"Nadgodziny", calendar:"Kalendarz", reportOvertime:"Zgłoś nadgodziny", add:"Dodaj",
+    shifts:"Zmiany", notifications:"Powiadomienia", shiftsCrumb:"Zaplanowane przez kierownika", notifCrumb:"Wszystkie ogłoszenia",
+    holiday:"Urlop", holidayCrumb:"Złóż wniosek urlopowy, wymagana akceptacja kierownika", holidayNewTitle:"Nowy wniosek",
+    holidayStart:"Data początkowa", holidayEnd:"Data końcowa", holidayDuration:"Czas trwania",
+    holidayDurationLabel:(n)=>`${n} dni roboczych`,
+    holidaySubmit:"Wyślij wniosek", holidayHistory:"Twoje wnioski", holidayNoRequests:"Brak wniosków.",
+    holidayRequestedOn:(date)=>`Złożono ${date}`,
+    holidayStatusPending:"Oczekuje", holidayStatusApproved:"Zaakceptowano", holidayStatusRejected:"Odrzucono",
+    generalLine:"Ogólne", generalSub:"Bez konkretnej linii", generalCrumb:"Zgłoszenie ogólne", generalReportTitle:"Zgłoszenie ogólne",
+    otOptions:["+ 30 min","+ 1 godz.","+ 1,5 godz.","+ 2 godz."],
+    calInfo:(day,hrs)=>`${day} — przepracowano ${hrs} godz.`,
+    dow:["Pon","Wt","Śr","Czw","Pt","Sob","Nie"],
+    months:["Sty","Lut","Mar","Kwi","Maj","Cze","Lip","Sie","Wrz","Paź","Lis","Gru"],
+    language:"Język", critical:"Linia zatrzymana — krytyczne", minor:"Drobny problem",
+    notif:[
+      {title:"Planowany przegląd — Linia 2", time:"2 godz. temu", body:"Linia 2 zostanie zatrzymana w czwartek 06:00–08:00 na planowy przegląd."},
+      {title:"Opublikowano nowy grafik zmian", time:"Wczoraj", body:"Zmiany na przyszły miesiąc są już widoczne w sekcji Zmiany."},
+      {title:"Przypomnienie BHP", time:"3 dni temu", body:"W Hali 1 obowiązkowe są środki ochrony osobistej podczas prac wykonawcy."},
+      {title:"Wcześniejsze zakończenie przed świętem", time:"1 tydzień temu", body:"W piątek zakład zamyka się o 14:00 przed dniem wolnym."}
+    ]
+  },
+  bg: {
+    networkStatus:"Свързан",
+    reportEyebrow:"Докладвай авария", reportTitle:"Има ли проблем?",
+    reportDesc:"Избери линия и част, докладвай за секунди.", reportGo:"Създай доклад →",
+    today:"Днес", noReportsToday:"Няма други доклади за днес.",
+    step1:"Стъпка 1 / 3 — Избери линия",
+    lineSub1:"Течно производство", lineSub2:"Powder Blending", lineSub3:"Склад",
+    step2:(line)=>`Стъпка 2 / 3 — част от ${line}`, step3:(line,part)=>`Стъпка 3 / 3 — ${line} · ${part}`,
+    whatHappened:"Какво се случи?", descPlaceholder:"Кратко описание... (по избор, но препоръчително)",
+    photo:"Снимка", severity:"Степен на важност",
+    sevCriticalT:"Линията спря", sevCriticalS:"Производството е напълно спряно",
+    sevMinorT:"Малък проблем", sevMinorS:"Производството продължава",
+    submit:"Изпрати",
+    confirmTitle:"Докладът е изпратен",
+    confirmDesc:"Докладът постъпи в пула. Свободен инженер ще го поеме, ще получиш известие.",
+    backHome:"Обратно към началния екран",
+    yourActiveReport:"Твоят активен доклад",
+    badgePool:"В пула", badgeTaken:"Поет",
+    metaWaiting:"Изчаква се инженер", metaTaken:(name)=>`⬤ ${name} (инженер) пое случая`,
+    reportCrumb:"Доклад", status:"Статус",
+    tlReported:"Докладвано", tlReportedSub:(who,time)=>`${who} · ${time}`, you:"Ти",
+    tlPool:"Постъпи в пула", tlPoolSub:"Видимо за свободните инженери",
+    tlAssigned:"Инженер назначен", tlWaiting:"Изчаква се…",
+    parts:{separator:"Сепаратор", tank:"Резервоар", filling:"Линия за пълнене", capper:"Машина за капачки", other:"Друго",
+      blender1:"Блендер 1", blender2:"Блендер 2", sackfill:"Пълнене на чували", sieve:"Сито",
+      racking:"Стелажна система", forklift:"Пост за мотокар", ramp:"Товарна рампа"},
+    chrome:{home:["Здравей, Дениз","Оператор"], line:["Избери линия","Докладвай авария · Стъпка 1"],
+      part:["Избери част","Докладвай авария · Стъпка 2"], details:["Детайли","Докладвай авария · Стъпка 3"],
+      confirm:["Изпратено",""], reportDetail:["Статус на доклада","#WO-1042"],
+      calendarScreen:["Календар","Часове и извънреден труд"], shiftsScreen:["Смени","Твоят предстоящ график"],
+      notifScreen:["Известия","Обяви от фабриката"], holidayScreen:["Заявки за отпуск","Отпуски и одобрения"]},
+    sideRole:"Оператор", connectedFactory:"СВЪРЗАН",
+    clockIn:"Начало на смяна", clockOut:"Край на смяна", statusIn:"На смяна", statusOut:"Извън смяна",
+    thisMonth:"Този месец", overtime:"Извънреден труд", calendar:"Календар", reportOvertime:"Докладвай извънреден труд", add:"Добави",
+    shifts:"Смени", notifications:"Известия", shiftsCrumb:"Планирано от твоя мениджър", notifCrumb:"Всички обяви",
+    holiday:"Отпуск", holidayCrumb:"Заяви отпуск, изисква се одобрение от мениджър", holidayNewTitle:"Нова заявка",
+    holidayStart:"Начална дата", holidayEnd:"Крайна дата", holidayDuration:"Продължителност",
+    holidayDurationLabel:(n)=>`${n} работни дни`,
+    holidaySubmit:"Изпрати заявка", holidayHistory:"Твоите заявки", holidayNoRequests:"Все още няма заявки.",
+    holidayRequestedOn:(date)=>`Подадена на ${date}`,
+    holidayStatusPending:"Изчаква се", holidayStatusApproved:"Одобрена", holidayStatusRejected:"Отказана",
+    generalLine:"Общо", generalSub:"Без конкретна линия", generalCrumb:"Общ доклад", generalReportTitle:"Общ доклад",
+    otOptions:["+ 30 мин","+ 1 час","+ 1,5 часа","+ 2 часа"],
+    calInfo:(day,hrs)=>`${day} — отработени ${hrs} ч.`,
+    dow:["Пн","Вт","Ср","Чт","Пт","Сб","Нд"],
+    months:["Яну","Фев","Мар","Апр","Май","Юни","Юли","Авг","Сеп","Окт","Ное","Дек"],
+    language:"Език", critical:"Линията спря — критично", minor:"Малък проблем",
+    notif:[
+      {title:"Планиран ремонт — Линия 2", time:"преди 2ч", body:"Линия 2 ще спре в четвъртък 06:00–08:00 ч. за планова поддръжка."},
+      {title:"Публикуван е нов график за смени", time:"Вчера", body:"Смените за следващия месец вече са видими в раздел Смени."},
+      {title:"Напомняне за безопасност", time:"преди 3 дни", body:"В Цех 1 е задължително ЛПС по време на работата на подизпълнителя."},
+      {title:"По-ранно приключване преди празника", time:"преди 1 седмица", body:"Обектът затваря в 14:00 ч. в петък преди почивния ден."}
+    ]
+  },
+  es: {
+    networkStatus:"Conectado",
+    reportEyebrow:"Reportar avería", reportTitle:"¿Algo va mal?",
+    reportDesc:"Selecciona la línea y la pieza, repórtalo en segundos.", reportGo:"Crear reporte →",
+    today:"Hoy", noReportsToday:"No hay más reportes hoy.",
+    step1:"Paso 1 / 3 — Selecciona línea",
+    lineSub1:"Producción líquida", lineSub2:"Powder Blending", lineSub3:"Almacén",
+    step2:(line)=>`Paso 2 / 3 — pieza de ${line}`, step3:(line,part)=>`Paso 3 / 3 — ${line} · ${part}`,
+    whatHappened:"¿Qué pasó?", descPlaceholder:"Describe brevemente... (opcional pero recomendado)",
+    photo:"Foto", severity:"Gravedad",
+    sevCriticalT:"Línea detenida", sevCriticalS:"Producción totalmente detenida",
+    sevMinorT:"Problema menor", sevMinorS:"La producción continúa",
+    submit:"Enviar",
+    confirmTitle:"Reporte enviado",
+    confirmDesc:"Tu reporte pasó al grupo. Un ingeniero disponible lo tomará y recibirás una notificación.",
+    backHome:"Volver al inicio",
+    yourActiveReport:"Tu reporte activo",
+    badgePool:"En grupo", badgeTaken:"Asignado",
+    metaWaiting:"Esperando ingeniero", metaTaken:(name)=>`⬤ ${name} (Ingeniero) lo tomó`,
+    reportCrumb:"Reporte", status:"Estado",
+    tlReported:"Reportado", tlReportedSub:(who,time)=>`${who} · ${time}`, you:"Tú",
+    tlPool:"Enviado al grupo", tlPoolSub:"Visible para ingenieros disponibles",
+    tlAssigned:"Ingeniero asignado", tlWaiting:"Esperando…",
+    parts:{separator:"Separador", tank:"Tanque", filling:"Línea de llenado", capper:"Taponadora", other:"Otro",
+      blender1:"Mezcladora 1", blender2:"Mezcladora 2", sackfill:"Llenado de sacos", sieve:"Tamiz",
+      racking:"Sistema de estanterías", forklift:"Estación de carretilla", ramp:"Rampa de carga"},
+    chrome:{home:["Hola, Deniz","Operario"], line:["Selecciona línea","Reportar avería · Paso 1"],
+      part:["Selecciona pieza","Reportar avería · Paso 2"], details:["Detalles","Reportar avería · Paso 3"],
+      confirm:["Enviado",""], reportDetail:["Estado del reporte","#WO-1042"],
+      calendarScreen:["Calendario","Horas y horas extra"], shiftsScreen:["Turnos","Tu horario próximo"],
+      notifScreen:["Notificaciones","Avisos de la fábrica"], holidayScreen:["Solicitudes de vacaciones","Ausencias y aprobaciones"]},
+    sideRole:"Operario", connectedFactory:"CONECTADO",
+    clockIn:"Fichar entrada", clockOut:"Fichar salida", statusIn:"En turno", statusOut:"Fuera de turno",
+    thisMonth:"Este mes", overtime:"Horas extra", calendar:"Calendario", reportOvertime:"Reportar horas extra", add:"Añadir",
+    shifts:"Turnos", notifications:"Notificaciones", shiftsCrumb:"Planificado por tu encargado", notifCrumb:"Todos los avisos",
+    holiday:"Vacaciones", holidayCrumb:"Solicita días libres, requiere aprobación del encargado", holidayNewTitle:"Nueva solicitud",
+    holidayStart:"Fecha de inicio", holidayEnd:"Fecha de fin", holidayDuration:"Duración",
+    holidayDurationLabel:(n)=>`${n} día${n===1?'':'s'} laborable${n===1?'':'s'}`,
+    holidaySubmit:"Enviar solicitud", holidayHistory:"Tus solicitudes", holidayNoRequests:"Aún no hay solicitudes.",
+    holidayRequestedOn:(date)=>`Solicitado el ${date}`,
+    holidayStatusPending:"Pendiente", holidayStatusApproved:"Aprobada", holidayStatusRejected:"Rechazada",
+    generalLine:"General", generalSub:"Sin línea específica", generalCrumb:"Reporte general", generalReportTitle:"Reporte general",
+    otOptions:["+ 30 min","+ 1 hora","+ 1,5 horas","+ 2 horas"],
+    calInfo:(day,hrs)=>`${day} — ${hrs}h trabajadas`,
+    dow:["Lu","Ma","Mi","Ju","Vi","Sa","Do"],
+    months:["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"],
+    language:"Idioma", critical:"Línea detenida — crítico", minor:"Problema menor",
+    notif:[
+      {title:"Mantenimiento programado — Línea 2", time:"Hace 2h", body:"La Línea 2 se detendrá el jueves de 06:00 a 08:00 por mantenimiento."},
+      {title:"Nuevo calendario de turnos publicado", time:"Ayer", body:"Los turnos del próximo mes ya están visibles en Turnos."},
+      {title:"Recordatorio de seguridad", time:"Hace 3 días", body:"El EPI es obligatorio en la Unidad 1 mientras duren las obras del contratista."},
+      {title:"Salida anticipada antes del festivo", time:"Hace 1 semana", body:"La planta cierra a las 14:00 el viernes antes del día festivo."}
+    ]
+  }
+};
+let currentLang = 'en';
+
+// ---------- navigation ----------
+const stack = ['home'];
+function goto(id){
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  stack.push(id);
+  updateChrome(id);
+}
+function goBack(){
+  if(stack.length>1){ stack.pop(); }
+  const prev = stack[stack.length-1] || 'home';
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(prev).classList.add('active');
+  updateChrome(prev);
+}
+function updateChrome(id){
+  const c = I18N[currentLang].chrome[id];
+  document.getElementById('appbarTitle').textContent = c[0];
+  document.getElementById('appbarSub').textContent = c[1];
+  const isHome = id==='home';
+  document.getElementById('burgerBtn').style.display = isHome ? 'flex':'none';
+  document.getElementById('backBtn').style.display = isHome ? 'none':'flex';
+  document.getElementById('floatingControls').style.display = isHome ? 'flex':'none';
+  if(!isHome){ document.getElementById('langDropdown').classList.remove('show'); }
+}
+
+// ---------- side menu ----------
+function openMenu(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sidePanel').classList.add('show');
+}
+function closeMenu(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sidePanel').classList.remove('show');
+}
+
+// ---------- clock in/out ----------
+let clockedIn=false;
+function toggleClock(){
+  clockedIn=!clockedIn;
+  const btn=document.getElementById('clockBtn');
+  const headerLed=document.getElementById('headerLed');
+  if(clockedIn){
+    btn.className='hdr-clock-btn in';
+    headerLed.classList.add('on');
+  } else {
+    btn.className='hdr-clock-btn out';
+    headerLed.classList.remove('on');
+  }
+  updateClockBtnLabel();
+}
+function updateClockBtnLabel(){
+  document.getElementById('clockBtn').textContent = clockedIn ? I18N[currentLang].clockOut : I18N[currentLang].clockIn;
+  document.getElementById('hdrStatusText').textContent = clockedIn ? I18N[currentLang].statusIn : I18N[currentLang].statusOut;
+}
+
+// ---------- top clock ----------
+function tickTopClock(){
+  const d=new Date();
+  document.getElementById('topClock').textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+tickTopClock(); setInterval(tickTopClock,15000);
+
+// ---------- calendar ----------
+function buildCalendar(){
+  const dowWrap=document.getElementById('calDow');
+  dowWrap.innerHTML='';
+  I18N[currentLang].dow.forEach(d=>{ const el=document.createElement('div'); el.className='cal-dow'; el.textContent=d; dowWrap.appendChild(el); });
+
+  const now=new Date();
+  const year=now.getFullYear(), month=now.getMonth();
+  const firstDay=new Date(year,month,1);
+  const startOffset=(firstDay.getDay()+6)%7;
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const grid=document.getElementById('calGrid');
+  grid.innerHTML='';
+  for(let i=0;i<startOffset;i++){ const el=document.createElement('div'); el.className='cal-day dim'; grid.appendChild(el); }
+  for(let day=1; day<=daysInMonth; day++){
+    const el=document.createElement('div');
+    el.className='cal-day';
+    el.textContent=day;
+    if(day===now.getDate()) el.classList.add('today');
+    if(day<=now.getDate()){
+      el.onclick=()=>pickDay(el,day);
+    } else {
+      el.classList.add('dim');
+    }
+    grid.appendChild(el);
+  }
+  document.getElementById('calInfo').classList.remove('show');
+}
+function pickDay(el,day){
+  document.querySelectorAll('.cal-day.picked').forEach(e=>e.classList.remove('picked'));
+  el.classList.add('picked');
+  const seed=(day*17)%5;
+  const hrs=(7+seed*0.5).toFixed(1).replace('.0','');
+  const info=document.getElementById('calInfo');
+  info.classList.add('show');
+  info.innerHTML = I18N[currentLang].calInfo(day, hrs);
+}
+
+// ---------- shifts (manager-planned, read-only for operator) ----------
+const shiftsMock = [0,1,2,4,7,8,11,14,16].map(offset=>{
+  const d=new Date(); d.setDate(d.getDate()+offset);
+  return {date:d, start:'08:00', end:'16:00'};
+});
+function buildShifts(){
+  const wrap=document.getElementById('shiftsList');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const todayStr=new Date().toDateString();
+  shiftsMock.forEach(s=>{
+    const isToday = s.date.toDateString()===todayStr;
+    const dayName = I18N[currentLang].dow[(s.date.getDay()+6)%7];
+    const dateLabel = s.date.getDate()+' '+I18N[currentLang].months[s.date.getMonth()];
+    const item=document.createElement('div');
+    item.className='shift-item'+(isToday?' today':'');
+    item.innerHTML =
+      '<div><div class="date">'+dateLabel+(isToday?' · '+I18N[currentLang].today:'')+'</div>'+
+      '<div class="day">'+dayName+'</div></div>'+
+      '<div class="time">'+s.start+' – '+s.end+'</div>';
+    wrap.appendChild(item);
+  });
+}
+
+// ---------- notifications / information board ----------
+let notifRead = [false,false,true,true];
+function buildNotifications(){
+  const wrap=document.getElementById('notifList');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const items = I18N[currentLang].notif;
+  items.forEach((n,i)=>{
+    const unread = !notifRead[i];
+    const el=document.createElement('div');
+    el.className='notif-item'+(unread?' unread':'');
+    el.onclick=()=>{ notifRead[i]=true; buildNotifications(); };
+    el.innerHTML =
+      '<div class="top">'+(unread?'<span class="udot"></span>':'')+
+      '<div class="title">'+n.title+'</div>'+
+      '<div class="time">'+n.time+'</div></div>'+
+      '<div class="body">'+n.body+'</div>';
+    wrap.appendChild(el);
+  });
+  updateNotifBadge();
+}
+function updateNotifBadge(){
+  const anyUnread = notifRead.some(r=>!r);
+  const menuDot=document.getElementById('menuNotifDot');
+  const burgerDot=document.getElementById('burgerDot');
+  if(menuDot) menuDot.style.display = anyUnread ? 'block':'none';
+  if(burgerDot) burgerDot.style.display = anyUnread ? 'block':'none';
+}
+
+// ---------- overtime ----------
+let otEntries = [
+  {day:18, monthIdx:7, otIdx:1},
+  {day:11, monthIdx:7, otIdx:0}
+];
+function renderOtSelect(){
+  const sel = document.getElementById('otSelect');
+  const prevIndex = sel.selectedIndex >= 0 ? sel.selectedIndex : 0;
+  sel.innerHTML='';
+  I18N[currentLang].otOptions.forEach(opt=>{
+    const o=document.createElement('option');
+    o.textContent=opt;
+    sel.appendChild(o);
+  });
+  sel.selectedIndex = prevIndex;
+}
+function renderOtList(){
+  const list=document.getElementById('otList');
+  list.innerHTML='';
+  otEntries.forEach(e=>{
+    const dateStr = e.day+' '+I18N[currentLang].months[e.monthIdx];
+    const amount = I18N[currentLang].otOptions[e.otIdx];
+    const item=document.createElement('div');
+    item.className='ot-item';
+    item.innerHTML='<span class="d">'+dateStr+'</span><span class="v">'+amount+'</span>';
+    list.appendChild(item);
+  });
+}
+function addOvertime(){
+  const sel=document.getElementById('otSelect');
+  const now=new Date();
+  otEntries.unshift({day:now.getDate(), monthIdx:now.getMonth(), otIdx:sel.selectedIndex});
+  renderOtList();
+}
+
+// ---------- holiday requests ----------
+function calcWorkingDays(start, end){
+  let count=0;
+  const d=new Date(start);
+  while(d<=end){
+    const day=d.getDay();
+    if(day!==0 && day!==6) count++;
+    d.setDate(d.getDate()+1);
+  }
+  return count;
+}
+function formatDateShort(d){
+  return d.getDate()+' '+I18N[currentLang].months[d.getMonth()];
+}
+function formatDateRange(s,e){
+  if(s.getMonth()===e.getMonth() && s.getFullYear()===e.getFullYear()){
+    return s.getDate()+'–'+e.getDate()+' '+I18N[currentLang].months[e.getMonth()];
+  }
+  return formatDateShort(s)+' – '+formatDateShort(e);
+}
+function mkHolDate(offsetDays){
+  const d=new Date(); d.setDate(d.getDate()+offsetDays); d.setHours(0,0,0,0); return d;
+}
+let holidayIdCounter=1;
+let holidayRequests=[
+  {id:holidayIdCounter++, start:mkHolDate(-58), end:mkHolDate(-54), status:'approved', submitted:mkHolDate(-65)},
+  {id:holidayIdCounter++, start:mkHolDate(-20), end:mkHolDate(-20), status:'rejected', submitted:mkHolDate(-24)}
+];
+holidayRequests.forEach(r=>{ r.days = calcWorkingDays(r.start, r.end); });
+
+function updateHolidayDuration(){
+  const sEl=document.getElementById('holStart'), eEl=document.getElementById('holEnd');
+  if(!sEl || !eEl) return;
+  const box=document.getElementById('holDurationBox');
+  const btn=document.getElementById('holSubmitBtn');
+  if(!sEl.value || !eEl.value){ box.style.display='none'; btn.disabled=true; return; }
+  const sd=new Date(sEl.value+'T00:00:00'), ed=new Date(eEl.value+'T00:00:00');
+  if(ed<sd){ box.style.display='none'; btn.disabled=true; return; }
+  const days=calcWorkingDays(sd,ed);
+  box.style.display='flex';
+  document.getElementById('holDurationVal').textContent = I18N[currentLang].holidayDurationLabel(days);
+  btn.disabled=false;
+}
+
+function submitHoliday(){
+  const sEl=document.getElementById('holStart'), eEl=document.getElementById('holEnd');
+  if(!sEl.value || !eEl.value) return;
+  const sd=new Date(sEl.value+'T00:00:00'), ed=new Date(eEl.value+'T00:00:00');
+  if(ed<sd) return;
+  const entry={id:holidayIdCounter++, start:sd, end:ed, days:calcWorkingDays(sd,ed), status:'pending', submitted:new Date()};
+  holidayRequests.unshift(entry);
+  sEl.value=''; eEl.value='';
+  document.getElementById('holDurationBox').style.display='none';
+  document.getElementById('holSubmitBtn').disabled=true;
+  renderHolidayList();
+  setTimeout(()=>{
+    entry.status='approved';
+    renderHolidayList();
+  }, 4500);
+}
+
+function renderHolidayList(){
+  const wrap=document.getElementById('holidayList');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  if(holidayRequests.length===0){
+    wrap.innerHTML='<div class="empty-note">'+I18N[currentLang].holidayNoRequests+'</div>';
+    return;
+  }
+  holidayRequests.slice().sort((a,b)=>b.start-a.start).forEach(r=>{
+    const item=document.createElement('div');
+    item.className='holiday-item';
+    const badgeClass = r.status==='pending' ? 'pool' : (r.status==='approved' ? 'taken' : 'rejected');
+    const badgeText = r.status==='pending' ? I18N[currentLang].holidayStatusPending
+      : (r.status==='approved' ? I18N[currentLang].holidayStatusApproved : I18N[currentLang].holidayStatusRejected);
+    item.innerHTML =
+      '<div class="row1"><div>'+
+      '<div class="dates">'+formatDateRange(r.start,r.end)+'</div>'+
+      '<div class="duration">'+I18N[currentLang].holidayDurationLabel(r.days)+'</div>'+
+      '</div><span class="badge '+badgeClass+'">'+badgeText+'</span></div>'+
+      '<div class="submitted">'+I18N[currentLang].holidayRequestedOn(formatDateShort(r.submitted))+'</div>';
+    wrap.appendChild(item);
+  });
+}
+
+// ---------- icons ----------
+const icons = {
+  separator: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4v16M4 12h16"/></svg>',
+  tank: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="4" width="12" height="16" rx="3"/><path d="M6 14h12"/></svg>',
+  filling: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 6h14M8 6v9a4 4 0 0 0 8 0V6"/><path d="M10 20h4"/></svg>',
+  capper: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="9" width="8" height="10" rx="1.5"/><path d="M6 9h12l-2-4H8z"/></svg>',
+  blender: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4h10l-2 9a3 3 0 0 1-6 0z"/><path d="M10 20h4M12 13v7"/></svg>',
+  sackfill: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 8l2-4h8l2 4"/><path d="M6 8h12l-1.5 12h-9z"/></svg>',
+  sieve: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M8 9h8M8 12h8M8 15h8"/></svg>',
+  racking: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4v16M19 4v16M5 9h14M5 15h14"/></svg>',
+  forklift: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="10" width="8" height="6" rx="1"/><circle cx="7" cy="18" r="1.6"/><circle cx="14" cy="18" r="1.6"/><path d="M17 6v10M17 6l3 2"/></svg>',
+  ramp: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 18h16M4 18l9-12M13 6h7v7"/></svg>',
+  other: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="1.4"/><circle cx="6" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></svg>'
+};
+
+const linesData = {
+  'Line 1': [
+    {id:'separator', icon:'separator'}, {id:'tank', icon:'tank'},
+    {id:'filling', icon:'filling'}, {id:'capper', icon:'capper'}, {id:'other', icon:'other'}
+  ],
+  'Line 2': [
+    {id:'blender1', icon:'blender'}, {id:'blender2', icon:'blender'},
+    {id:'sackfill', icon:'sackfill'}, {id:'sieve', icon:'sieve'}, {id:'other', icon:'other'}
+  ],
+  'Line 3': [
+    {id:'racking', icon:'racking'}, {id:'forklift', icon:'forklift'},
+    {id:'ramp', icon:'ramp'}, {id:'other', icon:'other'}
+  ]
+};
+
+let selection = {lineKey:null, partId:null, severity:null};
+
+function pickLine(lineKey){
+  selection.lineKey=lineKey;
+  selection.partId=null;
+  renderPartGrid(lineKey);
+  goto('part');
+}
+function pickGeneral(){
+  selection.lineKey='GENERAL';
+  selection.partId=null;
+  renderDetailsCrumb();
+  goto('details');
+}
+function reportLineText(){
+  if(selection.lineKey==='GENERAL') return I18N[currentLang].generalReportTitle;
+  return selection.lineKey+' · '+I18N[currentLang].parts[selection.partId];
+}
+function renderPartGrid(lineKey){
+  const parts=linesData[lineKey];
+  const wrap=document.getElementById('partGrid');
+  wrap.innerHTML='';
+  document.getElementById('partCrumb').textContent = I18N[currentLang].step2(lineKey);
+  parts.forEach(p=>{
+    const card=document.createElement('div');
+    card.className='icon-card' + (selection.partId===p.id ? ' selected':'');
+    card.innerHTML='<div class="icon-wrap">'+icons[p.icon]+'</div><div class="name">'+I18N[currentLang].parts[p.id]+'</div>';
+    card.onclick=()=>{
+      document.querySelectorAll('#partGrid .icon-card').forEach(c=>c.classList.remove('selected'));
+      card.classList.add('selected');
+      selection.partId=p.id;
+      setTimeout(()=>{
+        renderDetailsCrumb();
+        goto('details');
+      },180);
+    };
+    wrap.appendChild(card);
+  });
+}
+function renderDetailsCrumb(){
+  if(selection.lineKey==='GENERAL'){
+    document.getElementById('detailsCrumb').textContent = I18N[currentLang].generalCrumb;
+    return;
+  }
+  document.getElementById('detailsCrumb').textContent =
+    I18N[currentLang].step3(selection.lineKey, I18N[currentLang].parts[selection.partId]);
+}
+
+function pickSeverity(level){
+  selection.severity=level;
+  document.getElementById('sevCritical').classList.toggle('selected', level==='critical');
+  document.getElementById('sevMinor').classList.toggle('selected', level==='minor');
+  validateSubmit();
+}
+function validateSubmit(){
+  document.getElementById('submitBtn').disabled = !selection.severity;
+}
+
+function addPhotos(e){
+  const files=Array.from(e.target.files);
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const thumb=document.createElement('div');
+      thumb.className='photo-thumb';
+      thumb.innerHTML='<img src="'+ev.target.result+'"><div class="rm">✕</div>';
+      thumb.querySelector('.rm').onclick=(ev2)=>{ ev2.stopPropagation(); thumb.remove(); };
+      document.getElementById('photoRow').appendChild(thumb);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+function submitReport(){
+  goto('confirm');
+  renderActiveCard('pool');
+  setTimeout(()=>renderActiveCard('taken'), 4500);
+}
+
+function renderActiveCard(state){
+  window._lastState = state;
+  const wrap=document.getElementById('activeReportsWrap');
+  wrap.innerHTML = '<div class="section-label">'+I18N[currentLang].yourActiveReport+'</div>';
+  const card=document.createElement('div');
+  card.className='active-card';
+  card.onclick=()=>openDetail(state);
+  const badge = state==='pool'
+    ? '<span class="badge pool">'+I18N[currentLang].badgePool+'</span>'
+    : '<span class="badge taken">'+I18N[currentLang].badgeTaken+'</span>';
+  const meta = state==='pool' ? I18N[currentLang].metaWaiting : I18N[currentLang].metaTaken('Ahmet K.');
+  const sevText = selection.severity==='critical' ? I18N[currentLang].critical : I18N[currentLang].minor;
+  card.innerHTML =
+    '<div class="row1"><div><div class="line">'+reportLineText()+'</div>'+
+    '<div class="part">'+sevText+'</div></div>'+badge+'</div>'+
+    '<div class="meta">'+meta+'</div>';
+  wrap.appendChild(card);
+}
+
+function openDetail(state){
+  window._lastState = state;
+  document.getElementById('rdLine').textContent = reportLineText();
+  document.getElementById('rdSeverity').textContent = selection.severity==='critical' ? I18N[currentLang].critical : I18N[currentLang].minor;
+  document.getElementById('rdBadge').className = 'badge '+(state==='pool'?'pool':'taken');
+  document.getElementById('rdBadge').textContent = state==='pool' ? I18N[currentLang].badgePool : I18N[currentLang].badgeTaken;
+
+  const tl=document.getElementById('timelineBox');
+  tl.innerHTML='';
+  const steps=[
+    {t:I18N[currentLang].tlReported, s:I18N[currentLang].tlReportedSub(I18N[currentLang].you, new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})), done:true},
+    {t:I18N[currentLang].tlPool, s:I18N[currentLang].tlPoolSub, done:true},
+    {t:I18N[currentLang].tlAssigned, s: state==='taken' ? 'Ahmet K.' : I18N[currentLang].tlWaiting, done: state==='taken', active: state==='pool'}
+  ];
+  steps.forEach(st=>{
+    const el=document.createElement('div');
+    el.className='tl-item';
+    el.innerHTML='<div class="tl-dot '+(st.done?'done':(st.active?'active':''))+'"></div>'+
+      '<div><div class="tl-t">'+st.t+'</div><div class="tl-s">'+st.s+'</div></div>';
+    tl.appendChild(el);
+  });
+  goto('reportDetail');
+}
+
+// ---------- language switching ----------
+const langLabels = {en:'🇬🇧 EN', pl:'🇵🇱 PL', bg:'🇧🇬 BG', es:'🇪🇸 ES'};
+
+function toggleLangExpand(){
+  document.getElementById('langDropdown').classList.toggle('show');
+}
+document.addEventListener('click', (e)=>{
+  const sel = document.getElementById('langSelector');
+  if(sel && !sel.contains(e.target)){
+    document.getElementById('langDropdown').classList.remove('show');
+  }
+});
+
+function applyLanguage(lang){
+  currentLang = lang;
+  document.documentElement.lang = lang;
+
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if(I18N[lang][key]!==undefined) el.textContent = I18N[lang][key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    const key = el.getAttribute('data-i18n-placeholder');
+    if(I18N[lang][key]!==undefined) el.placeholder = I18N[lang][key];
+  });
+  document.getElementById('langCurrentBtn').textContent = langLabels[lang]+' ▾';
+  document.querySelectorAll('.lang-opt').forEach(b=>b.classList.toggle('active', b.dataset.lang===lang));
+  document.getElementById('langDropdown').classList.remove('show');
+
+  renderOtSelect();
+  renderOtList();
+  buildCalendar();
+  buildShifts();
+  buildNotifications();
+  renderHolidayList();
+  updateHolidayDuration();
+  updateClockBtnLabel();
+
+  const activeEl = document.querySelector('.screen-el.active');
+  const activeId = activeEl ? activeEl.id : 'home';
+  updateChrome(activeId);
+
+  if(selection.lineKey && selection.lineKey!=='GENERAL'){ renderPartGrid(selection.lineKey); }
+  if(selection.lineKey){ renderDetailsCrumb(); }
+  if(window._lastState){
+    renderActiveCard(window._lastState);
+    if(activeId==='reportDetail'){ openDetail(window._lastState); }
+  }
+}
+
+applyLanguage('en');
+</script>
+</body>
+</html>

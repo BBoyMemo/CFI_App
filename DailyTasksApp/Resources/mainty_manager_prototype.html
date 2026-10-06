@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mainty — Maintenance Manager Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page:#F5EFE2;
+    --bg-base:#FFFFFF;
+    --bg-surface:#FBF7EE;
+    --bg-raised:#F1E6D0;
+    --bg-raised-2:#E8DAB9;
+    --border:#E1D3B3;
+    --border-soft:#ECE1C8;
+    --text:#3B2A19;
+    --text-muted:#8A7355;
+    --text-dim:#A8926B;
+    --brown:#6B4A2E;
+    --brown-dark:#4A3320;
+    --brown-bg:#EFE1CC;
+    --green:#4E7A3B;
+    --green-dark:#2F4F22;
+    --green-bg:#E4EFDA;
+    --yellow:#E7A93A;
+    --yellow-dark:#8A5E15;
+    --yellow-bg:#FBEBC9;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, #FBF3E1 0%, var(--bg-page) 45%),
+      var(--bg-page);
+    min-height:100vh;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 12px;
+  }
+  .caption{
+    position:fixed; top:10px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--text-dim); z-index:50;
+  }
+  .phone{
+    width:390px; max-width:100%;
+    background:var(--bg-base);
+    border:1px solid var(--border);
+    border-radius:34px;
+    padding:10px;
+    box-shadow:0 30px 70px -25px rgba(80,60,30,.25), 0 0 0 1px rgba(255,255,255,.5) inset;
+    position:relative;
+  }
+  .screen{
+    background:var(--bg-base);
+    border-radius:26px;
+    overflow:hidden;
+    position:relative;
+    height:800px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .status-strip{
+    display:flex; align-items:center; gap:6px;
+    padding:10px 16px 8px 16px;
+    background:var(--bg-base);
+    flex-shrink:0;
+  }
+  .led{width:6px;height:6px;border-radius:50%;background:var(--border);}
+  .led.on{background:var(--green); box-shadow:0 0 6px 1px rgba(78,122,59,.45);}
+  .led.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .status-strip .label{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.14em;
+    color:var(--text-muted); text-transform:uppercase; margin-left:4px;
+  }
+  .status-strip .spacer{flex:1;}
+  .status-strip .clock{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted);
+  }
+
+  .appbar{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 14px 16px 14px;
+    flex-shrink:0;
+  }
+  .appbar-text{min-width:0; overflow:hidden;}
+  .burger{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:4px; cursor:pointer; position:relative;
+  }
+  .burger span{width:16px;height:2px;background:var(--brown); border-radius:2px;}
+  .burger .dot{
+    position:absolute; top:-3px; right:-3px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-base); display:none;
+  }
+  .appbar-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15.5px; color:var(--brown-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .appbar-sub{font-size:10.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .back-btn{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft); color:var(--brown);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:18px;
+  }
+
+  .floating-controls{
+    position:absolute; top:48px; right:14px; z-index:30;
+    display:flex; align-items:center; gap:8px;
+  }
+  .hdr-status-text{font-size:11px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+
+  .content{flex:1; overflow-y:auto; padding:0 16px 24px 16px;}
+  .content::-webkit-scrollbar{display:none;}
+
+  /* --- hero card --- */
+  .report-hero{
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:22px 20px;
+    margin-bottom:16px;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+    background:linear-gradient(160deg, var(--brown-bg), var(--bg-surface) 70%);
+  }
+  .report-hero::after{
+    content:""; position:absolute; right:-30px; top:-30px; width:140px; height:140px;
+    background:radial-gradient(circle, rgba(231,169,58,.35), transparent 70%);
+  }
+  .report-hero .eyebrow{
+    color:var(--yellow-dark);
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em;
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  .report-hero h1{
+    font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;
+    margin:0 0 6px 0; line-height:1.15; color:var(--brown-dark);
+  }
+  .report-hero p{margin:0; color:var(--text-muted); font-size:13px; line-height:1.5; max-width:230px;}
+  .report-hero .go{
+    margin-top:16px; display:inline-flex; align-items:center; gap:6px;
+    font-weight:700; font-size:13.5px; padding:11px 18px; border-radius:11px;
+    background:var(--yellow); color:var(--brown-dark);
+  }
+
+  .section-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    color:var(--text-dim); text-transform:uppercase; margin:22px 0 10px 2px;
+  }
+  .section-label:first-child{margin-top:2px;}
+
+  .overview-box{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+    margin-bottom:6px;
+  }
+  .overview-stat{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:14px; padding:12px 10px; text-align:center; cursor:pointer;
+  }
+  .overview-stat:active{background:var(--bg-raised);}
+  .overview-stat .num{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--brown-dark);}
+  .overview-stat .lbl{font-size:10px; color:var(--text-muted); margin-top:2px; line-height:1.3;}
+  .overview-stat.warn .num{color:var(--yellow-dark);}
+  .overview-stat.crit .num{color:#9B3B26;}
+
+  .engineer-pick-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:2px;}
+  .engineer-chip{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:10px; padding:8px 12px; font-size:12.5px; font-weight:600;
+    color:var(--text); cursor:pointer;
+  }
+  .engineer-chip:active{background:var(--bg-raised);}
+  .assign-sent{
+    display:none; margin-top:10px; font-size:12px; color:var(--green-dark);
+    background:var(--green-bg); border-radius:10px; padding:8px 10px;
+  }
+
+  .active-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px; margin-bottom:10px; cursor:pointer;
+  }
+  .active-card.mine{border-left:3px solid var(--green);}
+  .active-card.pool-item{border-left:3px solid var(--yellow);}
+  .active-card.rework{border-left:3px solid #9B3B26;}
+  .active-card .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .active-card .line{font-size:13.5px; font-weight:600; color:var(--text);}
+  .active-card .part{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .badge{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    padding:4px 8px; border-radius:7px; white-space:nowrap; text-transform:uppercase; flex-shrink:0;
+  }
+  .badge.pool{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .badge.taken{background:var(--green-bg); color:var(--green-dark);}
+  .badge.rejected{background:#F7DEDA; color:#9B3B26;}
+  .active-card .meta{font-size:11px; color:var(--text-dim); margin-top:10px; display:flex; align-items:center; gap:6px;}
+
+  .sev-tag{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:4px 8px; border-radius:7px; margin-top:10px;
+  }
+  .sev-tag.critical{background:var(--brown-bg); color:var(--brown-dark);}
+  .sev-tag.minor{background:var(--yellow-bg); color:var(--yellow-dark);}
+
+  .empty-note{color:var(--text-dim); font-size:12.5px; padding:6px 2px 0 2px; line-height:1.5;}
+
+  /* --- selection grids --- */
+  .grid-cards{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .pick-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px 14px; cursor:pointer; transition:border-color .15s;
+  }
+  .pick-card:active{border-color:var(--yellow);}
+  .pick-card .icon-wrap{
+    width:40px;height:40px;border-radius:11px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+    color:var(--brown);
+  }
+  .pick-card .name{font-weight:600; font-size:14px; color:var(--text);}
+  .pick-card .sub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  .grid-icons{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .icon-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:14px 8px; text-align:center; cursor:pointer;
+  }
+  .icon-card.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .icon-card .icon-wrap{
+    width:44px;height:44px;border-radius:12px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 8px auto;
+    color:var(--text-muted);
+  }
+  .icon-card.selected .icon-wrap{color:var(--yellow-dark); background:#F6DFA8;}
+  .icon-card .name{font-size:11.5px; font-weight:500; line-height:1.25; color:var(--text);}
+
+  /* --- form elements --- */
+  .field-label{font-size:12px; color:var(--text-muted); margin:18px 2px 8px 2px; font-weight:500;}
+  .field-label:first-child{margin-top:0;}
+  textarea, input[type="text"], input[type="number"]{
+    width:100%; background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:14px; padding:14px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:13.5px;
+  }
+  textarea{resize:none; min-height:90px;}
+  textarea:focus, input[type="text"]:focus, input[type="number"]:focus{outline:none; border-color:var(--yellow);}
+
+  .severity-row, .yn-row{display:flex; gap:10px;}
+  .sev-btn, .yn-btn{
+    flex:1; padding:14px 10px; border-radius:14px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); text-align:left; cursor:pointer;
+  }
+  .sev-btn.critical.selected{border-color:var(--brown-dark); background:var(--brown-bg);}
+  .sev-btn.minor.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .sev-btn .t{font-weight:700; font-size:13px; color:var(--text);}
+  .sev-btn .s{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+  .sev-btn.critical.selected .t{color:var(--brown-dark);}
+  .sev-btn.minor.selected .t{color:var(--yellow-dark);}
+
+  .yn-btn{text-align:center; font-weight:700; font-size:13px; color:var(--text);}
+  .yn-btn.selected.yes{border-color:var(--green-dark); background:var(--green-bg); color:var(--green-dark);}
+  .yn-btn.selected.no{border-color:var(--brown-dark); background:var(--brown-bg); color:var(--brown-dark);}
+
+  .check-row{
+    display:flex; align-items:center; gap:11px; background:var(--bg-surface);
+    border:1px solid var(--border-soft); border-radius:14px; padding:14px; cursor:pointer;
+  }
+  .check-box{
+    width:22px;height:22px;border-radius:7px;border:2px solid var(--border); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; color:#fff; font-size:13px;
+  }
+  .check-box.checked{background:var(--green); border-color:var(--green);}
+  .check-row .lbl{font-size:13px; font-weight:600; color:var(--text);}
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between; background:var(--bg-surface);
+    border:1px solid var(--border-soft); border-radius:14px; padding:14px; cursor:pointer;
+  }
+  .toggle-row .lbl{font-size:13px; font-weight:600; color:var(--text);}
+  .toggle-switch{width:44px;height:26px;border-radius:14px;background:var(--border); position:relative; transition:background .2s; flex-shrink:0;}
+  .toggle-switch::after{content:""; position:absolute; top:3px; left:3px; width:20px;height:20px;border-radius:50%; background:#fff; transition:transform .2s;}
+  .toggle-switch.on{background:#D64545;}
+  .toggle-switch.on::after{transform:translateX(18px);}
+
+  .notice-box{
+    background:var(--yellow-bg); border-radius:12px; padding:12px 14px;
+    font-size:12px; color:var(--yellow-dark); line-height:1.5; margin-top:12px;
+  }
+
+  .tag-pill{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:4px 8px; border-radius:7px; flex-shrink:0;
+  }
+  .tag-pill.reactive{background:#F7DEDA; color:#9B3B26;}
+  .tag-pill.corrective{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .tag-pill.preventive{background:var(--green-bg); color:var(--green-dark);}
+
+  .mini-actions{display:flex; gap:8px; margin-top:14px;}
+  .mini-btn{
+    flex:1; padding:11px; border-radius:12px; border:1px solid var(--border-soft);
+    background:var(--bg-base); font-size:11.5px; font-weight:700; color:var(--brown);
+    cursor:pointer; text-align:center;
+  }
+  .mini-btn:active{border-color:var(--yellow);}
+  .mini-sent{font-size:11px; color:var(--green-dark); margin-top:8px; display:none;}
+
+  .photo-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .photo-add, .photo-thumb{
+    width:64px;height:64px;border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    border:1px dashed var(--border); color:var(--text-dim); font-size:22px;
+    background:var(--bg-surface); cursor:pointer; position:relative; overflow:hidden;
+  }
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;}
+  .photo-thumb .rm{
+    position:absolute; top:2px; right:2px; width:16px;height:16px; border-radius:50%;
+    background:rgba(0,0,0,.55); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center;
+  }
+
+  .primary-btn{
+    width:100%; padding:16px; border-radius:14px; border:none;
+    background:var(--yellow); color:var(--brown-dark); font-weight:700; font-size:14.5px;
+    margin-top:22px; cursor:pointer;
+  }
+  .primary-btn.green{background:var(--green); color:#fff;}
+  .primary-btn:disabled{background:var(--bg-raised); color:var(--text-dim);}
+  .ghost-btn{
+    width:100%; padding:14px; border-radius:14px; border:1px solid var(--border-soft);
+    background:transparent; color:var(--brown); font-weight:600; font-size:13px;
+    margin-top:10px; cursor:pointer;
+  }
+  .link-btn{color:#9B3B26; font-size:11.5px; font-weight:700; cursor:pointer;}
+
+  .crumb{font-size:11px; color:var(--text-dim); margin-bottom:14px; font-family:'JetBrains Mono',monospace;}
+  .crumb b{color:var(--yellow-dark);}
+
+  .confirm-wrap{text-align:center; padding-top:60px;}
+  .confirm-check{
+    width:64px;height:64px;border-radius:50%; background:var(--green-bg); color:var(--green-dark);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:28px;
+  }
+  .confirm-wrap h2{font-family:'Space Grotesk',sans-serif; font-size:19px; margin:0 0 8px 0; color:var(--brown-dark);}
+  .confirm-wrap p{color:var(--text-muted); font-size:13px; line-height:1.6; max-width:250px; margin:0 auto;}
+
+  /* --- overlay menu --- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(40,28,14,.35); opacity:0; pointer-events:none;
+    transition:opacity .25s; z-index:20;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .side-panel{
+    position:absolute; top:0; bottom:0; left:0; width:82%;
+    background:var(--bg-base); border-right:1px solid var(--border);
+    transform:translateX(-100%); transition:transform .28s ease; z-index:21;
+    display:flex; flex-direction:column;
+  }
+  .side-panel.show{transform:translateX(0);}
+  .side-header{padding:20px 18px 14px 18px; border-bottom:1px solid var(--border-soft);}
+  .side-header-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .side-header .name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--brown-dark);}
+  .side-header .role{font-size:11.5px; color:var(--text-dim); margin-top:2px;}
+  .conn-row{display:flex; align-items:center; gap:7px; margin-top:12px;}
+  .conn-row span{font-size:11px; color:var(--green-dark); font-family:'JetBrains Mono',monospace;}
+  .side-body{flex:1; overflow-y:auto; padding:16px 18px 24px 18px;}
+
+  .hdr-clock{display:flex; align-items:center; gap:5px; flex-shrink:0;}
+  .hdr-led{width:7px;height:7px;border-radius:50%; background:var(--border);}
+  .hdr-led.on{background:var(--green); box-shadow:0 0 7px 2px rgba(78,122,59,.5);}
+  .hdr-clock-btn{
+    padding:7px 11px; border-radius:16px; border:none; font-weight:700; font-size:10.5px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .hdr-clock-btn.out{background:var(--green); color:#0F2A08;}
+  .hdr-clock-btn.in{background:var(--yellow); color:var(--brown-dark);}
+
+  .menu-list{margin-top:16px; display:flex; flex-direction:column; gap:9px;}
+  .menu-nav-item{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .menu-nav-item .ic{
+    width:36px;height:36px;border-radius:10px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; color:var(--brown); flex-shrink:0; position:relative;
+  }
+  .menu-nav-item .ic .dot{
+    position:absolute; top:-2px; right:-2px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-surface); display:none;
+  }
+  .menu-nav-item .lbl{flex:1; font-size:13.5px; font-weight:600; color:var(--text);}
+  .menu-nav-item .chev{color:var(--text-dim); font-size:15px;}
+
+  /* --- notifications --- */
+  .notif-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+  }
+  .notif-item.unread{border-color:var(--yellow);}
+  .notif-item .top{display:flex; align-items:flex-start; gap:7px;}
+  .notif-item .udot{width:7px;height:7px;border-radius:50%;background:#D64545; margin-top:5px; flex-shrink:0;}
+  .notif-item .title{flex:1; font-size:13px; font-weight:700; color:var(--text);}
+  .notif-item.unread .title{color:var(--brown-dark);}
+  .notif-item .time{font-size:10px; color:var(--text-dim); white-space:nowrap; flex-shrink:0; margin-top:1px;}
+  .notif-item .body{font-size:12px; color:var(--text-muted); margin-top:5px; line-height:1.45; padding-left:14px;}
+
+  /* --- tasks --- */
+  .task-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+  }
+  .task-item .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .task-item .ttitle{font-size:13.5px; font-weight:700; color:var(--text);}
+  .task-item .tloc{font-size:11.5px; color:var(--text-muted); margin-top:2px;}
+  .task-item .tmeta{font-size:10.5px; color:var(--text-dim); margin-top:9px;}
+
+  /* --- orders --- */
+  .order-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px;
+  }
+  .order-item .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .order-item .pname{font-size:13.5px; font-weight:700; color:var(--text);}
+  .order-item .qty{font-size:11.5px; color:var(--text-muted); margin-top:2px;}
+  .order-item .foot{display:flex; justify-content:space-between; align-items:center; margin-top:10px;}
+  .order-item .date{font-size:10.5px; color:var(--text-dim);}
+  .urgent-tag{
+    background:#F7DEDA; color:#9B3B26; font-family:'JetBrains Mono',monospace; font-size:9.5px;
+    letter-spacing:.06em; text-transform:uppercase; padding:4px 8px; border-radius:7px; flex-shrink:0;
+  }
+
+  /* --- holiday --- */
+  .holiday-form{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:16px; margin-bottom:8px;
+  }
+  .holiday-dates-row{display:flex; gap:10px;}
+  .holiday-field{flex:1;}
+  .holiday-field .field-label{margin-top:0;}
+  input[type="date"]{
+    width:100%; background:var(--bg-base); border:1px solid var(--border-soft);
+    border-radius:12px; padding:11px 12px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:12.5px;
+  }
+  input[type="date"]:focus{outline:none; border-color:var(--yellow);}
+  input[type="time"]{
+    width:100%; background:var(--bg-base); border:1px solid var(--border-soft);
+    border-radius:12px; padding:11px 12px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:12.5px;
+  }
+  input[type="time"]:focus{outline:none; border-color:var(--yellow);}
+  .shift-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:15px 16px; margin-bottom:10px;
+  }
+  .shift-card.inactive{opacity:.55;}
+  .shift-card .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .shift-card .name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; color:var(--brown-dark);}
+  .shift-card .time-range{font-size:12px; color:var(--text-dim); margin-top:2px; font-family:'JetBrains Mono',monospace;}
+  .shift-toggle{
+    position:relative; width:42px; height:24px; border-radius:20px; background:var(--border-soft);
+    cursor:pointer; flex-shrink:0; transition:background .15s;
+  }
+  .shift-toggle.on{background:var(--green);}
+  .shift-toggle .knob{
+    position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%;
+    background:#fff; transition:left .15s; box-shadow:0 1px 3px rgba(0,0,0,.25);
+  }
+  .shift-toggle.on .knob{left:20px;}
+  .shift-edit-row{display:flex; gap:10px; margin-top:12px;}
+  .shift-edit-row .field{flex:1;}
+  .shift-edit-row .field-label{margin-top:0; font-size:10.5px;}
+  .shift-card-actions{display:flex; gap:8px; margin-top:12px;}
+  .shift-card-actions button{
+    flex:1; padding:9px; border-radius:10px; border:1px solid var(--border-soft);
+    background:var(--bg-base); font-weight:700; font-size:11.5px; cursor:pointer; color:var(--text);
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .shift-card-actions button.save{background:var(--yellow-bg); color:var(--yellow-dark); border-color:var(--yellow);}
+  .shift-duration-tag{
+    display:inline-block; margin-top:6px; font-size:10px; color:var(--text-dim);
+    background:var(--bg-raised); padding:3px 8px; border-radius:8px;
+  }
+  .holiday-duration-box{
+    display:none; align-items:center; justify-content:space-between;
+    margin-top:14px; background:var(--yellow-bg); border-radius:12px; padding:11px 14px;
+  }
+  .holiday-duration-box .lbl{font-size:11px; color:var(--yellow-dark); text-transform:uppercase; letter-spacing:.05em;}
+  .holiday-duration-box .val{font-size:13px; color:var(--yellow-dark); font-weight:700;}
+  .holiday-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px;
+  }
+  .holiday-item .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .holiday-item .dates{font-size:13px; font-weight:700; color:var(--text);}
+  .holiday-item .duration{font-size:11px; color:var(--text-dim); margin-top:2px;}
+  .holiday-item .submitted{font-size:10.5px; color:var(--text-dim); margin-top:9px;}
+
+  .cal-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .cal-nav button{
+    width:34px; height:34px; border-radius:10px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); color:var(--brown-dark); font-size:15px; cursor:pointer;
+  }
+  .cal-nav .lbl{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; color:var(--brown-dark);}
+  .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:6px;}
+  .cal-weekdays div{text-align:center; font-size:10px; font-weight:700; color:var(--text-dim);}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-cell{
+    position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border-radius:10px; font-size:12px; color:var(--text-muted); background:var(--bg-surface);
+    border:1px solid var(--border-soft);
+  }
+  .cal-cell.empty{background:transparent; border:none;}
+  .cal-cell.today{border-color:var(--brown); font-weight:700; color:var(--brown-dark);}
+  .cal-cell.has-leave{background:var(--green-bg); color:var(--green-dark); font-weight:700; cursor:pointer;}
+  .cal-cell.has-leave.pending{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .cal-cell .dot{position:absolute; bottom:4px; width:4px; height:4px; border-radius:50%; background:currentColor;}
+  .cal-day-info{
+    margin-top:14px; padding:11px 13px; border-radius:12px; background:var(--bg-raised);
+    font-size:12.5px; color:var(--brown-dark); font-weight:600;
+  }
+  .mini-cal-header{margin-bottom:16px;}
+  .mini-cal-header .emp{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--brown-dark); margin-bottom:6px;}
+  .mini-cal-header .dates{font-size:12.5px; color:var(--text-muted); margin-bottom:8px;}
+  .notif-actions{display:flex; gap:8px; margin-top:10px;}
+  .notif-actions button{flex:1; padding:9px; border-radius:10px; border:none; font-weight:700; font-size:11.5px; cursor:pointer;}
+  .notif-actions .approve{background:var(--green); color:#fff;}
+  .notif-actions .reject{background:#F7DEDA; color:#8B2E1F;}
+
+  /* --- PPM empty --- */
+  .ppm-empty{text-align:center; padding:70px 24px 20px 24px; color:var(--text-dim);}
+  .ppm-empty .ic{
+    width:56px;height:56px;border-radius:16px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 18px auto; color:var(--text-muted);
+  }
+  .ppm-empty h3{font-family:'Space Grotesk',sans-serif; color:var(--brown-dark); font-size:15px; margin:0 0 8px 0;}
+  .ppm-empty p{font-size:12.5px; line-height:1.55; margin:0 auto; max-width:230px;}
+
+  .photo-ind{display:inline-flex; align-items:center; gap:3px; color:var(--text-dim); font-size:10.5px; margin-left:4px; vertical-align:middle;}
+
+  .type-row{display:flex; gap:8px; margin-bottom:14px;}
+  .type-row .filter-btn{font-size:13px; padding:13px 8px; font-family:'Space Grotesk',sans-serif; font-weight:600;}
+
+  /* --- history filter --- */
+  .filter-row{display:flex; gap:8px; margin-bottom:16px;}
+  .filter-btn{
+    flex:1; text-align:center; padding:10px 6px; border-radius:12px;
+    border:1px solid var(--border-soft); background:var(--bg-surface);
+    font-size:12px; font-weight:700; color:var(--text-muted); cursor:pointer;
+  }
+  .filter-btn.active{border-color:var(--yellow); background:var(--yellow-bg); color:var(--yellow-dark);}
+
+  .screen-el{display:none;}
+  .screen-el.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="caption">Mainty — Maintenance Manager Prototype (clickable mockup, no real data)</div>
+
+<div class="phone">
+  <div class="screen" id="screen">
+
+    <div class="status-strip">
+      <div class="led on pulse"></div>
+      <div class="led on"></div>
+      <div class="led"></div>
+      <div class="led"></div>
+      <div class="label">Factory Network · Connected</div>
+      <div class="spacer"></div>
+      <div class="clock" id="topClock">08:42</div>
+    </div>
+
+    <div class="floating-controls" id="floatingControls">
+      <div class="hdr-status-text" id="hdrStatusText">Clock In</div>
+    </div>
+
+    <div class="appbar">
+      <div class="burger" id="burgerBtn" onclick="openMenu()"><span></span><span></span><span></span><span class="dot" id="burgerDot"></span></div>
+      <div class="back-btn screen-el" id="backBtn" onclick="goBack()" style="display:none;">←</div>
+      <div class="appbar-text">
+        <div class="appbar-title" id="appbarTitle">Hi, Mike</div>
+        <div class="appbar-sub" id="appbarSub">Maintenance Manager</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <div class="screen-el active" id="home">
+        <div class="section-label">Factory Overview</div>
+        <div class="overview-box" id="overviewBox"></div>
+
+        <div class="section-label" id="reworkLabel" style="display:none;">Sent Back By QA</div>
+        <div id="reworkWrap"></div>
+
+        <div class="section-label">My Active Jobs</div>
+        <div id="myJobsWrap"></div>
+
+        <div class="report-hero" onclick="startReport()">
+          <div class="eyebrow">Report Breakdown</div>
+          <h1>Something wrong?</h1>
+          <p>Pick a unit, then the equipment — same as everyone else.</p>
+          <div class="go">Create Report →</div>
+        </div>
+
+        <div class="section-label">Pool — Unclaimed</div>
+        <div id="poolWrap"></div>
+      </div>
+
+      <!-- OVERVIEW LIST (filtered breakdown lists from Factory Overview) -->
+      <div class="screen-el" id="overviewList">
+        <div class="crumb" id="overviewListCrumb">Open Jobs</div>
+        <div id="overviewListWrap"></div>
+      </div>
+
+      <!-- BREAKDOWN — UNIT SELECT -->
+      <div class="screen-el" id="unitSelect">
+        <div class="crumb">Step 1 / 3 — Select Unit</div>
+        <div class="grid-cards">
+          <div class="pick-card" onclick="pickUnit('Unit 1')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M4 9h5M4 15h5"/></svg></div>
+            <div class="name">Unit 1</div>
+            <div class="sub">Filling &amp; Capping</div>
+          </div>
+          <div class="pick-card" onclick="pickUnit('Unit 2')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M4 9h5M4 15h5"/></svg></div>
+            <div class="name">Unit 2</div>
+            <div class="sub">Packing &amp; Blending</div>
+          </div>
+          <div class="pick-card" onclick="pickUnit('Unit 3')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 4v16M4 9h5M4 15h5"/></svg></div>
+            <div class="name">Unit 3</div>
+            <div class="sub">Storage &amp; Loading</div>
+          </div>
+          <div class="pick-card" onclick="pickUnit('Yard')">
+            <div class="icon-wrap"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3l8 6v12H4V9z"/><path d="M9 21v-6h6v6"/></svg></div>
+            <div class="name">Yard</div>
+            <div class="sub">Outdoor plant</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BREAKDOWN — EQUIPMENT SELECT -->
+      <div class="screen-el" id="equipmentSelect">
+        <div class="crumb" id="equipCrumb">Step 2 / 3 — Unit 1 equipment</div>
+        <div class="grid-icons" id="equipGrid"></div>
+      </div>
+
+      <!-- BREAKDOWN — DETAILS -->
+      <div class="screen-el" id="details">
+        <div class="crumb" id="detailsCrumb">Step 3 / 3 — Details</div>
+
+        <div class="field-label" id="customEquipLabel" style="display:none;">What is it?</div>
+        <input type="text" id="customEquipInput" style="display:none;" placeholder="e.g. Spare pallet wrapper" oninput="validateReportSubmit()">
+
+        <div class="field-label">What happened?</div>
+        <textarea id="descBox" placeholder="Briefly describe... (optional but recommended)"></textarea>
+
+        <div class="field-label">Photo</div>
+        <div class="photo-row" id="photoRow">
+          <div class="photo-add" onclick="document.getElementById('fileInput').click()">+</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="addPhotosTo('photoRow', event)">
+
+        <div class="field-label">Severity</div>
+        <div class="severity-row">
+          <div class="sev-btn critical" id="sevCritical" onclick="pickSeverity('critical')">
+            <div class="t">Line Stopped</div>
+            <div class="s">Production fully stopped</div>
+          </div>
+          <div class="sev-btn minor" id="sevMinor" onclick="pickSeverity('minor')">
+            <div class="t">Minor Issue</div>
+            <div class="s">Production continues</div>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="submitBtn" disabled onclick="submitReport()">Submit</button>
+      </div>
+
+      <!-- BREAKDOWN — CONFIRM -->
+      <div class="screen-el" id="confirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2>Report submitted</h2>
+          <p>Your report went to the pool, same as any other report — another engineer can pick it up, or you can claim it yourself from Home.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- POOL JOB DETAIL -->
+      <div class="screen-el" id="poolDetail">
+        <div class="crumb" id="poolCrumb">Pool · WO-1051</div>
+        <div class="active-card pool-item" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="poolMachine">Yard · Compactor</div>
+              <div class="part" id="poolMeta">Reported 09:40 · waiting for an engineer</div>
+            </div>
+            <span class="badge pool">In Pool</span>
+          </div>
+          <span class="sev-tag critical" id="poolSevTag">Line Stopped</span>
+        </div>
+
+        <div class="field-label" style="margin-top:20px;">Description</div>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="poolDesc">—</p>
+
+        <button class="primary-btn green" onclick="claimJob()">Claim This Job</button>
+
+        <div class="field-label" style="margin-top:18px;">Or assign to an engineer</div>
+        <div class="engineer-pick-row" id="poolAssignRow"></div>
+      </div>
+
+      <!-- MY JOB DETAIL -->
+      <div class="screen-el" id="myJobDetail">
+        <div class="crumb" id="myJobCrumb">Active Job · WO-1042</div>
+        <div class="active-card mine" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="myJobMachine">Unit 1 · Capping Machine</div>
+              <div class="part" id="myJobMeta">You claimed this at 08:22</div>
+            </div>
+            <span class="badge taken">Yours</span>
+          </div>
+          <span class="sev-tag critical" id="myJobSevTag">Line Stopped</span>
+        </div>
+
+        <div class="field-label" style="margin-top:20px;">Description</div>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="myJobDesc">—</p>
+
+        <div class="field-label">Time On This Job</div>
+        <p style="font-size:13px; color:var(--text-muted); margin:0;" id="myJobElapsed">—</p>
+        <p style="font-size:11px; color:var(--text-dim); margin:4px 0 0 0;">Tracked automatically — you don't need to log hours yourself.</p>
+
+        <div class="field-label">Busy with another job?</div>
+        <div class="mini-actions">
+          <div class="mini-btn" onclick="notifyOperator('busy')">I'm Busy — Notify Operator</div>
+          <div class="mini-btn" onclick="notifyOperator('omw')">On My Way — Notify Operator</div>
+        </div>
+        <div class="mini-sent" id="miniSentMsg">Notification sent to the operator.</div>
+
+        <div class="field-label">Reassign to another engineer</div>
+        <div class="engineer-pick-row" id="myJobReassignRow"></div>
+
+        <button class="primary-btn" onclick="goto('closeJob')">Close Job</button>
+      </div>
+
+      <!-- CLOSE JOB -->
+      <div class="screen-el" id="closeJob">
+        <div class="crumb" id="closeCrumb">Closing · WO-1042</div>
+        <div class="active-card mine" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="closeMachine">Unit 1 · Capping Machine</div>
+              <div class="part" id="closeMeta">Yours</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notice-box" id="resubmitNotice" style="display:none; border-color:#9B3B26; background:#F7DEDA;">
+          <strong>Sent back by QA.</strong> <span id="resubmitNoteText"></span> Fix what's needed below and resubmit.
+        </div>
+
+        <div class="field-label" style="margin-top:20px;">Root Cause</div>
+        <textarea id="closeRootCause" placeholder="What actually caused this?"></textarea>
+
+        <div class="field-label">Corrective Action Taken</div>
+        <textarea id="closeCorrective" placeholder="What did you do to fix it?"></textarea>
+
+        <div class="field-label">Able to Repair?</div>
+        <div class="yn-row">
+          <div class="yn-btn" id="ableYes" onclick="pickYn('able','yes')">Yes</div>
+          <div class="yn-btn" id="ableNo" onclick="pickYn('able','no')">No</div>
+        </div>
+        <div id="ableReasonWrap" style="display:none;">
+          <div class="field-label">Reason</div>
+          <textarea id="ableReason" placeholder="Why couldn't it be repaired?"></textarea>
+        </div>
+
+        <div class="field-label">Contractor Required?</div>
+        <div class="yn-row">
+          <div class="yn-btn" id="contractorYes" onclick="pickYn('contractor','yes')">Yes</div>
+          <div class="yn-btn" id="contractorNo" onclick="pickYn('contractor','no')">No</div>
+        </div>
+        <div id="contractorUsedWrap" style="display:none;">
+          <div class="field-label">Contractor Used</div>
+          <input type="text" id="contractorUsed" placeholder="Company / contact name">
+        </div>
+
+        <div class="field-label">Downtime (minutes)</div>
+        <input type="number" id="closeDowntime" placeholder="e.g. 45">
+
+        <div class="field-label">Tools &amp; Parts Accounted For?</div>
+        <div class="yn-row">
+          <div class="yn-btn" id="toolsYes" onclick="pickYn('tools','yes')">All Accounted For</div>
+          <div class="yn-btn" id="toolsNo" onclick="pickYn('tools','no')">Something Missing</div>
+        </div>
+        <div id="toolsMissingWrap" style="display:none;">
+          <div class="field-label">What's missing?</div>
+          <textarea id="toolsMissing" placeholder="Describe what's unaccounted for"></textarea>
+        </div>
+        <div class="field-label">Photo</div>
+        <div class="photo-row" id="toolsPhotoRow">
+          <div class="photo-add" onclick="document.getElementById('toolsFileInput').click()">+</div>
+        </div>
+        <input type="file" id="toolsFileInput" accept="image/*" multiple style="display:none" onchange="addPhotosTo('toolsPhotoRow', event)">
+
+        <div class="field-label">Intervention Into Process Stream Post-Deodorisation?</div>
+        <div class="yn-row">
+          <div class="yn-btn" id="intrusiveYes" onclick="pickYn('intrusive','yes')">Yes</div>
+          <div class="yn-btn" id="intrusiveNo" onclick="pickYn('intrusive','no')">No</div>
+        </div>
+        <div class="notice-box" id="intrusiveNotice" style="display:none;">
+          This will trigger a QA swab test. The job stays open until QA records a Pass — if it comes back Fail, it's sent back to you to fix and resubmit.
+        </div>
+
+        <div class="field-label">Closing Photos</div>
+        <div class="photo-row" id="closePhotoRow">
+          <div class="photo-add" onclick="document.getElementById('closeFileInput').click()">+</div>
+        </div>
+        <input type="file" id="closeFileInput" accept="image/*" multiple style="display:none" onchange="addPhotosTo('closePhotoRow', event)">
+
+        <button class="primary-btn green" id="closeSubmitBtn" disabled onclick="submitCloseJob()">Close Job</button>
+      </div>
+
+      <!-- CLOSE CONFIRM -->
+      <div class="screen-el" id="closeConfirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2 id="closeConfirmTitle">Job closed</h2>
+          <p id="closeConfirmText">Removed from your active jobs.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- TASKS -->
+      <div class="screen-el" id="tasks">
+        <button class="primary-btn" style="margin-top:0;" onclick="goto('taskNew')">+ New Task</button>
+
+        <div class="section-label">Daily Tasks</div>
+        <div id="dailyTasksWrap"></div>
+
+        <div class="section-label">Weekend Tasks</div>
+        <div id="weekendTasksWrap"></div>
+
+        <div class="section-label">Completed</div>
+        <div id="completedTasksWrap"></div>
+      </div>
+
+      <!-- NEW TASK -->
+      <div class="screen-el" id="taskNew">
+        <div class="crumb">Assign a task to one or more engineers</div>
+
+        <div class="field-label" style="margin-top:0;">Title</div>
+        <input type="text" id="newTaskTitle" placeholder="e.g. Check compactor oil level" oninput="validateNewTask()">
+
+        <div class="field-label">Location</div>
+        <input type="text" id="newTaskLocation" placeholder="e.g. Unit 1 / Yard" oninput="validateNewTask()">
+
+        <div class="field-label">Type</div>
+        <div class="severity-row">
+          <div class="sev-btn minor" id="taskTypeDaily" onclick="pickTaskType('daily')">
+            <div class="t">Daily</div>
+          </div>
+          <div class="sev-btn minor" id="taskTypeWeekend" onclick="pickTaskType('weekend')">
+            <div class="t">Weekend</div>
+          </div>
+        </div>
+
+        <div class="field-label">Date</div>
+        <input type="date" id="newTaskDate" oninput="validateNewTask()">
+
+        <div class="field-label">Priority (optional)</div>
+        <div class="grid-cards" style="grid-template-columns:1fr 1fr 1fr; gap:8px;">
+          <div class="pick-card" id="prioReactive" style="padding:12px 8px;" onclick="pickTaskPriority('reactive')"><div class="name" style="font-size:12px;">Reactive</div></div>
+          <div class="pick-card" id="prioCorrective" style="padding:12px 8px;" onclick="pickTaskPriority('corrective')"><div class="name" style="font-size:12px;">Corrective</div></div>
+          <div class="pick-card" id="prioPreventive" style="padding:12px 8px;" onclick="pickTaskPriority('preventive')"><div class="name" style="font-size:12px;">Preventive</div></div>
+        </div>
+
+        <div class="field-label">Assign to</div>
+        <div class="engineer-pick-row" id="newTaskEngineerRow"></div>
+        <div class="empty-note" id="newTaskAssignedNote">Tap engineers to assign — you can pick more than one.</div>
+
+        <div class="field-label">Description (optional)</div>
+        <textarea id="newTaskDesc" placeholder="Any extra detail for the engineer(s)..."></textarea>
+
+        <button class="primary-btn" id="newTaskSubmitBtn" disabled onclick="submitNewTask()">Assign Task</button>
+      </div>
+
+      <!-- TASK DETAIL -->
+      <div class="screen-el" id="taskDetail">
+        <div class="crumb" id="taskCrumb">Daily Task</div>
+        <div class="active-card" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="taskTitleEl">—</div>
+              <div class="part" id="taskLocEl">—</div>
+            </div>
+            <span class="tag-pill" id="taskPriorityTag" style="display:none;"></span>
+          </div>
+          <div class="meta" id="taskAssignedEl">—</div>
+        </div>
+
+        <div id="taskOpenSection">
+          <div class="field-label">What did you do?</div>
+          <textarea id="taskCloseDesc" placeholder="Briefly describe the work..."></textarea>
+          <div class="field-label">Photo</div>
+          <div class="photo-row" id="taskClosePhotoRow">
+            <div class="photo-add" onclick="document.getElementById('taskCloseFileInput').click()">+</div>
+          </div>
+          <input type="file" id="taskCloseFileInput" accept="image/*" multiple style="display:none" onchange="addPhotosTo('taskClosePhotoRow', event)">
+          <button class="primary-btn green" onclick="completeTask()">Mark as Done</button>
+        </div>
+
+        <div id="taskDoneSection" style="display:none;">
+          <div class="field-label">Completed by</div>
+          <p style="font-size:13px; color:var(--text-muted); margin:0;" id="taskDoneByEl">—</p>
+          <div class="field-label">Notes</div>
+          <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="taskDoneDescEl">—</p>
+          <div id="taskDonePhotoSection" style="display:none;">
+            <div class="field-label">Photo</div>
+            <div class="photo-row" id="taskDonePhotos"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ORDERS -->
+      <div class="screen-el" id="orders">
+        <button class="primary-btn" style="margin-top:0;" onclick="goto('orderNew')">+ New Order Request</button>
+
+        <div class="section-label">Pending</div>
+        <div id="pendingOrdersWrap"></div>
+
+        <div class="section-label">Ordered</div>
+        <div id="orderedOrdersWrap"></div>
+      </div>
+
+      <!-- NEW ORDER -->
+      <div class="screen-el" id="orderNew">
+        <div class="crumb">Request a part from your manager</div>
+
+        <div class="field-label" style="margin-top:0;">Part Name</div>
+        <input type="text" id="orderPart" placeholder="e.g. Capper drive belt" oninput="validateOrderSubmit()">
+
+        <div class="field-label">Quantity</div>
+        <input type="number" id="orderQty" placeholder="e.g. 2" oninput="validateOrderSubmit()">
+
+        <div class="field-label">Priority</div>
+        <div class="toggle-row" onclick="toggleUrgent()">
+          <div class="lbl">Mark as Urgent</div>
+          <div class="toggle-switch" id="urgentToggle"></div>
+        </div>
+
+        <button class="primary-btn" id="orderSubmitBtn" disabled onclick="submitOrder()">Send Request</button>
+      </div>
+
+      <!-- ORDER CONFIRM -->
+      <div class="screen-el" id="orderConfirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2>Request sent</h2>
+          <p>Your manager will see this in the order list and mark it as ordered.</p>
+          <button class="ghost-btn" onclick="goto('orders')" style="margin-top:26px;">Back to Orders</button>
+        </div>
+      </div>
+
+      <!-- PPM (empty for now) -->
+      <div class="screen-el" id="ppm">
+        <div class="ppm-empty">
+          <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 7v5l3.2 2"/><circle cx="12" cy="12" r="8.5"/></svg></div>
+          <h3>PPM is coming later</h3>
+          <p>Planned Preventive Maintenance schedules will live here. Left empty for now — we'll build it once the rest of the app is running.</p>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="screen-el" id="history">
+        <div class="crumb">Closed breakdowns and completed tasks — yours and the team's</div>
+        <div class="type-row">
+          <div class="filter-btn active" id="typeBreakdowns" onclick="setHistoryType('breakdowns')">Breakdowns</div>
+          <div class="filter-btn" id="typeTasks" onclick="setHistoryType('tasks')">Tasks</div>
+        </div>
+        <input type="text" id="historySearch" placeholder="Search by unit, equipment, or job ID..." oninput="renderHistory()" style="margin-bottom:12px;">
+        <div class="filter-row">
+          <div class="filter-btn active" id="filterMonth" onclick="setHistoryFilter('month')">This Month</div>
+          <div class="filter-btn" id="filterYear" onclick="setHistoryFilter('year')">This Year</div>
+          <div class="filter-btn" id="filterAll" onclick="setHistoryFilter('all')">All Time</div>
+        </div>
+        <div id="historyWrap"></div>
+      </div>
+
+      <!-- HISTORY DETAIL -->
+      <div class="screen-el" id="historyDetail">
+        <div class="crumb" id="histCrumb">Closed · WO-1040</div>
+        <div class="active-card" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="histMachine">Unit 1 · Capping Machine</div>
+              <div class="part" id="histMeta">Closed 03 Sep · 08:40</div>
+            </div>
+            <span class="badge" id="histBadge">Closed</span>
+          </div>
+          <span class="sev-tag" id="histSevTag">Minor Issue</span>
+        </div>
+
+        <div class="field-label" style="margin-top:20px;">Labor Time</div>
+        <p style="font-size:13px; color:var(--text-muted); margin:0;" id="histLabor">—</p>
+
+        <div class="field-label">Root Cause</div>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="histRootCause">—</p>
+
+        <div class="field-label">Corrective Action Taken</div>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="histCorrective">—</p>
+
+        <div class="field-label">Able to Repair</div>
+        <p style="font-size:13px; color:var(--text-muted); margin:0;" id="histAble">—</p>
+
+        <div class="field-label">Contractor</div>
+        <p style="font-size:13px; color:var(--text-muted); margin:0;" id="histContractor">—</p>
+
+        <div class="field-label">Downtime</div>
+        <p style="font-size:13px; color:var(--text-muted); margin:0;" id="histDowntime">—</p>
+
+        <div class="field-label">Tools &amp; Parts</div>
+        <p style="font-size:13px; color:var(--text-muted); margin:0;" id="histTools">—</p>
+
+        <div id="histToolsPhotoSection" style="display:none;">
+          <div class="field-label">Tools &amp; Parts Photo</div>
+          <div class="photo-row" id="histToolsPhotos"></div>
+        </div>
+
+        <div id="histClosePhotoSection" style="display:none;">
+          <div class="field-label">Closing Photos</div>
+          <div class="photo-row" id="histClosePhotos"></div>
+        </div>
+
+        <div id="histQaNoteSection" style="display:none;">
+          <div class="field-label">QA Notes</div>
+          <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="histQaNote">—</p>
+        </div>
+
+        <button class="primary-btn" id="histResubmitBtn" style="display:none; margin-top:18px;" onclick="reopenFailedJob(currentHistId)">Fix &amp; Resubmit</button>
+      </div>
+
+      <!-- HOLIDAY -->
+      <div class="screen-el" id="holidayScreen">
+        <div class="type-row">
+          <div class="filter-btn active" id="holTabRequests" onclick="setHolidayTab('requests')">Requests</div>
+          <div class="filter-btn" id="holTabCalendar" onclick="setHolidayTab('calendar')">Calendar</div>
+        </div>
+
+        <div id="holReqPanel">
+          <div id="holReqWrap"></div>
+        </div>
+
+        <div id="holCalPanel" style="display:none;">
+          <div class="cal-nav">
+            <button onclick="calPrevMonth()">‹</button>
+            <div class="lbl" id="calMonthLabel">September 2026</div>
+            <button onclick="calNextMonth()">›</button>
+          </div>
+          <div id="holCalGrid"></div>
+          <div class="cal-day-info" id="calDayInfo" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- HOLIDAY MINI CALENDAR (single request, read-only) -->
+      <div class="screen-el" id="holidayMiniCal">
+        <div class="mini-cal-header">
+          <div class="emp" id="miniCalTitle">Employee</div>
+          <div class="dates" id="miniCalDates">—</div>
+          <span class="badge" id="miniCalStatus">Pending</span>
+        </div>
+        <div id="miniCalGrid"></div>
+      </div>
+
+      <!-- SHIFTS -->
+      <div class="screen-el" id="shiftsScreen">
+        <div class="crumb">Manage shift types — edit hours, activate or pause</div>
+        <div id="shiftsWrap"></div>
+        <button class="primary-btn" style="margin-top:6px;" onclick="goto('shiftNew')">+ New Shift</button>
+      </div>
+
+      <!-- NEW SHIFT -->
+      <div class="screen-el" id="shiftNew">
+        <div class="crumb">Create a new shift type</div>
+
+        <div class="field-label" style="margin-top:0;">Shift Name</div>
+        <input type="text" id="newShiftName" placeholder="e.g. Night Shift" oninput="validateNewShift()">
+
+        <div class="shift-edit-row">
+          <div class="field">
+            <div class="field-label">Start Time</div>
+            <input type="time" id="newShiftStart" oninput="validateNewShift()">
+          </div>
+          <div class="field">
+            <div class="field-label">End Time</div>
+            <input type="time" id="newShiftEnd" oninput="validateNewShift()">
+          </div>
+        </div>
+
+        <div class="field-label">Engineers</div>
+        <div class="engineer-pick-row" id="newShiftEngineerRow"></div>
+        <div class="empty-note" id="newShiftAssignedNote">Tap engineers to assign — you can pick more than one.</div>
+
+        <button class="primary-btn" id="newShiftSubmitBtn" disabled onclick="submitNewShift()">Create Shift</button>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="screen-el" id="notifScreen">
+        <div class="crumb">Factory announcements</div>
+        <div id="notifList"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDE MENU -->
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  <div class="side-panel" id="sidePanel">
+    <div class="side-header">
+      <div class="side-header-top">
+        <div>
+          <div class="name">Mike Sullivan</div>
+          <div class="role">Engineer · Maintenance Team</div>
+        </div>
+        <div class="hdr-clock" id="hdrClockWrap">
+          <div class="hdr-led" id="headerLed"></div>
+          <button class="hdr-clock-btn out" id="clockBtn" onclick="toggleClock()">Clock In</button>
+        </div>
+      </div>
+      <div class="conn-row"><div class="led on pulse" style="width:7px;height:7px;"></div><span>CONNECTED</span></div>
+    </div>
+    <div class="side-body">
+
+      <div class="menu-list">
+        <div class="menu-nav-item" onclick="closeMenu(); goto('notifScreen');">
+          <div class="ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+            <span class="dot" id="menuNotifDot"></span>
+          </div>
+          <div class="lbl">Notifications</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('tasks');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l2 2 4-4"/><rect x="4" y="4" width="16" height="16" rx="3"/></svg></div>
+          <div class="lbl">Tasks</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('orders');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8l8-4 8 4-8 4-8-4z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/></svg></div>
+          <div class="lbl">Orders</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('history');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg></div>
+          <div class="lbl">History</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('ppm');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 7v5l3.2 2"/><circle cx="12" cy="12" r="8.5"/></svg></div>
+          <div class="lbl">PPM</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('holidayScreen');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div>
+          <div class="lbl">Holiday</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('shiftsScreen');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div class="lbl">Shifts</div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ================= icons for equipment grid =================
+const icons = {
+  tank: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="4" width="12" height="16" rx="3"/><path d="M6 14h12"/></svg>',
+  filling: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 6h14M8 6v9a4 4 0 0 0 8 0V6"/><path d="M10 20h4"/></svg>',
+  capper: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="8" y="9" width="8" height="10" rx="1.5"/><path d="M6 9h12l-2-4H8z"/></svg>',
+  blender: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4h10l-2 9a3 3 0 0 1-6 0z"/><path d="M10 20h4M12 13v7"/></svg>',
+  sackfill: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 8l2-4h8l2 4"/><path d="M6 8h12l-1.5 12h-9z"/></svg>',
+  sieve: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M8 9h8M8 12h8M8 15h8"/></svg>',
+  racking: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4v16M19 4v16M5 9h14M5 15h14"/></svg>',
+  forklift: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="10" width="8" height="6" rx="1"/><circle cx="7" cy="18" r="1.6"/><circle cx="14" cy="18" r="1.6"/><path d="M17 6v10M17 6l3 2"/></svg>',
+  ramp: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 18h16M4 18l9-12M13 6h7v7"/></svg>',
+  chiller: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v20M4.5 6l15 12M19.5 6l-15 12"/></svg>',
+  packing: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8l8-4 8 4-8 4-8-4z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/></svg>',
+  conveyor: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="8" width="18" height="6" rx="2"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/></svg>',
+  compactor: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v9"/><path d="M8 8l4 4 4-4"/><rect x="5" y="14" width="14" height="7" rx="1.5"/></svg>',
+  daf: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3c3 4 5 6.5 5 9.5A5 5 0 0 1 7 12.5C7 9.5 9 7 12 3z"/></svg>',
+  other: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="1.4"/><circle cx="6" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/></svg>'
+};
+
+const UNIT_DATA = {
+  'Unit 1': [
+    {id:'chiller', name:'Chiller Room', icon:'chiller'},
+    {id:'filling', name:'Filling Line', icon:'filling'},
+    {id:'capper', name:'Capping Machine', icon:'capper'},
+    {id:'blender1', name:'Blender 1', icon:'blender'}
+  ],
+  'Unit 2': [
+    {id:'packing', name:'Packing Line', icon:'packing'},
+    {id:'sackfill', name:'Sack Fill Station', icon:'sackfill'},
+    {id:'sieve', name:'Sieve', icon:'sieve'},
+    {id:'racking2', name:'Racking', icon:'racking'}
+  ],
+  'Unit 3': [
+    {id:'racking3', name:'Storage Racking', icon:'racking'},
+    {id:'ramp', name:'Loading Ramp', icon:'ramp'},
+    {id:'forklift', name:'Forklift Station', icon:'forklift'},
+    {id:'conveyor', name:'Conveyor', icon:'conveyor'}
+  ],
+  'Yard': [
+    {id:'compactor', name:'Compactor', icon:'compactor'},
+    {id:'rmtank', name:'RM Tanks', icon:'tank'},
+    {id:'skimtank', name:'Skim Tank', icon:'tank'},
+    {id:'daf', name:'DAF Plant', icon:'daf'}
+  ]
+};
+
+// ================= navigation =================
+const CHROME = {
+  home:["Hi, Mike","Engineer"],
+  overviewList:["Factory Overview",""],
+  unitSelect:["Select Unit","Report Breakdown · Step 1"],
+  equipmentSelect:["Select Equipment","Report Breakdown · Step 2"],
+  details:["Details","Report Breakdown · Step 3"],
+  confirm:["Submitted",""],
+  poolDetail:["Pool Job","Available to claim"],
+  myJobDetail:["Active Job","Yours"],
+  closeJob:["Close Job","Fill in before closing"],
+  closeConfirm:["Closed",""],
+  tasks:["Tasks","Daily & weekend"],
+  taskNew:["New Task","Assign to engineer(s)"],
+  taskDetail:["Task",""],
+  orders:["Orders","Parts & requests"],
+  orderNew:["New Request","Order a part"],
+  orderConfirm:["Sent",""],
+  history:["History","Closed jobs"],
+  historyDetail:["Closed Job",""],
+  ppm:["PPM","Planned maintenance"],
+  holidayScreen:["Holiday Requests","Team approvals"],
+  holidayMiniCal:["Holiday","Read-only"],
+  shiftsScreen:["Shifts","Manage shift types"],
+  shiftNew:["New Shift","Create a shift type"],
+  notifScreen:["Notifications","Factory announcements"]
+};
+
+const stack = ['home'];
+function goto(id){
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  stack.push(id);
+  updateChrome(id);
+  if(id==='home'){ renderMyJobs(); renderPool(); renderRework(); renderOverview(); }
+}
+function goBack(){
+  if(stack.length>1){ stack.pop(); }
+  const prev = stack[stack.length-1] || 'home';
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(prev).classList.add('active');
+  updateChrome(prev);
+  if(prev==='home'){ renderMyJobs(); renderPool(); renderRework(); renderOverview(); }
+}
+function updateChrome(id){
+  const c = CHROME[id];
+  document.getElementById('appbarTitle').textContent = c[0];
+  document.getElementById('appbarSub').textContent = c[1];
+  const isHome = id==='home';
+  document.getElementById('burgerBtn').style.display = isHome ? 'flex':'none';
+  document.getElementById('backBtn').style.display = isHome ? 'none':'flex';
+  document.getElementById('floatingControls').style.display = isHome ? 'flex':'none';
+}
+
+// ---------- side menu ----------
+function openMenu(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sidePanel').classList.add('show');
+}
+function closeMenu(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sidePanel').classList.remove('show');
+}
+
+// ---------- clock in/out ----------
+let clockedIn=false;
+function toggleClock(){
+  clockedIn=!clockedIn;
+  const btn=document.getElementById('clockBtn');
+  const headerLed=document.getElementById('headerLed');
+  if(clockedIn){
+    btn.className='hdr-clock-btn in';
+    headerLed.classList.add('on');
+  } else {
+    btn.className='hdr-clock-btn out';
+    headerLed.classList.remove('on');
+  }
+  updateClockBtnLabel();
+}
+function updateClockBtnLabel(){
+  document.getElementById('clockBtn').textContent = clockedIn ? 'Clock Out' : 'Clock In';
+  document.getElementById('hdrStatusText').textContent = clockedIn ? 'Clocked In' : 'Clocked Out';
+}
+
+// ---------- top clock ----------
+function tickTopClock(){
+  const d=new Date();
+  document.getElementById('topClock').textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+tickTopClock(); setInterval(tickTopClock,15000);
+function nowTimeStr(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function addPhotosTo(rowId, e){
+  const files=Array.from(e.target.files);
+  const row=document.getElementById(rowId);
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const thumb=document.createElement('div');
+      thumb.className='photo-thumb';
+      thumb.innerHTML='<img src="'+ev.target.result+'"><div class="rm">✕</div>';
+      thumb.querySelector('.rm').onclick=(ev2)=>{ ev2.stopPropagation(); thumb.remove(); };
+      row.appendChild(thumb);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function getPhotosFromRow(rowId){
+  return Array.from(document.querySelectorAll('#'+rowId+' .photo-thumb img')).map(img=>img.src);
+}
+function renderPhotoThumbs(containerId, photos){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML='';
+  photos.forEach(src=>{
+    const d=document.createElement('div');
+    d.className='photo-thumb';
+    d.innerHTML='<img src="'+src+'">';
+    el.appendChild(d);
+  });
+}
+
+// ================= ENGINEERS (for assign / reassign) =================
+const engineersList = ['Sarah M.', 'Dave K.', 'Tomasz W.'];
+function renderEngineerPickRow(containerId, onPick){
+  const wrap=document.getElementById(containerId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  engineersList.forEach(name=>{
+    const chip=document.createElement('div');
+    chip.className='engineer-chip';
+    chip.textContent=name;
+    chip.onclick=()=>onPick(name);
+    wrap.appendChild(chip);
+  });
+}
+function assignPoolJobTo(engineerName){
+  const idx=poolJobs.findIndex(x=>x.id===currentPoolJobId);
+  if(idx===-1) return;
+  if(!window.confirm('Assign this job to '+engineerName+'?')) return;
+  poolJobs.splice(idx,1);
+  goto('home');
+}
+function reassignMyJobTo(engineerName){
+  if(!window.confirm('Reassign this job to '+engineerName+'? It will move to their active jobs.')) return;
+  const idx=myJobs.findIndex(x=>x.id===currentMyJobId);
+  if(idx>-1) myJobs.splice(idx,1);
+  goto('home');
+}
+
+// ================= HOME — MY ACTIVE JOBS + POOL =================
+let woCounter = 1052;
+let myJobs = [
+  {id:'WO-1042', unit:'Unit 1', equipment:'Capping Machine', severity:'critical', desc:'Capper jammed mid-cycle — line fully stopped.', claimedAt:'08:22', claimedAtDate:new Date(Date.now()-46*60000), assignedBy:null},
+  {id:'WO-1046', unit:'Unit 2', equipment:'Sack Fill Station', severity:'minor', desc:'Sensor misreading fill weight intermittently.', claimedAt:'09:05', claimedAtDate:new Date(Date.now()-18*60000), assignedBy:'You'}
+];
+let poolJobs = [
+  {id:'WO-1051', unit:'Yard', equipment:'Compactor', severity:'critical', desc:"Compactor won't cycle, red fault light on.", time:'09:40'},
+  {id:'WO-1052', unit:'Unit 3', equipment:'Loading Ramp', severity:'minor', desc:'Ramp edge guard loose, still usable.', time:'09:10'}
+];
+let currentMyJobId=null;
+let currentPoolJobId=null;
+
+function renderOverview(){
+  const wrap=document.getElementById('overviewBox');
+  if(!wrap) return;
+  const totalOpen = myJobs.length + poolJobs.length;
+  const inPool = poolJobs.length;
+  const awaitingQa = breakdownHistory.filter(h=>h.qaStatus==='pending' || h.qaStatus==='failed').length;
+  const closedCount = breakdownHistory.filter(h=>h.qaStatus==null || h.qaStatus==='signed_off').length;
+  const openTasksCount = tasksData.filter(t=>t.status==='open').length;
+  wrap.innerHTML =
+    '<div class="overview-stat" onclick="openOverviewList(\'openJobs\')"><div class="num">'+totalOpen+'</div><div class="lbl">Open Jobs</div></div>'+
+    '<div class="overview-stat warn" onclick="openOverviewList(\'pool\')"><div class="num">'+inPool+'</div><div class="lbl">In Pool</div></div>'+
+    '<div class="overview-stat crit" onclick="openOverviewList(\'awaitingQa\')"><div class="num">'+awaitingQa+'</div><div class="lbl">Awaiting / Failed QA</div></div>'+
+    '<div class="overview-stat" onclick="openOverviewList(\'closed\')"><div class="num">'+closedCount+'</div><div class="lbl">Closed Jobs</div></div>'+
+    '<div class="overview-stat" onclick="goto(\'tasks\')"><div class="num">'+openTasksCount+'</div><div class="lbl">Open Tasks</div></div>';
+}
+function openOverviewList(type){
+  const crumb=document.getElementById('overviewListCrumb');
+  const wrap=document.getElementById('overviewListWrap');
+  wrap.innerHTML='';
+  if(type==='openJobs'){
+    crumb.textContent='Open Jobs — claimed and unclaimed';
+    const combined = myJobs.map(j=>({...j, kind:'mine'})).concat(poolJobs.map(j=>({...j, kind:'pool'})));
+    if(!combined.length){ wrap.innerHTML='<div class="empty-note">No open jobs right now.</div>'; }
+    combined.forEach(j=>{
+      const card=document.createElement('div');
+      card.className='active-card '+(j.kind==='mine' ? 'mine' : 'pool-item');
+      card.onclick=()=>{
+        if(j.kind==='mine'){ openMyJob(j.id); goto('myJobDetail'); }
+        else { openPoolJob(j.id); goto('poolDetail'); }
+      };
+      const badge = j.kind==='mine' ? '<span class="badge taken">Yours</span>' : '<span class="badge pool">In Pool</span>';
+      card.innerHTML =
+        '<div class="row1"><div><div class="line">'+j.unit+' · '+j.equipment+'</div>'+
+        '<div class="part">'+(j.kind==='mine' ? (j.assignedBy?'Assigned by '+j.assignedBy:'Claimed at '+j.claimedAt) : 'Reported '+j.time)+'</div></div>'+
+        badge+'</div>';
+      wrap.appendChild(card);
+    });
+  } else if(type==='pool'){
+    crumb.textContent='In Pool — unclaimed';
+    if(!poolJobs.length){ wrap.innerHTML='<div class="empty-note">Pool is empty right now.</div>'; }
+    poolJobs.forEach(j=>{
+      const card=document.createElement('div');
+      card.className='active-card pool-item';
+      card.onclick=()=>{ openPoolJob(j.id); goto('poolDetail'); };
+      card.innerHTML =
+        '<div class="row1"><div><div class="line">'+j.unit+' · '+j.equipment+'</div>'+
+        '<div class="part">Reported '+j.time+'</div></div>'+
+        '<span class="badge pool">In Pool</span></div>';
+      wrap.appendChild(card);
+    });
+  } else if(type==='awaitingQa'){
+    crumb.textContent='Awaiting / Failed QA';
+    const list = breakdownHistory.filter(h=>h.qaStatus==='pending' || h.qaStatus==='failed');
+    if(!list.length){ wrap.innerHTML='<div class="empty-note">Nothing waiting on QA.</div>'; }
+    list.forEach(r=>wrap.appendChild(historyCard(r)));
+  } else if(type==='closed'){
+    crumb.textContent='Closed Jobs';
+    const list = breakdownHistory.filter(h=>h.qaStatus==null || h.qaStatus==='signed_off');
+    if(!list.length){ wrap.innerHTML='<div class="empty-note">No closed jobs yet.</div>'; }
+    list.forEach(r=>wrap.appendChild(historyCard(r)));
+  }
+  goto('overviewList');
+}
+function renderMyJobs(){
+  const wrap=document.getElementById('myJobsWrap');
+  wrap.innerHTML='';
+  if(myJobs.length===0){
+    wrap.innerHTML='<div class="empty-note">Nothing claimed right now — pick a job from the pool below.</div>';
+    return;
+  }
+  myJobs.forEach(j=>{
+    const card=document.createElement('div');
+    card.className='active-card mine';
+    card.onclick=()=>{ openMyJob(j.id); goto('myJobDetail'); };
+    const metaText = j.assignedBy ? 'Assigned by '+j.assignedBy : 'Claimed at '+j.claimedAt;
+    card.innerHTML =
+      '<div class="row1"><div><div class="line">'+j.unit+' · '+j.equipment+'</div>'+
+      '<div class="part">'+metaText+'</div></div>'+
+      '<span class="badge taken">Yours</span></div>';
+    wrap.appendChild(card);
+  });
+}
+function renderPool(){
+  const wrap=document.getElementById('poolWrap');
+  wrap.innerHTML='';
+  if(poolJobs.length===0){
+    wrap.innerHTML='<div class="empty-note">Pool is empty right now.</div>';
+    return;
+  }
+  poolJobs.forEach(j=>{
+    const card=document.createElement('div');
+    card.className='active-card pool-item';
+    card.onclick=()=>{ openPoolJob(j.id); goto('poolDetail'); };
+    card.innerHTML =
+      '<div class="row1"><div><div class="line">'+j.unit+' · '+j.equipment+'</div>'+
+      '<div class="part">Reported '+j.time+'</div></div>'+
+      '<span class="badge pool">In Pool</span></div>';
+    wrap.appendChild(card);
+  });
+}
+function openPoolJob(id){
+  currentPoolJobId=id;
+  const j=poolJobs.find(x=>x.id===id);
+  if(!j) return;
+  document.getElementById('poolCrumb').textContent='Pool · '+j.id;
+  document.getElementById('poolMachine').textContent=j.unit+' · '+j.equipment;
+  document.getElementById('poolMeta').textContent='Reported '+j.time+' · waiting for an engineer';
+  const sevTag=document.getElementById('poolSevTag');
+  sevTag.className='sev-tag '+j.severity;
+  sevTag.textContent = j.severity==='critical' ? 'Line Stopped' : 'Minor Issue';
+  document.getElementById('poolDesc').textContent=j.desc;
+  renderEngineerPickRow('poolAssignRow', assignPoolJobTo);
+}
+function claimJob(){
+  const idx=poolJobs.findIndex(x=>x.id===currentPoolJobId);
+  if(idx===-1) return;
+  const j=poolJobs.splice(idx,1)[0];
+  myJobs.unshift({id:j.id, unit:j.unit, equipment:j.equipment, severity:j.severity, desc:j.desc, claimedAt:nowTimeStr(), claimedAtDate:new Date(), assignedBy:null});
+  goto('home');
+}
+function formatElapsed(fromDate){
+  const mins = Math.max(0, Math.round((Date.now()-fromDate.getTime())/60000));
+  const h = Math.floor(mins/60), m = mins%60;
+  return h>0 ? (h+'h '+m+'m') : (m+'m');
+}
+function openMyJob(id){
+  currentMyJobId=id;
+  const j=myJobs.find(x=>x.id===id);
+  if(!j) return;
+  document.getElementById('myJobCrumb').textContent='Active Job · '+j.id;
+  document.getElementById('myJobMachine').textContent=j.unit+' · '+j.equipment;
+  document.getElementById('myJobMeta').textContent = j.assignedBy ? 'Assigned by '+j.assignedBy : 'You claimed this at '+j.claimedAt;
+  const sevTag=document.getElementById('myJobSevTag');
+  sevTag.className='sev-tag '+j.severity;
+  sevTag.textContent = j.severity==='critical' ? 'Line Stopped' : 'Minor Issue';
+  document.getElementById('myJobDesc').textContent=j.desc;
+  document.getElementById('myJobElapsed').textContent = formatElapsed(j.claimedAtDate) + ' so far';
+  document.getElementById('miniSentMsg').style.display='none';
+  renderEngineerPickRow('myJobReassignRow', reassignMyJobTo);
+}
+function notifyOperator(kind){
+  const msg=document.getElementById('miniSentMsg');
+  msg.textContent = kind==='busy'
+    ? "Sent: \"Busy right now, will come as soon as I'm free.\""
+    : "Sent: \"On my way now.\"";
+  msg.style.display='block';
+}
+
+// ================= BREAKDOWN REPORTING (Unit → Equipment → Details) =================
+let selection = {unit:null, equipment:null, isOther:false, severity:null};
+
+function startReport(){
+  selection = {unit:null, equipment:null, isOther:false, severity:null};
+  goto('unitSelect');
+}
+function pickUnit(unitKey){
+  selection.unit=unitKey;
+  renderEquipmentGrid(unitKey);
+  goto('equipmentSelect');
+}
+function renderEquipmentGrid(unitKey){
+  document.getElementById('equipCrumb').textContent='Step 2 / 3 — '+unitKey+' equipment';
+  const wrap=document.getElementById('equipGrid');
+  wrap.innerHTML='';
+  const items = UNIT_DATA[unitKey].concat([{id:'other', name:'Other', icon:'other'}]);
+  items.forEach(it=>{
+    const card=document.createElement('div');
+    card.className='icon-card';
+    card.innerHTML='<div class="icon-wrap">'+icons[it.icon]+'</div><div class="name">'+it.name+'</div>';
+    card.onclick=()=>pickEquipment(it.id, it.name);
+    wrap.appendChild(card);
+  });
+}
+function pickEquipment(id, name){
+  selection.isOther = (id==='other');
+  selection.equipment = selection.isOther ? '' : name;
+  resetDetailsForm();
+  goto('details');
+}
+function resetDetailsForm(){
+  selection.severity=null;
+  document.getElementById('descBox').value='';
+  document.getElementById('photoRow').innerHTML = '<div class="photo-add" onclick="document.getElementById(\'fileInput\').click()">+</div>';
+  document.getElementById('sevCritical').classList.remove('selected');
+  document.getElementById('sevMinor').classList.remove('selected');
+  const customLabel=document.getElementById('customEquipLabel');
+  const customInput=document.getElementById('customEquipInput');
+  if(selection.isOther){
+    customLabel.style.display='block';
+    customInput.style.display='block';
+    customInput.value='';
+    document.getElementById('detailsCrumb').textContent = 'Step 3 / 3 — '+selection.unit+' · Other';
+  } else {
+    customLabel.style.display='none';
+    customInput.style.display='none';
+    document.getElementById('detailsCrumb').textContent = 'Step 3 / 3 — '+selection.unit+' · '+selection.equipment;
+  }
+  validateReportSubmit();
+}
+function pickSeverity(level){
+  selection.severity=level;
+  document.getElementById('sevCritical').classList.toggle('selected', level==='critical');
+  document.getElementById('sevMinor').classList.toggle('selected', level==='minor');
+  validateReportSubmit();
+}
+function validateReportSubmit(){
+  const customOk = !selection.isOther || document.getElementById('customEquipInput').value.trim().length>0;
+  document.getElementById('submitBtn').disabled = !(selection.severity && customOk);
+}
+function submitReport(){
+  woCounter++;
+  const equipName = selection.isOther ? document.getElementById('customEquipInput').value.trim() : selection.equipment;
+  const entry = {
+    id:'WO-'+woCounter, unit:selection.unit, equipment:equipName, severity:selection.severity,
+    desc: document.getElementById('descBox').value.trim() || 'No description provided.',
+    time: nowTimeStr()
+  };
+  poolJobs.unshift(entry);
+  goto('confirm');
+}
+
+// ================= CLOSE JOB =================
+let closeState = {able:null, contractor:null, tools:null, intrusive:null};
+let currentResubmitId = null;
+function renderRework(){
+  const wrap = document.getElementById('reworkWrap');
+  const label = document.getElementById('reworkLabel');
+  wrap.innerHTML='';
+  const failed = breakdownHistory.filter(r=>r.qaStatus==='failed');
+  label.style.display = failed.length ? 'block' : 'none';
+  failed.forEach(r=>{
+    const card=document.createElement('div');
+    card.className='active-card rework';
+    card.onclick=()=>reopenFailedJob(r.id);
+    card.innerHTML =
+      '<div class="row1"><div><div class="line">'+r.unit+' · '+r.equipment+'</div>'+
+      '<div class="part">'+(r.qaNotes || 'QA swab test failed — needs another look.')+'</div></div>'+
+      '<span class="badge rejected">QA Failed</span></div>';
+    wrap.appendChild(card);
+  });
+}
+function reopenFailedJob(id){
+  currentResubmitId = id;
+  currentMyJobId = null;
+  goto('closeJob');
+}
+function pickYn(field, value){
+  closeState[field]=value;
+  const yesEl=document.getElementById(field+'Yes');
+  const noEl=document.getElementById(field+'No');
+  yesEl.classList.toggle('selected', value==='yes'); yesEl.classList.toggle('yes', true);
+  noEl.classList.toggle('selected', value==='no'); noEl.classList.toggle('no', true);
+  if(field==='able'){
+    document.getElementById('ableReasonWrap').style.display = value==='no' ? 'block':'none';
+  }
+  if(field==='contractor'){
+    document.getElementById('contractorUsedWrap').style.display = value==='yes' ? 'block':'none';
+  }
+  if(field==='tools'){
+    document.getElementById('toolsMissingWrap').style.display = value==='no' ? 'block':'none';
+  }
+  if(field==='intrusive'){
+    document.getElementById('intrusiveNotice').style.display = value==='yes' ? 'block':'none';
+  }
+  validateCloseSubmit();
+}
+function validateCloseSubmit(){
+  document.getElementById('closeSubmitBtn').disabled = !(closeState.able && closeState.tools);
+}
+function resetCloseForm(){
+  closeState = {able:null, contractor:null, tools:null, intrusive:null};
+  ['able','contractor','tools','intrusive'].forEach(f=>{
+    document.getElementById(f+'Yes').className='yn-btn';
+    document.getElementById(f+'No').className='yn-btn';
+  });
+  document.getElementById('ableReasonWrap').style.display='none';
+  document.getElementById('contractorUsedWrap').style.display='none';
+  document.getElementById('toolsMissingWrap').style.display='none';
+  document.getElementById('intrusiveNotice').style.display='none';
+  document.getElementById('resubmitNotice').style.display='none';
+  document.getElementById('closeRootCause').value='';
+  document.getElementById('closeCorrective').value='';
+  document.getElementById('ableReason').value='';
+  document.getElementById('contractorUsed').value='';
+  document.getElementById('closeDowntime').value='';
+  document.getElementById('toolsMissing').value='';
+  document.getElementById('toolsPhotoRow').innerHTML='<div class="photo-add" onclick="document.getElementById(\'toolsFileInput\').click()">+</div>';
+  document.getElementById('closePhotoRow').innerHTML='<div class="photo-add" onclick="document.getElementById(\'closeFileInput\').click()">+</div>';
+  validateCloseSubmit();
+}
+// wrap goto to prep the close form whenever it's opened, and my-job actions
+const _origGoto = goto;
+goto = function(id){
+  if(id==='closeJob'){
+    if(currentResubmitId){
+      const r=breakdownHistory.find(x=>x.id===currentResubmitId);
+      resetCloseForm();
+      if(r){
+        document.getElementById('closeCrumb').textContent='Resubmitting · '+r.id;
+        document.getElementById('closeMachine').textContent=r.unit+' · '+r.equipment;
+        document.getElementById('resubmitNotice').style.display='block';
+        document.getElementById('resubmitNoteText').textContent = r.qaNotes || 'No additional notes were left.';
+        document.getElementById('closeRootCause').value = r.rootCause==='Not recorded.' ? '' : r.rootCause;
+        document.getElementById('closeCorrective').value = r.corrective==='Not recorded.' ? '' : r.corrective;
+        document.getElementById('closeDowntime').value = r.downtime || '';
+        pickYn('able', r.able || 'yes');
+        if(r.ableReason) document.getElementById('ableReason').value = r.ableReason;
+        pickYn('contractor', r.contractor || 'no');
+        if(r.contractorUsed) document.getElementById('contractorUsed').value = r.contractorUsed;
+        pickYn('tools', r.tools || 'yes');
+        if(r.toolsMissing) document.getElementById('toolsMissing').value = r.toolsMissing;
+        pickYn('intrusive', 'yes');
+      }
+    } else {
+      const j=myJobs.find(x=>x.id===currentMyJobId);
+      if(j){
+        document.getElementById('closeCrumb').textContent='Closing · '+j.id;
+        document.getElementById('closeMachine').textContent=j.unit+' · '+j.equipment;
+      }
+      resetCloseForm();
+    }
+  }
+  _origGoto(id);
+};
+function submitCloseJob(){
+  if(currentResubmitId){
+    const r=breakdownHistory.find(x=>x.id===currentResubmitId);
+    if(!r) return;
+    r.rootCause = document.getElementById('closeRootCause').value.trim() || 'Not recorded.';
+    r.corrective = document.getElementById('closeCorrective').value.trim() || 'Not recorded.';
+    r.able = closeState.able; r.ableReason = document.getElementById('ableReason').value.trim();
+    r.contractor = closeState.contractor; r.contractorUsed = document.getElementById('contractorUsed').value.trim();
+    r.downtime = document.getElementById('closeDowntime').value.trim();
+    r.tools = closeState.tools; r.toolsMissing = document.getElementById('toolsMissing').value.trim();
+    const newToolsPhotos = getPhotosFromRow('toolsPhotoRow');
+    const newClosePhotos = getPhotosFromRow('closePhotoRow');
+    if(newToolsPhotos.length) r.toolsPhotos = newToolsPhotos;
+    if(newClosePhotos.length) r.closePhotos = newClosePhotos;
+    r.closedAt = new Date();
+    r.qaStatus = 'pending';
+    r.qaNotes = null;
+    const idx=breakdownHistory.findIndex(x=>x.id===currentResubmitId);
+    if(idx>-1){ breakdownHistory.splice(idx,1); breakdownHistory.unshift(r); }
+    currentResubmitId = null;
+    document.getElementById('closeConfirmTitle').textContent = 'Resubmitted to QA';
+    document.getElementById('closeConfirmText').textContent = "Sent back to QA for a re-check. You'll see it here again if it doesn't pass.";
+    goto('closeConfirm');
+    return;
+  }
+  const j=myJobs.find(x=>x.id===currentMyJobId);
+  if(!j) return;
+  const intrusive = closeState.intrusive==='yes';
+  const laborMinutes = Math.max(1, Math.round((Date.now()-j.claimedAtDate.getTime())/60000));
+  const record = {
+    id:j.id, unit:j.unit, equipment:j.equipment, severity:j.severity,
+    closedAt:new Date(), laborMinutes:laborMinutes,
+    rootCause: document.getElementById('closeRootCause').value.trim() || 'Not recorded.',
+    corrective: document.getElementById('closeCorrective').value.trim() || 'Not recorded.',
+    able: closeState.able, ableReason: document.getElementById('ableReason').value.trim(),
+    contractor: closeState.contractor, contractorUsed: document.getElementById('contractorUsed').value.trim(),
+    downtime: document.getElementById('closeDowntime').value.trim(),
+    tools: closeState.tools, toolsMissing: document.getElementById('toolsMissing').value.trim(),
+    toolsPhotos: getPhotosFromRow('toolsPhotoRow'),
+    closePhotos: getPhotosFromRow('closePhotoRow'),
+    intrusive: intrusive,
+    qaStatus: intrusive ? 'pending' : null,
+    qaNotes: null
+  };
+  breakdownHistory.unshift(record);
+  const idx=myJobs.findIndex(x=>x.id===currentMyJobId);
+  if(idx>-1) myJobs.splice(idx,1);
+  const laborText = laborMinutes>=60 ? Math.floor(laborMinutes/60)+'h '+(laborMinutes%60)+'m' : laborMinutes+'m';
+  document.getElementById('closeConfirmTitle').textContent = intrusive ? 'Sent for QA swab test' : 'Job closed';
+  document.getElementById('closeConfirmText').textContent = (intrusive
+    ? "Because this involved a post-deodorisation intervention, QA needs to run a swab test before it's fully closed. "
+    : "Removed from your active jobs. ") + 'Labor time logged automatically: '+laborText+'.';
+  goto('closeConfirm');
+}
+
+// ================= BREAKDOWN HISTORY =================
+function mkPast(monthsAgo, day, hour, minute){
+  const d=new Date();
+  d.setMonth(d.getMonth()-monthsAgo);
+  d.setDate(day); d.setHours(hour, minute, 0, 0);
+  return d;
+}
+let breakdownHistory = [
+  {id:'WO-1044', unit:'Unit 2', equipment:'Deodoriser Line', severity:'critical', closedAt:mkPast(0,3,10,05), laborMinutes:75,
+   rootCause:'Outlet valve gasket failed during a process intervention.', corrective:'Gasket replaced, valve reseated and tested.',
+   able:'yes', ableReason:'', contractor:'no', contractorUsed:'', downtime:'60', tools:'yes', toolsMissing:'', intrusive:true, qaStatus:'failed',
+   qaNotes:'Swab test failed on the outlet valve area — re-clean and retest before resubmitting.'},
+  {id:'WO-1031', unit:'Unit 1', equipment:'Filling Line', severity:'minor', closedAt:mkPast(0,1,14,10), laborMinutes:35,
+   rootCause:'Fill head seal had perished, causing a slow drip.', corrective:'Replaced the seal and ran a test cycle.',
+   able:'yes', ableReason:'', contractor:'no', contractorUsed:'', downtime:'20', tools:'yes', toolsMissing:'', intrusive:false, qaStatus:null, qaNotes:null},
+  {id:'WO-1028', unit:'Yard', equipment:'RM Tanks', severity:'critical', closedAt:mkPast(0,2,09,40), laborMinutes:112,
+   rootCause:'Level sensor failed, tank overfilled and tripped the safety cutoff.', corrective:'Replaced level sensor, recalibrated, cleared the overfill.',
+   able:'yes', ableReason:'', contractor:'yes', contractorUsed:'Anglia Sensors Ltd', downtime:'95', tools:'no', toolsMissing:'One torque wrench left in the tank access — recovered afterward.', intrusive:true, qaStatus:'signed_off', qaNotes:null},
+  {id:'WO-1019', unit:'Unit 2', equipment:'Sack Fill Station', severity:'minor', closedAt:mkPast(1,20,11,05), laborMinutes:28,
+   rootCause:'Weigh sensor drifting out of calibration.', corrective:'Recalibrated against reference weight.',
+   able:'yes', ableReason:'', contractor:'no', contractorUsed:'', downtime:'15', tools:'yes', toolsMissing:'', intrusive:false, qaStatus:null},
+  {id:'WO-1012', unit:'Unit 3', equipment:'Forklift Station', severity:'critical', closedAt:mkPast(1,6,16,30), laborMinutes:64,
+   rootCause:'Hydraulic hose split under pressure.', corrective:'Hose replaced, system bled and pressure-tested.',
+   able:'yes', ableReason:'', contractor:'yes', contractorUsed:'Northside Hydraulics', downtime:'50', tools:'yes', toolsMissing:'', intrusive:false, qaStatus:null},
+  {id:'WO-0987', unit:'Unit 1', equipment:'Chiller Room', severity:'minor', closedAt:mkPast(2,15,08,50), laborMinutes:40,
+   rootCause:'Condenser fan bearing worn, causing noise and reduced airflow.', corrective:'Fan bearing replaced.',
+   able:'yes', ableReason:'', contractor:'no', contractorUsed:'', downtime:'30', tools:'yes', toolsMissing:'', intrusive:false, qaStatus:null},
+  {id:'WO-0842', unit:'Yard', equipment:'Compactor', severity:'critical', closedAt:mkPast(13,10,13,15), laborMinutes:88,
+   rootCause:'Hydraulic ram seal failed.', corrective:'Ram reseal, tested full cycle.',
+   able:'yes', ableReason:'', contractor:'yes', contractorUsed:'Anglia Sensors Ltd', downtime:'70', tools:'yes', toolsMissing:'', intrusive:false, qaStatus:null}
+];
+function photoIndicator(count){
+  return ' <span class="photo-ind"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7l1.5-3h5L16 7"/><circle cx="12" cy="13.5" r="3.2"/></svg> '+count+'</span>';
+}
+function historyCard(r){
+  const card=document.createElement('div');
+  card.className='active-card';
+  card.onclick=()=>{ openHistoryDetail(r.id); goto('historyDetail'); };
+  const badgeClass = r.qaStatus==='pending' ? 'pool' : (r.qaStatus==='failed' ? 'rejected' : 'taken');
+  const badgeText = r.qaStatus==='pending' ? 'Awaiting QA' : (r.qaStatus==='failed' ? 'QA Failed' : 'Closed');
+  const dateText = r.closedAt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+
+    String(r.closedAt.getHours()).padStart(2,'0')+':'+String(r.closedAt.getMinutes()).padStart(2,'0');
+  const photoCount = (r.toolsPhotos||[]).length + (r.closePhotos||[]).length;
+  const photoTag = photoCount ? photoIndicator(photoCount) : '';
+  card.innerHTML =
+    '<div class="row1"><div><div class="line">'+r.unit+' · '+r.equipment+'</div>'+
+    '<div class="part">Closed '+dateText+photoTag+'</div></div>'+
+    '<span class="badge '+badgeClass+'">'+badgeText+'</span></div>';
+  return card;
+}
+let historyType='breakdowns';
+let historyFilter='month';
+function setHistoryType(t){
+  historyType=t;
+  document.getElementById('typeBreakdowns').classList.toggle('active', t==='breakdowns');
+  document.getElementById('typeTasks').classList.toggle('active', t==='tasks');
+  document.getElementById('historySearch').placeholder = t==='breakdowns'
+    ? 'Search by unit, equipment, or job ID...'
+    : 'Search by title, location, or task ID...';
+  document.getElementById('historySearch').value='';
+  renderHistory();
+}
+function setHistoryFilter(f){
+  historyFilter=f;
+  document.getElementById('filterMonth').classList.toggle('active', f==='month');
+  document.getElementById('filterYear').classList.toggle('active', f==='year');
+  document.getElementById('filterAll').classList.toggle('active', f==='all');
+  renderHistory();
+}
+function renderHistory(){
+  if(historyType==='tasks') renderTaskHistoryList();
+  else renderBreakdownHistoryList();
+}
+function applyDateFilter(list, dateField, searchTerm){
+  const now=new Date();
+  if(searchTerm) return list;
+  if(historyFilter==='month') return list.filter(r=>r[dateField].getMonth()===now.getMonth() && r[dateField].getFullYear()===now.getFullYear());
+  if(historyFilter==='year') return list.filter(r=>r[dateField].getFullYear()===now.getFullYear());
+  return list;
+}
+function renderGrouped(wrap, list, dateField, cardFn, emptyText){
+  wrap.innerHTML='';
+  if(list.length===0){
+    wrap.innerHTML='<div class="empty-note">'+emptyText+'</div>';
+    return;
+  }
+  let lastGroup=null;
+  list.forEach(r=>{
+    const groupLabel = r[dateField].toLocaleDateString('en-GB',{month:'long', year:'numeric'});
+    if(groupLabel!==lastGroup){
+      const label=document.createElement('div');
+      label.className='section-label';
+      label.textContent=groupLabel;
+      wrap.appendChild(label);
+      lastGroup=groupLabel;
+    }
+    wrap.appendChild(cardFn(r));
+  });
+}
+function renderBreakdownHistoryList(){
+  const wrap=document.getElementById('historyWrap');
+  if(!wrap) return;
+  const searchEl=document.getElementById('historySearch');
+  const searchTerm = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  let list = breakdownHistory.slice().sort((a,b)=>b.closedAt-a.closedAt);
+  if(searchTerm) list = list.filter(r => (r.id+' '+r.unit+' '+r.equipment).toLowerCase().includes(searchTerm));
+  list = applyDateFilter(list, 'closedAt', searchTerm);
+  renderGrouped(wrap, list, 'closedAt', historyCard, searchTerm ? 'No closed jobs match your search.' : 'No closed jobs in this period.');
+}
+function taskHistoryCard(t){
+  const card=document.createElement('div');
+  card.className='task-item';
+  card.onclick=()=>{ openTask(t.id); goto('taskDetail'); };
+  const tag = t.priority ? '<span class="tag-pill '+t.priority+'">'+priorityLabel(t.priority)+'</span>' : '';
+  const dateText = t.completedAt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+  const photoTag = (t.donePhotos && t.donePhotos.length) ? photoIndicator(t.donePhotos.length) : '';
+  card.innerHTML =
+    '<div class="row1"><div><div class="ttitle">'+t.title+'</div><div class="tloc">'+t.location+'</div></div>'+tag+'</div>'+
+    '<div class="tmeta">Completed by '+t.doneBy+' · '+dateText+photoTag+'</div>';
+  return card;
+}
+function renderTaskHistoryList(){
+  const wrap=document.getElementById('historyWrap');
+  if(!wrap) return;
+  const searchEl=document.getElementById('historySearch');
+  const searchTerm = searchEl ? searchEl.value.trim().toLowerCase() : '';
+  let list = tasksData.filter(t=>t.status==='done').slice().sort((a,b)=>b.completedAt-a.completedAt);
+  if(searchTerm) list = list.filter(t => (t.id+' '+t.title+' '+t.location).toLowerCase().includes(searchTerm));
+  list = applyDateFilter(list, 'completedAt', searchTerm);
+  renderGrouped(wrap, list, 'completedAt', taskHistoryCard, searchTerm ? 'No completed tasks match your search.' : 'No completed tasks in this period.');
+}
+let currentHistId = null;
+function openHistoryDetail(id){
+  const r=breakdownHistory.find(x=>x.id===id);
+  if(!r) return;
+  currentHistId = id;
+  document.getElementById('histCrumb').textContent='Closed · '+r.id;
+  document.getElementById('histMachine').textContent=r.unit+' · '+r.equipment;
+  const dateText = r.closedAt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' · '+
+    String(r.closedAt.getHours()).padStart(2,'0')+':'+String(r.closedAt.getMinutes()).padStart(2,'0');
+  document.getElementById('histMeta').textContent='Closed '+dateText;
+  const badgeEl=document.getElementById('histBadge');
+  badgeEl.className='badge '+(r.qaStatus==='pending' ? 'pool':(r.qaStatus==='failed' ? 'rejected':'taken'));
+  badgeEl.textContent = r.qaStatus==='pending' ? 'Awaiting QA' : (r.qaStatus==='failed' ? 'QA Failed' : 'Closed');
+  document.getElementById('histQaNoteSection').style.display = r.qaNotes ? 'block' : 'none';
+  document.getElementById('histQaNote').textContent = r.qaNotes || '—';
+  document.getElementById('histResubmitBtn').style.display = r.qaStatus==='failed' ? 'block' : 'none';
+  const sevTag=document.getElementById('histSevTag');
+  sevTag.className='sev-tag '+r.severity;
+  sevTag.textContent = r.severity==='critical' ? 'Line Stopped' : 'Minor Issue';
+  const laborText = r.laborMinutes>=60 ? Math.floor(r.laborMinutes/60)+'h '+(r.laborMinutes%60)+'m' : r.laborMinutes+'m';
+  document.getElementById('histLabor').textContent = laborText+' (tracked automatically from claim to close)';
+  document.getElementById('histRootCause').textContent = r.rootCause;
+  document.getElementById('histCorrective').textContent = r.corrective;
+  document.getElementById('histAble').textContent = (r.able==='yes' ? 'Yes' : 'No — '+(r.ableReason||'no reason recorded'));
+  document.getElementById('histContractor').textContent = (r.contractor==='yes' ? 'Yes — '+(r.contractorUsed||'not named') : 'No');
+  document.getElementById('histDowntime').textContent = r.downtime ? r.downtime+' minutes' : 'Not recorded';
+  document.getElementById('histTools').textContent = r.tools==='yes' ? 'All accounted for' : 'Something missing — '+(r.toolsMissing||'not described');
+
+  const toolsPhotos = r.toolsPhotos || [];
+  const closePhotos = r.closePhotos || [];
+  document.getElementById('histToolsPhotoSection').style.display = toolsPhotos.length ? 'block' : 'none';
+  if(toolsPhotos.length) renderPhotoThumbs('histToolsPhotos', toolsPhotos);
+  document.getElementById('histClosePhotoSection').style.display = closePhotos.length ? 'block' : 'none';
+  if(closePhotos.length) renderPhotoThumbs('histClosePhotos', closePhotos);
+}
+
+// ================= TASKS =================
+let tasksData = [
+  {id:'T1', type:'daily', title:'Check compactor oil level', location:'Yard', assignedBy:'You', priority:null, date:'Today', status:'open'},
+  {id:'T2', type:'daily', title:'Grease conveyor bearings', location:'Unit 3', assignedBy:'You', priority:'preventive', date:'Today', status:'open'},
+  {id:'T3', type:'weekend', title:'Deep clean blender 1', location:'Unit 1', assignedBy:'You', priority:'preventive', date:'Sat 5 Sep', status:'open'},
+  {id:'T4', type:'daily', title:'Fix flickering light — corridor', location:'Unit 2', assignedBy:'You', priority:'reactive', date:'Yesterday', status:'done', doneBy:'Mike Sullivan', doneDesc:'Replaced tube, tested — working.', completedAt:mkPast(0,2,15,40)},
+  {id:'T5', type:'weekend', title:'Check DAF plant pump', location:'Yard', assignedBy:'You', priority:'corrective', date:'Last Sat', status:'done', doneBy:'Sarah M.', doneDesc:'Pump fine, cleared debris in inlet.', completedAt:mkPast(0,29,10,15)},
+  {id:'T6', type:'daily', title:'Top up chiller coolant', location:'Unit 1', assignedBy:'You', priority:'preventive', date:'3 weeks ago', status:'done', doneBy:'Mike Sullivan', doneDesc:'Topped up to level, no leaks found.', completedAt:mkPast(1,18,09,00)},
+  {id:'T7', type:'weekend', title:'Clear yard drain gratings', location:'Yard', assignedBy:'You', priority:null, date:'Last month', status:'done', doneBy:'Mike Sullivan', doneDesc:'Cleared debris from all three gratings.', completedAt:mkPast(1,4,13,20)},
+  {id:'T8', type:'daily', title:'Replace worn conveyor belt guard', location:'Unit 3', assignedBy:'You', priority:'corrective', date:'2 months ago', status:'done', doneBy:'Sarah M.', doneDesc:'Guard replaced and bolted down.', completedAt:mkPast(2,10,14,05)}
+];
+let currentTaskId=null;
+function priorityLabel(p){
+  return p==='reactive' ? 'Reactive' : (p==='corrective' ? 'Corrective' : (p==='preventive' ? 'Preventive' : ''));
+}
+function taskCard(t, showAssignee){
+  const card=document.createElement('div');
+  card.className='task-item';
+  card.onclick=()=>{ openTask(t.id); goto('taskDetail'); };
+  const tag = t.priority ? '<span class="tag-pill '+t.priority+'">'+priorityLabel(t.priority)+'</span>' : '';
+  const metaLine = t.status==='done'
+    ? 'Completed by '+t.doneBy+' · '+t.date
+    : t.date;
+  card.innerHTML =
+    '<div class="row1"><div><div class="ttitle">'+t.title+'</div><div class="tloc">'+t.location+'</div></div>'+tag+'</div>'+
+    '<div class="tmeta">'+metaLine+'</div>';
+  return card;
+}
+function renderTasks(){
+  const dailyWrap=document.getElementById('dailyTasksWrap');
+  const weekendWrap=document.getElementById('weekendTasksWrap');
+  const doneWrap=document.getElementById('completedTasksWrap');
+  dailyWrap.innerHTML=''; weekendWrap.innerHTML=''; doneWrap.innerHTML='';
+  const daily = tasksData.filter(t=>t.type==='daily' && t.status==='open');
+  const weekend = tasksData.filter(t=>t.type==='weekend' && t.status==='open');
+  const done = tasksData.filter(t=>t.status==='done');
+  if(daily.length===0){ dailyWrap.innerHTML='<div class="empty-note">No open daily tasks.</div>'; }
+  else daily.forEach(t=>dailyWrap.appendChild(taskCard(t)));
+  if(weekend.length===0){ weekendWrap.innerHTML='<div class="empty-note">No open weekend tasks.</div>'; }
+  else weekend.forEach(t=>weekendWrap.appendChild(taskCard(t)));
+  if(done.length===0){ doneWrap.innerHTML='<div class="empty-note">Nothing completed yet.</div>'; }
+  else done.forEach(t=>doneWrap.appendChild(taskCard(t)));
+}
+function openTask(id){
+  currentTaskId=id;
+  const t=tasksData.find(x=>x.id===id);
+  if(!t) return;
+  document.getElementById('taskCrumb').textContent = (t.type==='daily' ? 'Daily Task' : 'Weekend Task') + ' · ' + t.date;
+  document.getElementById('taskTitleEl').textContent=t.title;
+  document.getElementById('taskLocEl').textContent=t.location;
+  document.getElementById('taskAssignedEl').textContent = t.assignedTo
+    ? 'Assigned to '+t.assignedTo.join(', ')
+    : 'Assigned by '+t.assignedBy;
+  const tagEl=document.getElementById('taskPriorityTag');
+  if(t.priority){ tagEl.style.display='inline-block'; tagEl.className='tag-pill '+t.priority; tagEl.textContent=priorityLabel(t.priority); }
+  else { tagEl.style.display='none'; }
+  const openSection=document.getElementById('taskOpenSection');
+  const doneSection=document.getElementById('taskDoneSection');
+  if(t.status==='open'){
+    openSection.style.display='block'; doneSection.style.display='none';
+    document.getElementById('taskCloseDesc').value='';
+    document.getElementById('taskClosePhotoRow').innerHTML='<div class="photo-add" onclick="document.getElementById(\'taskCloseFileInput\').click()">+</div>';
+  } else {
+    openSection.style.display='none'; doneSection.style.display='block';
+    document.getElementById('taskDoneByEl').textContent=t.doneBy;
+    document.getElementById('taskDoneDescEl').textContent=t.doneDesc;
+    const donePhotos = t.donePhotos || [];
+    document.getElementById('taskDonePhotoSection').style.display = donePhotos.length ? 'block' : 'none';
+    if(donePhotos.length) renderPhotoThumbs('taskDonePhotos', donePhotos);
+  }
+}
+function completeTask(){
+  const t=tasksData.find(x=>x.id===currentTaskId);
+  if(!t) return;
+  t.status='done';
+  t.doneBy='Mike Sullivan';
+  t.doneDesc=document.getElementById('taskCloseDesc').value.trim() || 'Marked as done, no notes added.';
+  t.completedAt=new Date();
+  t.donePhotos=getPhotosFromRow('taskClosePhotoRow');
+  goto('tasks');
+}
+
+// ================= NEW TASK (Manager only) =================
+let newTaskType=null;
+let newTaskPriority=null;
+let newTaskAssignees=[];
+function resetNewTaskForm(){
+  newTaskType=null; newTaskPriority=null; newTaskAssignees=[];
+  document.getElementById('newTaskTitle').value='';
+  document.getElementById('newTaskLocation').value='';
+  document.getElementById('newTaskDate').value='';
+  document.getElementById('newTaskDesc').value='';
+  document.getElementById('taskTypeDaily').className='sev-btn minor';
+  document.getElementById('taskTypeWeekend').className='sev-btn minor';
+  ['prioReactive','prioCorrective','prioPreventive'].forEach(id=>{
+    document.getElementById(id).style.background='var(--bg-surface)';
+    document.getElementById(id).style.borderColor='var(--border-soft)';
+  });
+  renderNewTaskEngineerRow();
+  validateNewTask();
+}
+function pickTaskType(type){
+  newTaskType=type;
+  document.getElementById('taskTypeDaily').className='sev-btn minor'+(type==='daily'?' selected':'');
+  document.getElementById('taskTypeWeekend').className='sev-btn minor'+(type==='weekend'?' selected':'');
+  validateNewTask();
+}
+function pickTaskPriority(p){
+  newTaskPriority = newTaskPriority===p ? null : p;
+  const map={reactive:'prioReactive', corrective:'prioCorrective', preventive:'prioPreventive'};
+  Object.keys(map).forEach(key=>{
+    const el=document.getElementById(map[key]);
+    const isOn = newTaskPriority===key;
+    el.style.background = isOn ? 'var(--yellow-bg)' : 'var(--bg-surface)';
+    el.style.borderColor = isOn ? 'var(--yellow)' : 'var(--border-soft)';
+  });
+}
+function renderNewTaskEngineerRow(){
+  const wrap=document.getElementById('newTaskEngineerRow');
+  wrap.innerHTML='';
+  engineersList.forEach(name=>{
+    const chip=document.createElement('div');
+    const isOn = newTaskAssignees.includes(name);
+    chip.className='engineer-chip';
+    if(isOn){ chip.style.background='var(--green-bg)'; chip.style.borderColor='var(--green)'; chip.style.color='var(--green-dark)'; }
+    chip.textContent=name;
+    chip.onclick=()=>{
+      if(isOn) newTaskAssignees=newTaskAssignees.filter(n=>n!==name);
+      else newTaskAssignees.push(name);
+      renderNewTaskEngineerRow();
+      validateNewTask();
+    };
+    wrap.appendChild(chip);
+  });
+  document.getElementById('newTaskAssignedNote').textContent = newTaskAssignees.length
+    ? 'Assigned to: '+newTaskAssignees.join(', ')
+    : 'Tap engineers to assign — you can pick more than one.';
+}
+function validateNewTask(){
+  const title=document.getElementById('newTaskTitle').value.trim();
+  const loc=document.getElementById('newTaskLocation').value.trim();
+  const date=document.getElementById('newTaskDate').value;
+  const ok = title && loc && date && newTaskType && newTaskAssignees.length>0;
+  document.getElementById('newTaskSubmitBtn').disabled = !ok;
+}
+let taskIdCounter=9;
+function submitNewTask(){
+  const title=document.getElementById('newTaskTitle').value.trim();
+  const loc=document.getElementById('newTaskLocation').value.trim();
+  const dateVal=document.getElementById('newTaskDate').value;
+  const desc=document.getElementById('newTaskDesc').value.trim();
+  if(!title || !loc || !dateVal || !newTaskType || newTaskAssignees.length===0) return;
+  const dateObj=new Date(dateVal+'T00:00:00');
+  const dateLabel=dateObj.toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+  tasksData.unshift({
+    id:'T'+(taskIdCounter++),
+    type:newTaskType,
+    title:title,
+    location:loc,
+    assignedBy:'You',
+    assignedTo:newTaskAssignees.slice(),
+    priority:newTaskPriority,
+    date:dateLabel,
+    status:'open',
+    description:desc
+  });
+  goto('tasks');
+}
+const _origGotoForTaskReset = goto;
+goto = function(id){
+  _origGotoForTaskReset(id);
+  if(id==='taskNew') resetNewTaskForm();
+};
+
+// ================= ORDERS =================
+let ordersData = [
+  {id:'OR-501', part:'Capper drive belt', qty:2, urgent:true, requestedBy:'Mike Sullivan', status:'pending', createdDate:'2 Sep'},
+  {id:'OR-499', part:'Filling nozzle set', qty:1, urgent:false, requestedBy:'Sarah M.', status:'pending', createdDate:'29 Aug'},
+  {id:'OR-500', part:'Blender bearing 6205', qty:4, urgent:false, requestedBy:'Mike Sullivan', status:'ordered', createdDate:'30 Aug', orderedDate:'1 Sep'}
+];
+let orderIdCounter=502;
+function orderCard(o){
+  const card=document.createElement('div');
+  card.className='order-item';
+  const urgentTag = o.urgent ? '<span class="urgent-tag">Urgent</span>' : '';
+  const dateLine = o.status==='ordered' ? 'Requested '+o.createdDate+' · Ordered '+o.orderedDate : 'Requested '+o.createdDate;
+  const markOrderedBtn = o.status==='pending' ? '<div class="link-btn" onclick="markOrdered(\''+o.id+'\')">Mark as Ordered</div>' : '';
+  card.innerHTML =
+    '<div class="row1"><div><div class="pname">'+o.part+'</div><div class="qty">Qty '+o.qty+' · '+o.requestedBy+'</div></div>'+urgentTag+'</div>'+
+    '<div class="foot"><div class="date">'+dateLine+'</div>'+
+    '<div style="display:flex; gap:14px;">'+markOrderedBtn+
+    '<div class="link-btn" onclick="deleteOrder(\''+o.id+'\')">Delete</div></div>'+
+    '</div>';
+  return card;
+}
+function markOrdered(id){
+  const o=ordersData.find(x=>x.id===id);
+  if(!o) return;
+  o.status='ordered';
+  o.orderedDate='Today';
+  renderOrders();
+}
+function renderOrders(){
+  const pendingWrap=document.getElementById('pendingOrdersWrap');
+  const orderedWrap=document.getElementById('orderedOrdersWrap');
+  pendingWrap.innerHTML=''; orderedWrap.innerHTML='';
+  const pending = ordersData.filter(o=>o.status==='pending');
+  const ordered = ordersData.filter(o=>o.status==='ordered');
+  if(pending.length===0){ pendingWrap.innerHTML='<div class="empty-note">No pending requests.</div>'; }
+  else pending.forEach(o=>pendingWrap.appendChild(orderCard(o)));
+  if(ordered.length===0){ orderedWrap.innerHTML='<div class="empty-note">Nothing ordered yet.</div>'; }
+  else ordered.forEach(o=>orderedWrap.appendChild(orderCard(o)));
+}
+function deleteOrder(id){
+  if(!window.confirm('Delete this order request?')) return;
+  const idx=ordersData.findIndex(o=>o.id===id);
+  if(idx>-1) ordersData.splice(idx,1);
+  renderOrders();
+}
+let urgentOn=false;
+function toggleUrgent(){
+  urgentOn=!urgentOn;
+  document.getElementById('urgentToggle').classList.toggle('on', urgentOn);
+}
+function validateOrderSubmit(){
+  const part=document.getElementById('orderPart').value.trim();
+  const qty=document.getElementById('orderQty').value.trim();
+  document.getElementById('orderSubmitBtn').disabled = !(part && qty);
+}
+function submitOrder(){
+  const part=document.getElementById('orderPart').value.trim();
+  const qty=document.getElementById('orderQty').value.trim();
+  if(!part || !qty) return;
+  ordersData.unshift({id:'OR-'+(orderIdCounter++), part:part, qty:qty, urgent:urgentOn, requestedBy:'Mike Sullivan', status:'pending', createdDate:'Today'});
+  document.getElementById('orderPart').value='';
+  document.getElementById('orderQty').value='';
+  urgentOn=false;
+  document.getElementById('urgentToggle').classList.remove('on');
+  document.getElementById('orderSubmitBtn').disabled=true;
+  goto('orderConfirm');
+}
+
+// ================= HOLIDAY (Manager approves the team's requests) =================
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function calcWorkingDays(start, end){
+  let count=0;
+  const d=new Date(start);
+  while(d<=end){
+    const day=d.getDay();
+    if(day!==0 && day!==6) count++;
+    d.setDate(d.getDate()+1);
+  }
+  return count;
+}
+function formatDateShort(d){ return d.getDate()+' '+MONTHS[d.getMonth()]; }
+function formatDateRange(s,e){
+  if(s.getMonth()===e.getMonth() && s.getFullYear()===e.getFullYear()){
+    return s.getDate()+'–'+e.getDate()+' '+MONTHS[e.getMonth()];
+  }
+  return formatDateShort(s)+' – '+formatDateShort(e);
+}
+function mkHolDate(offsetDays){
+  const d=new Date(); d.setDate(d.getDate()+offsetDays); d.setHours(0,0,0,0); return d;
+}
+let holidayIdCounter=1;
+let holidayRequests=[
+  {id:'h'+(holidayIdCounter++), employee:'Sarah M.', start:mkHolDate(11), end:mkHolDate(13), status:'pending', submitted:mkHolDate(-1)},
+  {id:'h'+(holidayIdCounter++), employee:'Dave K.', start:mkHolDate(19), end:mkHolDate(19), status:'pending', submitted:mkHolDate(-1)},
+  {id:'h'+(holidayIdCounter++), employee:'Tomasz W.', start:mkHolDate(28), end:mkHolDate(29), status:'approved', submitted:mkHolDate(-3)},
+  {id:'h'+(holidayIdCounter++), employee:'Sarah M.', start:mkHolDate(-6), end:mkHolDate(-5), status:'approved', submitted:mkHolDate(-10)},
+  {id:'h'+(holidayIdCounter++), employee:'Dave K.', start:mkHolDate(5), end:mkHolDate(5), status:'rejected', submitted:mkHolDate(-4)}
+];
+holidayRequests.forEach(r=>{ r.days = calcWorkingDays(r.start, r.end); });
+function setHolidayTab(tab){
+  document.getElementById('holTabRequests').classList.toggle('active', tab==='requests');
+  document.getElementById('holTabCalendar').classList.toggle('active', tab==='calendar');
+  document.getElementById('holReqPanel').style.display = tab==='requests' ? 'block' : 'none';
+  document.getElementById('holCalPanel').style.display = tab==='calendar' ? 'block' : 'none';
+  if(tab==='requests') renderHolidayRequests();
+  else renderHolidayCalendar();
+}
+function holidayCard(r, showActions){
+  const card=document.createElement('div');
+  card.className='holiday-item';
+  card.style.cursor='pointer';
+  card.onclick=(e)=>{ if(e.target.tagName==='BUTTON') return; openHolidayMiniCal(r.id); };
+  const badgeClass = r.status==='pending' ? 'pool' : (r.status==='approved' ? 'taken' : 'rejected');
+  const badgeText = r.status==='pending' ? 'Pending' : (r.status==='approved' ? 'Approved' : 'Rejected');
+  card.innerHTML =
+    '<div class="row1"><div><div class="dates">'+r.employee+'</div>'+
+    '<div class="duration">'+formatDateRange(r.start,r.end)+' · '+r.days+' working '+(r.days===1?'day':'days')+'</div>'+
+    '</div><span class="badge '+badgeClass+'">'+badgeText+'</span></div>'+
+    (showActions ? '<div class="notif-actions">'+
+      '<button class="approve" onclick="decideHoliday(\''+r.id+'\',\'approved\',event)">Approve</button>'+
+      '<button class="reject" onclick="decideHoliday(\''+r.id+'\',\'rejected\',event)">Reject</button>'+
+      '</div>' : '<div class="submitted">Requested '+formatDateShort(r.submitted)+'</div>');
+  return card;
+}
+function renderHolidayRequests(){
+  const wrap=document.getElementById('holReqWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const pending = holidayRequests.filter(r=>r.status==='pending');
+  const approved = holidayRequests.filter(r=>r.status==='approved');
+  const rejected = holidayRequests.filter(r=>r.status==='rejected');
+  const section=(label, list, showActions)=>{
+    if(!list.length) return;
+    const lbl=document.createElement('div'); lbl.className='section-label'; lbl.textContent=label; wrap.appendChild(lbl);
+    list.forEach(r=>wrap.appendChild(holidayCard(r, showActions)));
+  };
+  section('Pending', pending, true);
+  section('Approved', approved, false);
+  section('Rejected', rejected, false);
+  if(!holidayRequests.length) wrap.innerHTML='<div class="empty-note">No holiday requests.</div>';
+}
+function decideHoliday(id, decision, event){
+  if(event) event.stopPropagation();
+  const r=holidayRequests.find(x=>x.id===id);
+  if(!r) return;
+  r.status=decision;
+  renderHolidayRequests();
+  renderHolidayCalendar();
+}
+
+// ---- calendar grid helpers (shared by full calendar + mini calendar) ----
+const WEEKDAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+function firstWeekdayIndex(y,m){ const d=new Date(y,m,1).getDay(); return (d+6)%7; }
+function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function dateInRange(d, start, end){
+  const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const s=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+  const e=new Date(end.getFullYear(),end.getMonth(),end.getDate());
+  return dd>=s && dd<=e;
+}
+function buildMonthGrid(containerId, year, month, highlights, onDayClick){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML='';
+  const head=document.createElement('div'); head.className='cal-weekdays';
+  WEEKDAYS.forEach(w=>{ const s=document.createElement('div'); s.textContent=w; head.appendChild(s); });
+  el.appendChild(head);
+  const grid=document.createElement('div'); grid.className='cal-grid';
+  const firstIdx=firstWeekdayIndex(year,month);
+  const totalDays=daysInMonth(year,month);
+  const today=new Date();
+  for(let i=0;i<firstIdx;i++){ const s=document.createElement('div'); s.className='cal-cell empty'; grid.appendChild(s); }
+  for(let day=1; day<=totalDays; day++){
+    const cellDate=new Date(year,month,day);
+    const cell=document.createElement('div');
+    cell.className='cal-cell';
+    const matches=highlights.filter(h=>dateInRange(cellDate, h.start, h.end));
+    if(matches.length){
+      cell.classList.add('has-leave');
+      if(matches.some(m=>m.status==='pending')) cell.classList.add('pending');
+    }
+    if(isSameDay(cellDate, today)) cell.classList.add('today');
+    cell.innerHTML='<span class="num">'+day+'</span>'+(matches.length ? '<span class="dot"></span>' : '');
+    if(matches.length && onDayClick) cell.onclick=()=>onDayClick(cellDate, matches);
+    grid.appendChild(cell);
+  }
+  el.appendChild(grid);
+}
+let calViewDate = new Date();
+function renderHolidayCalendar(){
+  const y=calViewDate.getFullYear(), m=calViewDate.getMonth();
+  const lbl=document.getElementById('calMonthLabel');
+  if(!lbl) return;
+  lbl.textContent = calViewDate.toLocaleDateString('en-GB',{month:'long', year:'numeric'});
+  const relevant = holidayRequests.filter(r=>r.status==='approved' || r.status==='pending');
+  buildMonthGrid('holCalGrid', y, m, relevant, showDayInfo);
+  document.getElementById('calDayInfo').style.display='none';
+}
+function calPrevMonth(){ calViewDate.setMonth(calViewDate.getMonth()-1); renderHolidayCalendar(); }
+function calNextMonth(){ calViewDate.setMonth(calViewDate.getMonth()+1); renderHolidayCalendar(); }
+function showDayInfo(date, matches){
+  const el=document.getElementById('calDayInfo');
+  const names = matches.map(m=>m.employee+(m.status==='pending'?' (pending)':'')).join(', ');
+  el.textContent = 'On leave ' + date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ': ' + names;
+  el.style.display='block';
+}
+function openHolidayMiniCal(id){
+  const r=holidayRequests.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('miniCalTitle').textContent = r.employee;
+  document.getElementById('miniCalDates').textContent = formatDateRange(r.start,r.end)+' · '+r.days+' '+(r.days===1?'working day':'working days');
+  const statusBadge=document.getElementById('miniCalStatus');
+  statusBadge.className = 'badge '+(r.status==='approved' ? 'taken' : r.status==='rejected' ? 'rejected' : 'pool');
+  statusBadge.textContent = r.status==='approved' ? 'Approved' : r.status==='rejected' ? 'Rejected' : 'Pending';
+  buildMonthGrid('miniCalGrid', r.start.getFullYear(), r.start.getMonth(), [r], null);
+  goto('holidayMiniCal');
+}
+
+// ================= SHIFTS =================
+let shiftIdCounter=1;
+let shiftsData=[
+  {id:'S'+(shiftIdCounter++), name:'Morning Shift', start:'06:00', end:'14:00', active:true, assignedEngineers:['Sarah M.', 'Dave K.']},
+  {id:'S'+(shiftIdCounter++), name:'Afternoon Shift', start:'14:00', end:'22:00', active:true, assignedEngineers:['Tomasz W.']},
+  {id:'S'+(shiftIdCounter++), name:'Night Shift', start:'22:00', end:'06:00', active:false, assignedEngineers:[]}
+];
+let shiftEditingId=null;
+let shiftEditAssignees=[];
+let newShiftAssignees=[];
+function shiftDurationLabel(start,end){
+  const [sh,sm]=start.split(':').map(Number);
+  const [eh,em]=end.split(':').map(Number);
+  let mins=(eh*60+em)-(sh*60+sm);
+  if(mins<=0) mins+=24*60;
+  const h=Math.floor(mins/60), m=mins%60;
+  return h+'h'+(m ? ' '+m+'m' : '')+' shift';
+}
+function engineerChipRow(containerId, selected, onToggle){
+  const wrap=document.getElementById(containerId);
+  if(!wrap) return;
+  wrap.innerHTML='';
+  engineersList.forEach(name=>{
+    const chip=document.createElement('div');
+    const isOn = selected.includes(name);
+    chip.className='engineer-chip';
+    if(isOn){ chip.style.background='var(--green-bg)'; chip.style.borderColor='var(--green)'; chip.style.color='var(--green-dark)'; }
+    chip.textContent=name;
+    chip.onclick=()=>onToggle(name);
+    wrap.appendChild(chip);
+  });
+}
+function renderShifts(){
+  const wrap=document.getElementById('shiftsWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  shiftsData.forEach(s=>{
+    const card=document.createElement('div');
+    card.className='shift-card'+(s.active ? '' : ' inactive');
+    if(shiftEditingId===s.id){
+      card.innerHTML =
+        '<div class="row1"><div>'+
+        '<div class="name">'+s.name+'</div>'+
+        '</div></div>'+
+        '<div class="shift-edit-row">'+
+        '<div class="field"><div class="field-label">Start</div><input type="time" id="editStart_'+s.id+'" value="'+s.start+'"></div>'+
+        '<div class="field"><div class="field-label">End</div><input type="time" id="editEnd_'+s.id+'" value="'+s.end+'"></div>'+
+        '</div>'+
+        '<div class="field-label">Engineers</div>'+
+        '<div class="engineer-pick-row" id="editEngineerRow_'+s.id+'"></div>'+
+        '<div class="shift-card-actions">'+
+        '<button onclick="cancelEditShift()">Cancel</button>'+
+        '<button class="save" onclick="saveShiftEdit(\''+s.id+'\')">Save</button>'+
+        '</div>';
+      wrap.appendChild(card);
+      const rerenderEditRow = ()=>{
+        engineerChipRow('editEngineerRow_'+s.id, shiftEditAssignees, (name)=>{
+          if(shiftEditAssignees.includes(name)) shiftEditAssignees=shiftEditAssignees.filter(n=>n!==name);
+          else shiftEditAssignees.push(name);
+          rerenderEditRow();
+        });
+      };
+      rerenderEditRow();
+    } else {
+      const engText = s.assignedEngineers.length ? s.assignedEngineers.join(', ') : 'No engineers assigned';
+      card.innerHTML =
+        '<div class="row1"><div>'+
+        '<div class="name">'+s.name+'</div>'+
+        '<div class="time-range">'+s.start+' – '+s.end+'</div>'+
+        '<div class="shift-duration-tag">'+shiftDurationLabel(s.start,s.end)+'</div>'+
+        '</div>'+
+        '<div class="shift-toggle'+(s.active?' on':'')+'" onclick="toggleShiftActive(\''+s.id+'\')"><div class="knob"></div></div>'+
+        '</div>'+
+        '<div class="duration" style="margin-top:8px;">'+engText+'</div>'+
+        '<div class="shift-card-actions">'+
+        '<button onclick="startEditShift(\''+s.id+'\')">Edit Shift</button>'+
+        '</div>';
+      wrap.appendChild(card);
+    }
+  });
+  if(!shiftsData.length) wrap.innerHTML='<div class="empty-note">No shifts set up yet.</div>';
+}
+function toggleShiftActive(id){
+  const s=shiftsData.find(x=>x.id===id);
+  if(!s) return;
+  s.active=!s.active;
+  renderShifts();
+}
+function startEditShift(id){
+  const s=shiftsData.find(x=>x.id===id);
+  if(!s) return;
+  shiftEditingId=id;
+  shiftEditAssignees=s.assignedEngineers.slice();
+  renderShifts();
+}
+function cancelEditShift(){
+  shiftEditingId=null;
+  shiftEditAssignees=[];
+  renderShifts();
+}
+function saveShiftEdit(id){
+  const s=shiftsData.find(x=>x.id===id);
+  if(!s) return;
+  const startEl=document.getElementById('editStart_'+id), endEl=document.getElementById('editEnd_'+id);
+  if(!startEl.value || !endEl.value) return;
+  s.start=startEl.value;
+  s.end=endEl.value;
+  s.assignedEngineers=shiftEditAssignees.slice();
+  shiftEditingId=null;
+  shiftEditAssignees=[];
+  renderShifts();
+}
+function renderNewShiftEngineerRow(){
+  engineerChipRow('newShiftEngineerRow', newShiftAssignees, (name)=>{
+    if(newShiftAssignees.includes(name)) newShiftAssignees=newShiftAssignees.filter(n=>n!==name);
+    else newShiftAssignees.push(name);
+    renderNewShiftEngineerRow();
+  });
+  document.getElementById('newShiftAssignedNote').textContent = newShiftAssignees.length
+    ? 'Assigned: '+newShiftAssignees.join(', ')
+    : 'Tap engineers to assign — you can pick more than one.';
+}
+function validateNewShift(){
+  const name=document.getElementById('newShiftName').value.trim();
+  const start=document.getElementById('newShiftStart').value;
+  const end=document.getElementById('newShiftEnd').value;
+  document.getElementById('newShiftSubmitBtn').disabled = !(name && start && end);
+}
+function resetNewShiftForm(){
+  document.getElementById('newShiftName').value='';
+  document.getElementById('newShiftStart').value='';
+  document.getElementById('newShiftEnd').value='';
+  newShiftAssignees=[];
+  renderNewShiftEngineerRow();
+  document.getElementById('newShiftSubmitBtn').disabled=true;
+}
+function submitNewShift(){
+  const name=document.getElementById('newShiftName').value.trim();
+  const start=document.getElementById('newShiftStart').value;
+  const end=document.getElementById('newShiftEnd').value;
+  if(!name || !start || !end) return;
+  shiftsData.push({id:'S'+(shiftIdCounter++), name:name, start:start, end:end, active:true, assignedEngineers:newShiftAssignees.slice()});
+  resetNewShiftForm();
+  renderShifts();
+  goto('shiftsScreen');
+}
+
+// ================= NOTIFICATIONS =================
+const notifMock = [
+  {title:'New task assigned — Grease conveyor bearings', time:'Today 07:15', body:'You assigned you a daily task in Unit 3.', unread:true},
+  {title:'Safety reminder', time:'3 days ago', body:'PPE is mandatory in Unit 1 while contractor works are ongoing.', unread:false}
+];
+function buildNotifications(){
+  const wrap=document.getElementById('notifList');
+  wrap.innerHTML='';
+  notifMock.forEach(n=>{
+    const el=document.createElement('div');
+    el.className='notif-item'+(n.unread?' unread':'');
+    el.innerHTML =
+      '<div class="top">'+(n.unread?'<span class="udot"></span>':'')+
+      '<div class="title">'+n.title+'</div>'+
+      '<div class="time">'+n.time+'</div></div>'+
+      '<div class="body">'+n.body+'</div>';
+    el.onclick=()=>{ n.unread=false; buildNotifications(); };
+    wrap.appendChild(el);
+  });
+  updateNotifBadge();
+}
+function updateNotifBadge(){
+  const anyUnread = notifMock.some(n=>n.unread);
+  const menuDot=document.getElementById('menuNotifDot');
+  const burgerDot=document.getElementById('burgerDot');
+  if(menuDot) menuDot.style.display = anyUnread ? 'block':'none';
+  if(burgerDot) burgerDot.style.display = anyUnread ? 'block':'none';
+}
+
+// ================= init =================
+renderMyJobs();
+renderPool();
+renderRework();
+renderOverview();
+renderTasks();
+renderOrders();
+renderHistory();
+renderHolidayRequests();
+renderShifts();
+buildNotifications();
+updateClockBtnLabel();
+
+// keep tasks/orders/history/holiday/shifts lists fresh whenever their screens are opened
+const _gotoForRefresh = goto;
+goto = function(id){
+  _gotoForRefresh(id);
+  if(id==='tasks') renderTasks();
+  if(id==='orders') renderOrders();
+  if(id==='history') renderHistory();
+  if(id==='holidayScreen') setHolidayTab('requests');
+  if(id==='shiftsScreen'){ shiftEditingId=null; renderShifts(); }
+  if(id==='shiftNew') resetNewShiftForm();
+};
+</script>
+</body>
+</html>

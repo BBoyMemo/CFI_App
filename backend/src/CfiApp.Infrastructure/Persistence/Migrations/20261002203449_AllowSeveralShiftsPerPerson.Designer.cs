@@ -3,6 +3,7 @@ using System;
 using CfiApp.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace CfiApp.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CfiAppDbContext))]
-    partial class CfiAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261002203449_AllowSeveralShiftsPerPerson")]
+    partial class AllowSeveralShiftsPerPerson
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2168,29 +2171,6 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.ToTable("MaintenanceTasks");
                 });
 
-            modelBuilder.Entity("CfiApp.Domain.Work.PartOrderPhoto", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("MediaAssetId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PartOrderRequestId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MediaAssetId");
-
-                    b.HasIndex("PartOrderRequestId");
-
-                    b.ToTable("PartOrderPhotos");
-                });
-
             modelBuilder.Entity("CfiApp.Domain.Work.PartOrderRequest", b =>
                 {
                     b.Property<int>("Id")
@@ -2968,25 +2948,6 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("CfiApp.Domain.Work.PartOrderPhoto", b =>
-                {
-                    b.HasOne("CfiApp.Domain.Media.MediaAsset", "MediaAsset")
-                        .WithMany()
-                        .HasForeignKey("MediaAssetId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("CfiApp.Domain.Work.PartOrderRequest", "PartOrderRequest")
-                        .WithMany("Photos")
-                        .HasForeignKey("PartOrderRequestId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("MediaAsset");
-
-                    b.Navigation("PartOrderRequest");
-                });
-
             modelBuilder.Entity("CfiApp.Domain.Work.PartOrderRequest", b =>
                 {
                     b.HasOne("CfiApp.Domain.Identity.User", "RequestedBy")
@@ -3150,11 +3111,6 @@ namespace CfiApp.Infrastructure.Persistence.Migrations
                     b.Navigation("Completions");
 
                     b.Navigation("ProgressNotes");
-                });
-
-            modelBuilder.Entity("CfiApp.Domain.Work.PartOrderRequest", b =>
-                {
-                    b.Navigation("Photos");
                 });
 
             modelBuilder.Entity("CfiApp.Domain.Work.TaskCompletion", b =>

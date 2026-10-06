@@ -308,6 +308,56 @@ kullanıcı girdisi olmadan büyük ölçüde ilerlenebilir)
 
 ---
 
+## 2026-10-02 — Shift Planning: Team herkesi gösterir, çakışma günlere göre
+
+**Neden:** İsim sürüklenince Team'den düşüyordu; bu yüzden aynı kişi örneğin hem hafta içi hem
+weekend vardiyasına konamıyordu. Kullanıcıyla anlaşılan kural: sürüklemek atamadır, isim
+Team'de kalır; aynı günü paylaşan iki vardiya olamaz, olursa uyarı + onay + taşıma.
+
+**Model:** "Kişi başına tek ekip / tek rota satırı" indeksleri "vardiya başına bir kez" olarak
+değişti (`(ShiftTypeId, UserId)`, `(UserId, ActiveShiftId, EffectiveTo)`). Çakışma kuralı
+serviste: hedefle ortak günü olan ekip/rota varsa `MoveFromClashing` olmadan 409; onayla eski
+vardiyalardan o tarihten itibaren çıkarır. Resolver'da cover artık sadece vardiyanın çalıştığı
+günlerde geçerli. Migration sadece indeks — veri değişmedi.
+
+**Ekran:** Team her zaman tam liste, isim altında vardiya adları. Tek panel: başlangıç +
+isteğe bağlı bitiş (bitiş varsa geçici, sonra eski vardiyaya dönüş). Aynı vardiyaya tekrar
+bırakmak engellenip ekranda söyleniyor.
+
+**Test:** 247/247 yeşil (6 yeni). Web: lint + i18n (399 anahtar × 4 dil) + build temiz.
+
+---
+
+## 2026-10-02 — Shift Planning: ekip shift kolonunda, tarih sadece havuzdan
+
+**Neden:** Kullanıcının asıl istediği netleşti: elemanlar havuzdaki vardiyaya değil, shift
+kolonundaki vardiyaya konuyor; havuz sadece neyin çalıştığının özeti; tarihe yalnızca havuzda
+olan (running) yazılıyor. Ayrıca iki hata: havuza konan ama başlangıcı ileride olan vardiya
+ekranda görünmüyordu, havuzdan çıkarılan vardiya "bugün bitiyor" diye kapandığı için ekrandan
+kalkmıyordu.
+
+**Model:** `ShiftTypeMember` eklendi — vardiyanın taslak ekibi, tarihe geçmez, kişi başına tek
+ekip (unique `UserId`). Havuza koyunca ekip o tarihten rotaya yazılır; vardiya havuzdayken
+yapılan ekip değişikliği aynı anda rotaya da tarihli yazılır. Migration mevcut havuz
+atamalarından ekipleri geri doldurdu (veri kaybı yok).
+
+**Uçlar:** `GET /shifts/planner` (ekip + havuz + boştakiler), `POST /shifts/crew`,
+`POST /shifts/crew/{id}/remove`, `GET /shifts/history?search=&on=`,
+`GET /shifts/history/{id}?week=`. Eski `POST /shifts/roster`, `/roster/{id}/end` ve
+`GET /shifts/changes` kaldırıldı.
+
+**Ekran:** Team (dar) · Shifts (geniş, ekipler burada, başlangıç tarihi kartta) · Pool (dar,
+isimsiz). Shift History: liste (arama: vardiya/çalışan adı + tarih) → vardiya detayı (hafta
+hafta kim hangi gün çalıştı + eleman değişiklikleri).
+
+**Düzeltilen hatalar:** havuzdan çıkarma artık dünü son gün yapıyor; başlamamış vardiya
+planlayıcıda görünüyor; taşınırken kişinin bitiş tarihi önceden konmuş satırı da kapanıyor
+(kimse iki vardiyada kalmıyor); "zaten burada" kontrolü öne çekilen taşımayı yutmuyor.
+
+**Test:** 241/241 yeşil. Web: lint + i18n (396 anahtar × 4 dil) + build temiz.
+
+---
+
 ## 2026-09-18 — Shift Planning yeniden tasarlandı / şablon + havuz
 
 **Neden:** Haftalık ızgara planlayıcı işin şeklini yanlış modelliyordu. Aynı insanlar her

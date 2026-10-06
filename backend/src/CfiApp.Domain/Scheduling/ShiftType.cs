@@ -58,6 +58,32 @@ public sealed class ShiftType : Entity, IAuditable, IDeactivatable
 }
 
 /// <summary>
+/// Who is on a shift as it is drawn up - the crew in the shift column.
+///
+/// This is a working draft, not a record. Nothing here goes into history: people can be
+/// moved on and off a shift that is not running as often as the planner likes. History only
+/// starts once the shift is in the pool, and while it is, every change made here is also
+/// written to the rota (<see cref="ShiftRosterEntry"/>) with its date.
+///
+/// A person can be on several crews, as long as the shifts never share a day of the week -
+/// mornings in the week and a weekend shift is a normal rota. Two shifts on the same day
+/// is not, and joining one means leaving the other; that rule lives in the roster service.
+/// </summary>
+public sealed class ShiftTypeMember : Entity, IAuditable
+{
+    public int ShiftTypeId { get; set; }
+    public ShiftType? ShiftType { get; set; }
+
+    public int UserId { get; set; }
+    public User? User { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
+    public int? CreatedByUserId { get; set; }
+    public DateTimeOffset? UpdatedAt { get; set; }
+    public int? UpdatedByUserId { get; set; }
+}
+
+/// <summary>
 /// A shift that is actually being worked - the pool. People go on these, not on templates.
 ///
 /// It carries its own copy of the name, hours and days rather than reading them from the
@@ -112,9 +138,9 @@ public sealed class ShiftRosterEntry : Entity, IAuditable
 
     /// <summary>
     /// The last day this row applies to. A row that is still in force carries
-    /// <see cref="DateOnly.MaxValue"/> rather than null: that is what lets "one person is on
-    /// one shift" be a unique index the database enforces, instead of a rule the service has
-    /// to remember. A filtered index would say it more plainly but is written in provider
+    /// <see cref="DateOnly.MaxValue"/> rather than null: that is what lets "one current row
+    /// per person per shift" be a unique index the database enforces, instead of a rule the
+    /// service has to remember. A filtered index would say it more plainly but is written in provider
     /// specific SQL, and this schema has to survive a move to SQL Server.
     /// </summary>
     public DateOnly EffectiveTo { get; set; } = DateOnly.MaxValue;

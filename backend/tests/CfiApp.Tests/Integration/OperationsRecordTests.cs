@@ -69,56 +69,54 @@ public sealed class OperationsRecordTests(CfiAppApiFactory factory)
     }
 
     [Fact]
-    public async Task The_database_itself_refuses_putting_someone_on_two_shifts_at_once()
+    public async Task The_database_allows_two_shifts_but_refuses_the_same_one_twice()
     {
         await SeedAsync();
         var userId = await NewUserIdAsync();
 
-        int morningId, nightId;
+        int weekdayId, weekendId;
         await using (var scope = factory.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
 
-            var morning = new ActiveShift
+            var weekday = new ActiveShift
             {
-                Name = $"Morning {Guid.NewGuid():N}",
+                Name = $"Weekday {Guid.NewGuid():N}",
                 StartTime = new TimeOnly(6, 0),
                 EndTime = new TimeOnly(14, 0),
                 Weekdays = Weekdays.WorkingWeek,
                 StartsOn = new DateOnly(2026, 1, 1)
             };
 
-            var night = new ActiveShift
+            var weekend = new ActiveShift
             {
-                Name = $"Night {Guid.NewGuid():N}",
-                StartTime = new TimeOnly(22, 0),
-                EndTime = new TimeOnly(6, 0),
-                Weekdays = Weekdays.WorkingWeek,
+                Name = $"Weekend {Guid.NewGuid():N}",
+                StartTime = new TimeOnly(6, 0),
+                EndTime = new TimeOnly(14, 0),
+                Weekdays = Weekdays.Saturday | Weekdays.Sunday,
                 StartsOn = new DateOnly(2026, 1, 1)
             };
 
-            context.ActiveShifts.AddRange(morning, night);
+            context.ActiveShifts.AddRange(weekday, weekend);
             await context.SaveChangesAsync();
-            morningId = morning.Id;
-            nightId = night.Id;
+            weekdayId = weekday.Id;
+            weekendId = weekend.Id;
 
-            context.ShiftRosterEntries.Add(new ShiftRosterEntry
-            {
-                UserId = userId,
-                ActiveShiftId = morningId,
-                EffectiveFrom = new DateOnly(2026, 9, 7)
-            });
+            // Weekdays and a weekend at the same time is a normal rota, so the database allows it.
+            context.ShiftRosterEntries.AddRange(
+                new ShiftRosterEntry { UserId = userId, ActiveShiftId = weekdayId, EffectiveFrom = new DateOnly(2026, 9, 7) },
+                new ShiftRosterEntry { UserId = userId, ActiveShiftId = weekendId, EffectiveFrom = new DateOnly(2026, 9, 7) });
             await context.SaveChangesAsync();
         }
 
-        // Nobody works two shifts at the same time. The service closes the old row before
-        // opening a new one; this is the guard for when something bypasses it.
+        // Two current rows on the same shift is never right. The service closes one before
+        // opening the next; this is the guard for when something bypasses it.
         await using var clashScope = factory.CreateScope();
         var clashContext = clashScope.ServiceProvider.GetRequiredService<CfiAppDbContext>();
         clashContext.ShiftRosterEntries.Add(new ShiftRosterEntry
         {
             UserId = userId,
-            ActiveShiftId = nightId,
+            ActiveShiftId = weekdayId,
             EffectiveFrom = new DateOnly(2026, 9, 14)
         });
 

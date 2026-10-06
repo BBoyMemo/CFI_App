@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Mainty — Production Manager Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-page:#F5EFE2;
+    --bg-base:#FFFFFF;
+    --bg-surface:#FBF7EE;
+    --bg-raised:#F1E6D0;
+    --bg-raised-2:#E8DAB9;
+    --border:#E1D3B3;
+    --border-soft:#ECE1C8;
+    --text:#3B2A19;
+    --text-muted:#8A7355;
+    --text-dim:#A8926B;
+    --brown:#6B4A2E;
+    --brown-dark:#4A3320;
+    --brown-bg:#EFE1CC;
+    --green:#4E7A3B;
+    --green-dark:#2F4F22;
+    --green-bg:#E4EFDA;
+    --yellow:#E7A93A;
+    --yellow-dark:#8A5E15;
+    --yellow-bg:#FBEBC9;
+    --radius:14px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 20% -10%, #FBF3E1 0%, var(--bg-page) 45%),
+      var(--bg-page);
+    min-height:100vh;
+    font-family:'Inter',sans-serif;
+    color:var(--text);
+    display:flex;
+    align-items:flex-start;
+    justify-content:center;
+    padding:28px 12px;
+  }
+  .caption{
+    position:fixed; top:10px; left:50%; transform:translateX(-50%);
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--text-dim); z-index:50;
+  }
+  .phone{
+    width:390px; max-width:100%;
+    background:var(--bg-base);
+    border:1px solid var(--border);
+    border-radius:34px;
+    padding:10px;
+    box-shadow:0 30px 70px -25px rgba(80,60,30,.25), 0 0 0 1px rgba(255,255,255,.5) inset;
+    position:relative;
+  }
+  .screen{
+    background:var(--bg-base);
+    border-radius:26px;
+    overflow:hidden;
+    position:relative;
+    height:800px;
+    display:flex;
+    flex-direction:column;
+  }
+
+  .status-strip{
+    display:flex; align-items:center; gap:6px;
+    padding:10px 16px 8px 16px;
+    background:var(--bg-base);
+    flex-shrink:0;
+  }
+  .led{width:6px;height:6px;border-radius:50%;background:var(--border);}
+  .led.on{background:var(--green); box-shadow:0 0 6px 1px rgba(78,122,59,.45);}
+  .led.pulse{animation:pulse 1.8s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+  .status-strip .label{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.14em;
+    color:var(--text-muted); text-transform:uppercase; margin-left:4px;
+  }
+  .status-strip .spacer{flex:1;}
+  .status-strip .clock{
+    font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted);
+  }
+
+  .appbar{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 14px 16px 14px;
+    flex-shrink:0;
+  }
+  .appbar-text{min-width:0; overflow:hidden;}
+  .burger{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:4px; cursor:pointer; position:relative;
+  }
+  .burger span{width:16px;height:2px;background:var(--brown); border-radius:2px;}
+  .burger .dot{
+    position:absolute; top:-3px; right:-3px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-base); display:none;
+  }
+  .appbar-title{font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:15.5px; color:var(--brown-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .appbar-sub{font-size:10.5px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .back-btn{
+    width:38px;height:38px; border-radius:10px; background:var(--bg-surface);
+    border:1px solid var(--border-soft); color:var(--brown);
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    font-size:18px;
+  }
+
+  .floating-controls{
+    position:absolute; top:48px; right:14px; z-index:30;
+    display:flex; align-items:center; gap:8px;
+  }
+  .hdr-status-text{font-size:11px; font-weight:700; color:var(--text-muted); white-space:nowrap;}
+
+  .content{flex:1; overflow-y:auto; padding:0 16px 24px 16px;}
+  .content::-webkit-scrollbar{display:none;}
+
+  /* --- hero card --- */
+  .report-hero{
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:22px 20px;
+    margin-bottom:16px;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+    background:linear-gradient(160deg, var(--brown-bg), var(--bg-surface) 70%);
+  }
+  .report-hero::after{
+    content:""; position:absolute; right:-30px; top:-30px; width:140px; height:140px;
+    background:radial-gradient(circle, rgba(231,169,58,.35), transparent 70%);
+  }
+  .report-hero .eyebrow{
+    color:var(--yellow-dark);
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.14em;
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  .report-hero h1{
+    font-family:'Space Grotesk',sans-serif; font-size:22px; font-weight:700;
+    margin:0 0 6px 0; line-height:1.15; color:var(--brown-dark);
+  }
+  .report-hero p{margin:0; color:var(--text-muted); font-size:13px; line-height:1.5; max-width:230px;}
+  .report-hero .go{
+    margin-top:16px; display:inline-flex; align-items:center; gap:6px;
+    font-weight:700; font-size:13.5px; padding:11px 18px; border-radius:11px;
+    background:var(--yellow); color:var(--brown-dark);
+  }
+
+  .section-label{
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.12em;
+    color:var(--text-dim); text-transform:uppercase; margin:22px 0 10px 2px;
+  }
+  .section-label:first-child{margin-top:2px;}
+
+  .active-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px; margin-bottom:10px; cursor:pointer;
+  }
+  .active-card .row1{display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .active-card .line{font-size:13.5px; font-weight:600; color:var(--text);}
+  .active-card .part{font-size:12px; color:var(--text-muted); margin-top:2px;}
+  .badge{
+    font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    padding:4px 8px; border-radius:7px; white-space:nowrap; text-transform:uppercase; flex-shrink:0;
+  }
+  .badge.pool{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .badge.taken{background:var(--green-bg); color:var(--green-dark);}
+  .badge.rejected{background:#F7DEDA; color:#9B3B26;}
+  .active-card .meta{font-size:11px; color:var(--text-dim); margin-top:10px; display:flex; align-items:center; gap:6px;}
+
+  .sev-tag{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:9.5px; letter-spacing:.06em;
+    text-transform:uppercase; padding:4px 8px; border-radius:7px; margin-top:10px;
+  }
+  .sev-tag.critical{background:var(--brown-bg); color:var(--brown-dark);}
+  .sev-tag.minor{background:var(--yellow-bg); color:var(--yellow-dark);}
+
+  .empty-note{color:var(--text-dim); font-size:12.5px; padding:6px 2px 0 2px; line-height:1.5;}
+
+  /* --- selection grids --- */
+  .grid-cards{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .pick-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:16px 14px; cursor:pointer; transition:border-color .15s;
+  }
+  .pick-card:active{border-color:var(--yellow);}
+  .pick-card .icon-wrap{
+    width:40px;height:40px;border-radius:11px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin-bottom:12px;
+    color:var(--brown);
+  }
+  .pick-card .name{font-weight:600; font-size:14px; color:var(--text);}
+  .pick-card .sub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  .grid-icons{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;}
+  .icon-card{
+    background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:16px; padding:14px 8px; text-align:center; cursor:pointer;
+  }
+  .icon-card.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .icon-card .icon-wrap{
+    width:44px;height:44px;border-radius:12px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 8px auto;
+    color:var(--text-muted);
+  }
+  .icon-card.selected .icon-wrap{color:var(--yellow-dark); background:#F6DFA8;}
+  .icon-card .name{font-size:11.5px; font-weight:500; line-height:1.25; color:var(--text);}
+
+  /* --- form elements --- */
+  .field-label{font-size:12px; color:var(--text-muted); margin:18px 2px 8px 2px; font-weight:500;}
+  .field-label:first-child{margin-top:0;}
+  textarea, input[type="text"]{
+    width:100%; background:var(--bg-surface); border:1px solid var(--border-soft);
+    border-radius:14px; padding:14px; color:var(--text); font-family:'Inter',sans-serif;
+    font-size:13.5px;
+  }
+  textarea{resize:none; min-height:90px;}
+  textarea:focus, input[type="text"]:focus{outline:none; border-color:var(--yellow);}
+
+  .severity-row{display:flex; gap:10px;}
+  .sev-btn{
+    flex:1; padding:14px 10px; border-radius:14px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); text-align:left; cursor:pointer;
+  }
+  .sev-btn.critical.selected{border-color:var(--brown-dark); background:var(--brown-bg);}
+  .sev-btn.minor.selected{border-color:var(--yellow); background:var(--yellow-bg);}
+  .sev-btn .t{font-weight:700; font-size:13px; color:var(--text);}
+  .sev-btn .s{font-size:10.5px; color:var(--text-dim); margin-top:2px;}
+  .sev-btn.critical.selected .t{color:var(--brown-dark);}
+  .sev-btn.minor.selected .t{color:var(--yellow-dark);}
+
+  .photo-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .photo-add, .photo-thumb{
+    width:64px;height:64px;border-radius:12px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    border:1px dashed var(--border); color:var(--text-dim); font-size:22px;
+    background:var(--bg-surface); cursor:pointer; position:relative; overflow:hidden;
+  }
+  .photo-thumb img{width:100%;height:100%;object-fit:cover;}
+  .photo-thumb .rm{
+    position:absolute; top:2px; right:2px; width:16px;height:16px; border-radius:50%;
+    background:rgba(0,0,0,.55); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center;
+  }
+
+  .primary-btn{
+    width:100%; padding:16px; border-radius:14px; border:none;
+    background:var(--yellow); color:var(--brown-dark); font-weight:700; font-size:14.5px;
+    margin-top:22px; cursor:pointer;
+  }
+  .primary-btn:disabled{background:var(--bg-raised); color:var(--text-dim);}
+  .ghost-btn{
+    width:100%; padding:14px; border-radius:14px; border:1px solid var(--border-soft);
+    background:transparent; color:var(--brown); font-weight:600; font-size:13px;
+    margin-top:10px; cursor:pointer;
+  }
+
+  .crumb{font-size:11px; color:var(--text-dim); margin-bottom:14px; font-family:'JetBrains Mono',monospace;}
+  .crumb b{color:var(--yellow-dark);}
+
+  .confirm-wrap{text-align:center; padding-top:60px;}
+  .confirm-check{
+    width:64px;height:64px;border-radius:50%; background:var(--green-bg); color:var(--green-dark);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:28px;
+  }
+  .confirm-wrap h2{font-family:'Space Grotesk',sans-serif; font-size:19px; margin:0 0 8px 0; color:var(--brown-dark);}
+  .confirm-wrap p{color:var(--text-muted); font-size:13px; line-height:1.6; max-width:250px; margin:0 auto;}
+
+  .timeline{margin-top:10px;}
+  .tl-item{display:flex; gap:12px; padding-bottom:22px; position:relative;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{
+    content:""; position:absolute; left:5px; top:16px; bottom:0; width:1px; background:var(--border);
+  }
+  .tl-item:last-child::before{display:none;}
+  .tl-dot{width:11px;height:11px;border-radius:50%; background:var(--bg-raised); border:2px solid var(--border); flex-shrink:0; margin-top:2px;}
+  .tl-dot.done{background:var(--green); border-color:var(--green);}
+  .tl-dot.active{background:var(--yellow); border-color:var(--yellow); box-shadow:0 0 0 4px rgba(231,169,58,.2);}
+  .tl-t{font-size:13px; font-weight:600; color:var(--text);}
+  .tl-s{font-size:11px; color:var(--text-dim); margin-top:2px;}
+
+  /* --- overlay menu --- */
+  .overlay{
+    position:absolute; inset:0; background:rgba(40,28,14,.35); opacity:0; pointer-events:none;
+    transition:opacity .25s; z-index:20;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .side-panel{
+    position:absolute; top:0; bottom:0; left:0; width:82%;
+    background:var(--bg-base); border-right:1px solid var(--border);
+    transform:translateX(-100%); transition:transform .28s ease; z-index:21;
+    display:flex; flex-direction:column;
+  }
+  .side-panel.show{transform:translateX(0);}
+  .side-header{padding:20px 18px 14px 18px; border-bottom:1px solid var(--border-soft);}
+  .side-header-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px;}
+  .side-header .name{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--brown-dark);}
+  .side-header .role{font-size:11.5px; color:var(--text-dim); margin-top:2px;}
+  .conn-row{display:flex; align-items:center; gap:7px; margin-top:12px;}
+  .conn-row span{font-size:11px; color:var(--green-dark); font-family:'JetBrains Mono',monospace;}
+  .side-body{flex:1; overflow-y:auto; padding:16px 18px 24px 18px;}
+
+  .hdr-clock{display:flex; align-items:center; gap:5px; flex-shrink:0;}
+  .hdr-led{width:7px;height:7px;border-radius:50%; background:var(--border);}
+  .hdr-led.on{background:var(--green); box-shadow:0 0 7px 2px rgba(78,122,59,.5);}
+  .hdr-clock-btn{
+    padding:7px 11px; border-radius:16px; border:none; font-weight:700; font-size:10.5px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .hdr-clock-btn.out{background:var(--green); color:#0F2A08;}
+  .hdr-clock-btn.in{background:var(--yellow); color:var(--brown-dark);}
+
+  .menu-list{margin-top:16px; display:flex; flex-direction:column; gap:9px;}
+  .menu-nav-item{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .menu-nav-item .ic{
+    width:36px;height:36px;border-radius:10px; background:var(--bg-raised);
+    display:flex; align-items:center; justify-content:center; color:var(--brown); flex-shrink:0; position:relative;
+  }
+  .menu-nav-item .ic .dot{
+    position:absolute; top:-2px; right:-2px; width:9px;height:9px;border-radius:50%;
+    background:#D64545; box-shadow:0 0 0 2px var(--bg-surface); display:none;
+  }
+  .menu-nav-item .lbl{flex:1; font-size:13.5px; font-weight:600; color:var(--text);}
+  .menu-nav-item .chev{color:var(--text-dim); font-size:15px;}
+
+  /* --- notifications --- */
+  .notif-item{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:13px 14px; margin-bottom:9px; cursor:pointer;
+  }
+  .notif-item.unread{border-color:var(--yellow);}
+  .notif-item .top{display:flex; align-items:flex-start; gap:7px;}
+  .notif-item .udot{width:7px;height:7px;border-radius:50%;background:#D64545; margin-top:5px; flex-shrink:0;}
+  .notif-item .title{flex:1; font-size:13px; font-weight:700; color:var(--text);}
+  .notif-item.unread .title{color:var(--brown-dark);}
+  .notif-item .time{font-size:10px; color:var(--text-dim); white-space:nowrap; flex-shrink:0; margin-top:1px;}
+  .notif-item .body{font-size:12px; color:var(--text-muted); margin-top:5px; line-height:1.45; padding-left:14px;}
+  .notif-actions{display:flex; gap:8px; margin-top:10px; padding-left:14px;}
+  .notif-actions button{flex:1; padding:9px; border-radius:10px; border:none; font-weight:700; font-size:11.5px; cursor:pointer;}
+  .notif-actions .approve{background:var(--green); color:#fff;}
+  .notif-actions .reject{background:#F7DEDA; color:#8B2E1F;}
+  .notif-item .status-line{margin-top:10px; padding-left:14px;}
+
+  /* --- holiday management --- */
+  .filter-row{display:flex; gap:8px; margin-bottom:16px;}
+  .filter-btn{
+    flex:1; text-align:center; padding:10px 6px; border-radius:12px;
+    border:1px solid var(--border-soft); background:var(--bg-surface);
+    font-size:12.5px; font-weight:700; color:var(--text-muted); cursor:pointer;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  .filter-btn.active{border-color:var(--yellow); background:var(--yellow-bg); color:var(--yellow-dark);}
+  .empty-note{font-size:12.5px; color:var(--text-dim); text-align:center; padding:20px 0;}
+
+  .cal-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .cal-nav button{
+    width:34px; height:34px; border-radius:10px; border:1px solid var(--border-soft);
+    background:var(--bg-surface); color:var(--brown-dark); font-size:15px; cursor:pointer;
+  }
+  .cal-nav .lbl{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; color:var(--brown-dark);}
+  .cal-weekdays{display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:6px;}
+  .cal-weekdays div{text-align:center; font-size:10px; font-weight:700; color:var(--text-dim);}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-cell{
+    position:relative; aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    border-radius:10px; font-size:12px; color:var(--text-muted); background:var(--bg-surface);
+    border:1px solid var(--border-soft);
+  }
+  .cal-cell.empty{background:transparent; border:none;}
+  .cal-cell.today{border-color:var(--brown); font-weight:700; color:var(--brown-dark);}
+  .cal-cell.has-leave{background:var(--green-bg); color:var(--green-dark); font-weight:700; cursor:pointer;}
+  .cal-cell.has-leave.pending{background:var(--yellow-bg); color:var(--yellow-dark);}
+  .cal-cell .dot{position:absolute; bottom:4px; width:4px; height:4px; border-radius:50%; background:currentColor;}
+  .cal-day-info{
+    margin-top:14px; padding:11px 13px; border-radius:12px; background:var(--bg-raised);
+    font-size:12.5px; color:var(--brown-dark); font-weight:600;
+  }
+  .mini-cal-header{margin-bottom:16px;}
+  .mini-cal-header .emp{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; color:var(--brown-dark); margin-bottom:6px;}
+  .mini-cal-header .dates{font-size:12.5px; color:var(--text-muted); margin-bottom:8px;}
+
+  /* --- team shifts (read-only) --- */
+  .team-day{
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:16px;
+    padding:15px 16px; margin-bottom:12px;
+  }
+  .team-day .day-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13.5px; color:var(--brown-dark); margin-bottom:12px;}
+  .shift-block{margin-bottom:12px;}
+  .shift-block:last-child{margin-bottom:0;}
+  .shift-block .shift-label{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:.06em;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:7px;
+  }
+  .shift-block .shift-time{color:var(--brown-dark); font-weight:600; font-size:11px;}
+  .worker-chips{display:flex; flex-wrap:wrap; gap:6px;}
+  .worker-chip{
+    background:var(--bg-raised); border-radius:20px; padding:6px 12px;
+    font-size:11.5px; color:var(--text); font-weight:500;
+  }
+
+  /* --- clock status (who's in) --- */
+  .clock-item{
+    display:flex; align-items:center; gap:11px;
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:14px;
+    padding:12px 14px; margin-bottom:8px;
+  }
+  .clock-item .dot2{width:9px;height:9px;border-radius:50%; background:var(--border); flex-shrink:0;}
+  .clock-item.in .dot2{background:var(--green); box-shadow:0 0 6px 1px rgba(78,122,59,.4);}
+  .clock-item .info{flex:1; min-width:0;}
+  .clock-item .nm{font-size:13.5px; font-weight:600; color:var(--text);}
+  .clock-item .rl{font-size:11px; color:var(--text-dim); margin-top:1px;}
+  .clock-item .tm{font-family:'JetBrains Mono',monospace; font-size:11.5px; color:var(--green-dark); font-weight:600; flex-shrink:0;}
+  .clock-item.out{opacity:.5;}
+  .clock-item.out .tm{color:var(--text-dim);}
+
+  /* --- send message --- */
+  .send-info{
+    font-size:12px; color:var(--text-dim); line-height:1.5; margin-bottom:6px;
+    background:var(--bg-surface); border:1px solid var(--border-soft); border-radius:12px; padding:12px 14px;
+  }
+
+  .screen-el{display:none;}
+  .screen-el.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="caption">Mainty — Production Manager Prototype (clickable mockup, no real data)</div>
+
+<div class="phone">
+  <div class="screen" id="screen">
+
+    <div class="status-strip">
+      <div class="led on pulse"></div>
+      <div class="led on"></div>
+      <div class="led"></div>
+      <div class="led"></div>
+      <div class="label">Factory Network · Connected</div>
+      <div class="spacer"></div>
+      <div class="clock" id="topClock">08:42</div>
+    </div>
+
+    <div class="floating-controls" id="floatingControls">
+      <div class="hdr-status-text" id="hdrStatusText">Clock In</div>
+    </div>
+
+    <div class="appbar">
+      <div class="burger" id="burgerBtn" onclick="openMenu()"><span></span><span></span><span></span><span class="dot" id="burgerDot"></span></div>
+      <div class="back-btn screen-el" id="backBtn" onclick="goBack()" style="display:none;">←</div>
+      <div class="appbar-text">
+        <div class="appbar-title" id="appbarTitle">Hi, Daniel</div>
+        <div class="appbar-sub" id="appbarSub">Production Manager</div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- HOME -->
+      <div class="screen-el active" id="home">
+        <div class="section-label">Open Breakdowns</div>
+        <div id="breakdownListWrap"></div>
+
+        <div class="report-hero" onclick="startReport()">
+          <div class="eyebrow">Report Breakdown</div>
+          <h1>Something wrong?</h1>
+          <p>Log a new breakdown, the same way operators do.</p>
+          <div class="go">Create Report →</div>
+        </div>
+      </div>
+
+      <!-- BREAKDOWN DETAIL -->
+      <div class="screen-el" id="breakdownDetail">
+        <div class="crumb" id="bdCrumb">Open Breakdown · WO-1042</div>
+        <div class="active-card" style="cursor:default;">
+          <div class="row1">
+            <div>
+              <div class="line" id="bdMachine">Capper · Line 1</div>
+              <div class="part" id="bdMeta">⬤ James R. (Engineer) — working on it</div>
+            </div>
+            <span class="badge taken" id="bdBadge">Assigned</span>
+          </div>
+          <span class="sev-tag critical" id="bdSeverityTag">Line Stopped</span>
+        </div>
+
+        <div class="field-label" style="margin-top:20px;">Description</div>
+        <p style="font-size:13px; color:var(--text-muted); line-height:1.6; margin:0;" id="bdDesc">—</p>
+
+        <div class="section-label">Status</div>
+        <div class="timeline" id="bdTimeline"></div>
+      </div>
+
+      <!-- BREAKDOWN — DETAILS -->
+      <div class="screen-el" id="details">
+        <div class="crumb" id="detailsCrumb">New Report</div>
+
+        <div class="field-label">What happened?</div>
+        <textarea id="descBox" placeholder="Briefly describe... (optional but recommended)"></textarea>
+
+        <div class="field-label">Photo</div>
+        <div class="photo-row" id="photoRow">
+          <div class="photo-add" onclick="document.getElementById('fileInput').click()">+</div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" multiple style="display:none" onchange="addPhotos(event)">
+
+        <div class="field-label">Severity</div>
+        <div class="severity-row">
+          <div class="sev-btn critical" id="sevCritical" onclick="pickSeverity('critical')">
+            <div class="t">Line Stopped</div>
+            <div class="s">Production fully stopped</div>
+          </div>
+          <div class="sev-btn minor" id="sevMinor" onclick="pickSeverity('minor')">
+            <div class="t">Minor Issue</div>
+            <div class="s">Production continues</div>
+          </div>
+        </div>
+
+        <button class="primary-btn" id="submitBtn" disabled onclick="submitReport()">Submit</button>
+      </div>
+
+      <!-- BREAKDOWN — CONFIRM -->
+      <div class="screen-el" id="confirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2>Report submitted</h2>
+          <p>Your report went to the pool. An available engineer will pick it up.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- TEAM SHIFTS (read-only) -->
+      <div class="screen-el" id="teamShifts">
+        <div class="crumb">View only — shifts are planned on desktop</div>
+        <div id="teamShiftsWrap"></div>
+      </div>
+
+      <!-- CLOCK STATUS (who's in) -->
+      <div class="screen-el" id="clockStatus">
+        <div class="crumb">Your team · today</div>
+        <div id="clockStatusWrap"></div>
+      </div>
+
+      <!-- NOTIFICATIONS -->
+      <div class="screen-el" id="notifScreen">
+        <div class="crumb">Approvals & announcements</div>
+        <div id="notifList"></div>
+      </div>
+
+      <!-- SEND MESSAGE -->
+      <div class="screen-el" id="sendMessage">
+        <div class="send-info">This sends a one-way notification to your team only (12 people).</div>
+        <div class="field-label">Message</div>
+        <textarea id="msgInput" placeholder="Write a message for your team..." oninput="document.getElementById('sendBtn').disabled = !this.value.trim();"></textarea>
+        <button class="primary-btn" id="sendBtn" disabled onclick="sendMessage()">Send to Team</button>
+      </div>
+
+      <!-- SEND CONFIRM -->
+      <div class="screen-el" id="sendConfirm">
+        <div class="confirm-wrap">
+          <div class="confirm-check">✓</div>
+          <h2>Message sent</h2>
+          <p>Your team will get a notification with this message.</p>
+          <button class="ghost-btn" onclick="goto('home')" style="margin-top:26px;">Back to Home</button>
+        </div>
+      </div>
+
+      <!-- HOLIDAY MANAGEMENT -->
+      <div class="screen-el" id="holidayScreen">
+        <div class="filter-row">
+          <div class="filter-btn active" id="holTabRequests" onclick="setHolidayTab('requests')">Requests</div>
+          <div class="filter-btn" id="holTabCalendar" onclick="setHolidayTab('calendar')">Calendar</div>
+        </div>
+
+        <div id="holReqPanel">
+          <div id="holReqWrap"></div>
+        </div>
+
+        <div id="holCalPanel" style="display:none;">
+          <div class="cal-nav">
+            <button onclick="calPrevMonth()">‹</button>
+            <div class="lbl" id="calMonthLabel">September 2026</div>
+            <button onclick="calNextMonth()">›</button>
+          </div>
+          <div id="holCalGrid"></div>
+          <div class="cal-day-info" id="calDayInfo" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- HOLIDAY MINI CALENDAR (single request, read-only) -->
+      <div class="screen-el" id="holidayMiniCal">
+        <div class="mini-cal-header">
+          <div class="emp" id="miniCalTitle">Employee</div>
+          <div class="dates" id="miniCalDates">—</div>
+          <span class="badge" id="miniCalStatus">Pending</span>
+        </div>
+        <div id="miniCalGrid"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SIDE MENU -->
+  <div class="overlay" id="overlay" onclick="closeMenu()"></div>
+  <div class="side-panel" id="sidePanel">
+    <div class="side-header">
+      <div class="side-header-top">
+        <div>
+          <div class="name">Daniel Foster</div>
+          <div class="role">Production Manager · Unit 1</div>
+        </div>
+        <div class="hdr-clock" id="hdrClockWrap">
+          <div class="hdr-led" id="headerLed"></div>
+          <button class="hdr-clock-btn out" id="clockBtn" onclick="toggleClock()">Clock In</button>
+        </div>
+      </div>
+      <div class="conn-row"><div class="led on pulse" style="width:7px;height:7px;"></div><span>CONNECTED</span></div>
+    </div>
+    <div class="side-body">
+
+      <div class="menu-list">
+        <div class="menu-nav-item" onclick="closeMenu(); goto('notifScreen');">
+          <div class="ic">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 10a6 6 0 0 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 14 6 10z"/><path d="M10 19a2 2 0 0 0 4 0"/></svg>
+            <span class="dot" id="menuNotifDot"></span>
+          </div>
+          <div class="lbl">Notifications</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('teamShifts');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 7v5l3.2 2"/><circle cx="12" cy="12" r="8.5"/></svg></div>
+          <div class="lbl">Team Shifts</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('clockStatus');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8.5" cy="8" r="3"/><path d="M2.5 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="8.5" r="2.4"/><path d="M15.5 13.2c2.4.5 3.9 2.5 3.9 5.3"/></svg></div>
+          <div class="lbl">Who's In</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('holidayScreen');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></div>
+          <div class="lbl">Holiday</div>
+          <div class="chev">›</div>
+        </div>
+        <div class="menu-nav-item" onclick="closeMenu(); goto('sendMessage');">
+          <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5L20 4l-6.5 17-2.7-7.3L3 11.5z"/><path d="M20 4l-9.2 9.7"/></svg></div>
+          <div class="lbl">Send Message</div>
+          <div class="chev">›</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ================= navigation =================
+const CHROME = {
+  home:["Hi, Daniel","Production Manager"],
+  breakdownDetail:["Breakdown","Open"],
+  details:["Report Breakdown","Details"],
+  confirm:["Submitted",""],
+  teamShifts:["Team Shifts","View only"],
+  clockStatus:["Who's In","Live status"],
+  notifScreen:["Notifications","Approvals & announcements"],
+  sendMessage:["Send Message","To your team"],
+  sendConfirm:["Sent",""],
+  holidayScreen:["Holiday","Your team's requests"],
+  holidayMiniCal:["Holiday","Read-only"]
+};
+
+const stack = ['home'];
+function goto(id){
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  stack.push(id);
+  updateChrome(id);
+  if(id==='home'){ renderBreakdownList(); }
+  if(id==='holidayScreen'){ setHolidayTab('requests'); }
+}
+function goBack(){
+  if(stack.length>1){ stack.pop(); }
+  const prev = stack[stack.length-1] || 'home';
+  document.querySelectorAll('.screen-el').forEach(e=>e.classList.remove('active'));
+  document.getElementById(prev).classList.add('active');
+  updateChrome(prev);
+  if(prev==='home'){ renderBreakdownList(); }
+  if(prev==='holidayScreen'){ renderHolidayRequests(); renderHolidayCalendar(); }
+}
+function updateChrome(id){
+  const c = CHROME[id];
+  document.getElementById('appbarTitle').textContent = c[0];
+  document.getElementById('appbarSub').textContent = c[1];
+  const isHome = id==='home';
+  document.getElementById('burgerBtn').style.display = isHome ? 'flex':'none';
+  document.getElementById('backBtn').style.display = isHome ? 'none':'flex';
+  document.getElementById('floatingControls').style.display = isHome ? 'flex':'none';
+}
+
+// ---------- side menu ----------
+function openMenu(){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('sidePanel').classList.add('show');
+}
+function closeMenu(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('sidePanel').classList.remove('show');
+}
+
+// ---------- clock in/out ----------
+let clockedIn=false;
+function toggleClock(){
+  clockedIn=!clockedIn;
+  const btn=document.getElementById('clockBtn');
+  const headerLed=document.getElementById('headerLed');
+  if(clockedIn){
+    btn.className='hdr-clock-btn in';
+    headerLed.classList.add('on');
+  } else {
+    btn.className='hdr-clock-btn out';
+    headerLed.classList.remove('on');
+  }
+  updateClockBtnLabel();
+}
+function updateClockBtnLabel(){
+  document.getElementById('clockBtn').textContent = clockedIn ? 'Clock Out' : 'Clock In';
+  document.getElementById('hdrStatusText').textContent = clockedIn ? 'Clocked In' : 'Clocked Out';
+}
+
+// ---------- top clock ----------
+function tickTopClock(){
+  const d=new Date();
+  document.getElementById('topClock').textContent =
+    String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+tickTopClock(); setInterval(tickTopClock,15000);
+function nowTimeStr(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+
+// ================= OPEN BREAKDOWNS (all lines, plant-wide) =================
+// Closed breakdowns are removed entirely from this list — no history is kept here.
+let breakdowns = [
+  {id:'WO-1042', machine:'Capping Machine', line:'Line 1', status:'taken', engineer:'James R.', severity:'critical', desc:'Capper jammed mid-cycle — line fully stopped.', time:'08:20'},
+  {id:'WO-1043', machine:'Filling Line', line:'Line 2', status:'pool', engineer:null, severity:'minor', desc:'Intermittent drip from the fill head, output still running.', time:'09:05'},
+  {id:'WO-1044', machine:'Blender 1', line:'Line 3', status:'taken', engineer:'Sarah M.', severity:'critical', desc:'Blender motor overheating, shut down as a precaution.', time:'07:50'}
+];
+function renderBreakdownList(){
+  const wrap=document.getElementById('breakdownListWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  if(breakdowns.length===0){
+    wrap.innerHTML='<div class="empty-note">No open breakdowns right now.</div>';
+    return;
+  }
+  breakdowns.forEach(b=>{
+    const card=document.createElement('div');
+    card.className='active-card';
+    card.onclick=()=>{ openBreakdown(b.id); goto('breakdownDetail'); };
+    const badgeClass = b.status==='taken' ? 'taken' : 'pool';
+    const badgeText = b.status==='taken' ? 'Assigned' : 'In Pool';
+    const metaText = b.status==='taken' ? '⬤ '+b.engineer+' · working on it' : 'Waiting for engineer';
+    const lineSuffix = b.line ? ' · '+b.line : '';
+    card.innerHTML =
+      '<div class="row1"><div><div class="line">'+b.machine+lineSuffix+'</div>'+
+      '<div class="part">'+metaText+'</div></div>'+
+      '<span class="badge '+badgeClass+'">'+badgeText+'</span></div>';
+    wrap.appendChild(card);
+  });
+}
+function openBreakdown(id){
+  const b = breakdowns.find(x=>x.id===id);
+  if(!b) return;
+  document.getElementById('bdCrumb').textContent = 'Open Breakdown · '+b.id;
+  document.getElementById('bdMachine').textContent = b.machine+(b.line?' · '+b.line:'');
+  const badgeEl = document.getElementById('bdBadge');
+  badgeEl.className = 'badge '+(b.status==='taken'?'taken':'pool');
+  badgeEl.textContent = b.status==='taken' ? 'Assigned' : 'In Pool';
+  document.getElementById('bdMeta').textContent = b.status==='taken'
+    ? '⬤ '+b.engineer+' (Engineer) — working on it'
+    : 'Waiting for an available engineer';
+  const sevTag = document.getElementById('bdSeverityTag');
+  sevTag.className = 'sev-tag '+b.severity;
+  sevTag.textContent = b.severity==='critical' ? 'Line Stopped' : 'Minor Issue';
+  document.getElementById('bdDesc').textContent = b.desc;
+
+  const tl=document.getElementById('bdTimeline');
+  tl.innerHTML='';
+  const steps=[
+    {t:'Reported', s: b.time, done:true},
+    {t:'Sent to pool', s:'Visible to available engineers', done:true},
+    {t:'Engineer assigned', s: b.status==='taken' ? b.engineer : 'Waiting…', done: b.status==='taken', active: b.status==='pool'}
+  ];
+  steps.forEach(st=>{
+    const el=document.createElement('div');
+    el.className='tl-item';
+    el.innerHTML='<div class="tl-dot '+(st.done?'done':(st.active?'active':''))+'"></div>'+
+      '<div><div class="tl-t">'+st.t+'</div><div class="tl-s">'+st.s+'</div></div>';
+    tl.appendChild(el);
+  });
+}
+// Demo only: simulate an engineer closing WO-1044 elsewhere in the system —
+// it disappears from this list on its own, the way a real closed breakdown would.
+setTimeout(()=>{
+  const idx = breakdowns.findIndex(b=>b.id==='WO-1044');
+  if(idx>-1){
+    breakdowns.splice(idx,1);
+    if(document.getElementById('home').classList.contains('active')) renderBreakdownList();
+  }
+}, 9000);
+
+// ================= BREAKDOWN REPORTING =================
+let selection = {severity:null};
+let woCounter = 1050;
+
+// Managers only ever file a General report (not tied to a specific line/part),
+// so tapping "Create Report" on Home goes straight to the details screen.
+function startReport(){
+  resetDetailsForm();
+  goto('details');
+}
+function resetDetailsForm(){
+  selection.severity=null;
+  document.getElementById('descBox').value='';
+  document.getElementById('photoRow').innerHTML = '<div class="photo-add" onclick="document.getElementById(\'fileInput\').click()">+</div>';
+  document.getElementById('sevCritical').classList.remove('selected');
+  document.getElementById('sevMinor').classList.remove('selected');
+  document.getElementById('submitBtn').disabled=true;
+}
+function pickSeverity(level){
+  selection.severity=level;
+  document.getElementById('sevCritical').classList.toggle('selected', level==='critical');
+  document.getElementById('sevMinor').classList.toggle('selected', level==='minor');
+  document.getElementById('submitBtn').disabled = !selection.severity;
+}
+function addPhotos(e){
+  const files=Array.from(e.target.files);
+  files.forEach(f=>{
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const thumb=document.createElement('div');
+      thumb.className='photo-thumb';
+      thumb.innerHTML='<img src="'+ev.target.result+'"><div class="rm">✕</div>';
+      thumb.querySelector('.rm').onclick=(ev2)=>{ ev2.stopPropagation(); thumb.remove(); };
+      document.getElementById('photoRow').appendChild(thumb);
+    };
+    reader.readAsDataURL(f);
+  });
+}
+function submitReport(){
+  woCounter++;
+  const entry = {
+    id:'WO-'+woCounter, machine:'General Report', line:'', status:'pool', engineer:null,
+    severity:selection.severity,
+    desc: document.getElementById('descBox').value.trim() || 'No description provided.',
+    time: nowTimeStr()
+  };
+  breakdowns.unshift(entry);
+  goto('confirm');
+}
+
+// ================= TEAM SHIFTS (read-only) =================
+const teamShiftsMock = [
+  {label:'Today', date:'Tue 1 Sep', shifts:[
+    {name:'Shift 1', time:'07:00–15:00', workers:['Alice N.','Chris T.','Marek W.']},
+    {name:'Shift 2', time:'15:00–23:00', workers:['Priya K.','Tom H.']}
+  ]},
+  {label:'Tomorrow', date:'Wed 2 Sep', shifts:[
+    {name:'Shift 1', time:'07:00–15:00', workers:['Chris T.','Sarah J.','Marek W.']},
+    {name:'Shift 2', time:'15:00–23:00', workers:['Alice N.','Priya K.','Tom H.']}
+  ]},
+  {label:'Thursday', date:'Thu 3 Sep', shifts:[
+    {name:'Shift 1', time:'07:00–15:00', workers:['Alice N.','Marek W.']},
+    {name:'Shift 2', time:'15:00–23:00', workers:['Chris T.','Sarah J.','Tom H.']}
+  ]},
+  {label:'Friday', date:'Fri 4 Sep', shifts:[
+    {name:'Shift 1', time:'07:00–15:00', workers:['Priya K.','Chris T.','Marek W.']},
+    {name:'Shift 2', time:'15:00–23:00', workers:['Alice N.','Sarah J.']}
+  ]}
+];
+function buildTeamShifts(){
+  const wrap=document.getElementById('teamShiftsWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  teamShiftsMock.forEach(day=>{
+    const card=document.createElement('div');
+    card.className='team-day';
+    let inner = '<div class="day-title">'+day.label+' · '+day.date+'</div>';
+    day.shifts.forEach(s=>{
+      inner += '<div class="shift-block"><div class="shift-label"><span>'+s.name+'</span><span class="shift-time">'+s.time+'</span></div>'+
+        '<div class="worker-chips">'+ s.workers.map(w=>'<span class="worker-chip">'+w+'</span>').join('') +'</div></div>';
+    });
+    card.innerHTML = inner;
+    wrap.appendChild(card);
+  });
+}
+
+// ================= CLOCK STATUS (who's in) =================
+const teamClockMock = [
+  {name:'Alice N.', role:'Operator', in:true, time:'07:02'},
+  {name:'Chris T.', role:'Operator', in:true, time:'07:08'},
+  {name:'Marek W.', role:'FLT Driver', in:true, time:'06:55'},
+  {name:'Priya K.', role:'Operator', in:false},
+  {name:'Tom H.', role:'Operator', in:false},
+  {name:'Sarah J.', role:'Packer', in:false}
+];
+function buildClockStatus(){
+  const wrap=document.getElementById('clockStatusWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const sorted = teamClockMock.slice().sort((a,b)=> (b.in?1:0)-(a.in?1:0));
+  sorted.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='clock-item '+(p.in?'in':'out');
+    el.innerHTML =
+      '<div class="dot2"></div>'+
+      '<div class="info"><div class="nm">'+p.name+'</div><div class="rl">'+p.role+'</div></div>'+
+      '<div class="tm">'+(p.in ? p.time : 'Not in yet')+'</div>';
+    wrap.appendChild(el);
+  });
+}
+
+// ================= NOTIFICATIONS (announcements + holiday approvals) =================
+function mkDate(daysFromNow){
+  const d = new Date();
+  d.setDate(d.getDate()+daysFromNow);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function formatRange(start,end){
+  const opts = {day:'numeric', month:'short'};
+  if(start.getTime()===end.getTime()) return start.toLocaleDateString('en-GB', opts);
+  if(start.getMonth()===end.getMonth() && start.getFullYear()===end.getFullYear())
+    return start.getDate()+'–'+end.toLocaleDateString('en-GB', opts);
+  return start.toLocaleDateString('en-GB', opts)+'–'+end.toLocaleDateString('en-GB', opts);
+}
+const notifMock = [
+  {type:'holiday', id:'h1', employee:'Chris T.', start:mkDate(11), end:mkDate(13), days:3, time:'1h ago', status:'pending'},
+  {type:'info', title:'BRC audit prep — next week', time:'Yesterday', body:'Internal walk-through Tuesday morning ahead of the BRC audit.'},
+  {type:'holiday', id:'h2', employee:'Sarah J.', start:mkDate(19), end:mkDate(19), days:1, time:'Yesterday', status:'pending'},
+  {type:'info', title:'Safety reminder', time:'3 days ago', body:'PPE is mandatory in Unit 1 while contractor works are ongoing.'},
+  {type:'holiday', id:'h3', employee:'Priya K.', start:mkDate(28), end:mkDate(29), days:2, time:'2 days ago', status:'approved'},
+  {type:'holiday', id:'h4', employee:'Marek P.', start:mkDate(-6), end:mkDate(-5), days:2, time:'1 week ago', status:'approved'},
+  {type:'holiday', id:'h5', employee:'Tomasz W.', start:mkDate(5), end:mkDate(5), days:1, time:'3 days ago', status:'rejected'}
+];
+let notifRead = [false,true,false,true,true,true,true];
+function buildNotifications(){
+  const wrap=document.getElementById('notifList');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  notifMock.forEach((n,i)=>{
+    const unread = !notifRead[i];
+    const el=document.createElement('div');
+    el.className='notif-item'+(unread?' unread':'');
+    if(n.type==='holiday'){
+      const dayWord = n.days===1 ? 'working day' : 'working days';
+      let actionsOrStatus;
+      if(n.status==='pending'){
+        actionsOrStatus =
+          '<div class="notif-actions">'+
+          '<button class="approve" onclick="decideHoliday(\''+n.id+'\',\'approved\',event)">Approve</button>'+
+          '<button class="reject" onclick="decideHoliday(\''+n.id+'\',\'rejected\',event)">Reject</button>'+
+          '</div>';
+      } else {
+        const badgeClass = n.status==='approved' ? 'taken' : 'rejected';
+        const badgeText = n.status==='approved' ? 'Approved' : 'Rejected';
+        actionsOrStatus = '<div class="status-line"><span class="badge '+badgeClass+'">'+badgeText+'</span></div>';
+      }
+      el.innerHTML =
+        '<div class="top">'+(unread?'<span class="udot"></span>':'')+
+        '<div class="title">Holiday request — '+n.employee+'</div>'+
+        '<div class="time">'+n.time+'</div></div>'+
+        '<div class="body">'+formatRange(n.start,n.end)+' · '+n.days+' '+dayWord+'</div>'+
+        actionsOrStatus;
+    } else {
+      el.innerHTML =
+        '<div class="top">'+(unread?'<span class="udot"></span>':'')+
+        '<div class="title">'+n.title+'</div>'+
+        '<div class="time">'+n.time+'</div></div>'+
+        '<div class="body">'+n.body+'</div>';
+    }
+    el.onclick=(e)=>{
+      if(e.target.tagName==='BUTTON') return;
+      notifRead[i]=true;
+      buildNotifications();
+    };
+    wrap.appendChild(el);
+  });
+  updateNotifBadge();
+}
+function decideHoliday(id, decision, event){
+  event.stopPropagation();
+  const idx = notifMock.findIndex(n=>n.id===id);
+  if(idx===-1) return;
+  notifMock[idx].status = decision;
+  notifRead[idx] = true;
+  buildNotifications();
+  renderHolidayRequests();
+  renderHolidayCalendar();
+}
+function updateNotifBadge(){
+  const anyUnread = notifRead.some(r=>!r);
+  const menuDot=document.getElementById('menuNotifDot');
+  const burgerDot=document.getElementById('burgerDot');
+  if(menuDot) menuDot.style.display = anyUnread ? 'block':'none';
+  if(burgerDot) burgerDot.style.display = anyUnread ? 'block':'none';
+}
+
+// ================= HOLIDAY MANAGEMENT (dedicated screen) =================
+function setHolidayTab(tab){
+  document.getElementById('holTabRequests').classList.toggle('active', tab==='requests');
+  document.getElementById('holTabCalendar').classList.toggle('active', tab==='calendar');
+  document.getElementById('holReqPanel').style.display = tab==='requests' ? 'block' : 'none';
+  document.getElementById('holCalPanel').style.display = tab==='calendar' ? 'block' : 'none';
+  if(tab==='requests') renderHolidayRequests();
+  else renderHolidayCalendar();
+}
+function holidayCard(n, showActions){
+  const card=document.createElement('div');
+  card.className='active-card';
+  card.style.marginBottom='9px';
+  card.onclick=(e)=>{ if(e.target.tagName==='BUTTON') return; openHolidayMiniCal(n.id); };
+  const dayWord = n.days===1 ? 'working day' : 'working days';
+  const badge = showActions
+    ? '<span class="badge pool">Pending</span>'
+    : '<span class="badge '+(n.status==='approved'?'taken':'rejected')+'">'+(n.status==='approved'?'Approved':'Rejected')+'</span>';
+  card.innerHTML =
+    '<div class="row1"><div><div class="line">'+n.employee+'</div>'+
+    '<div class="part">'+formatRange(n.start,n.end)+' · '+n.days+' '+dayWord+'</div></div>'+badge+'</div>'+
+    (showActions ? '<div class="notif-actions">'+
+      '<button class="approve" onclick="decideHoliday(\''+n.id+'\',\'approved\',event)">Approve</button>'+
+      '<button class="reject" onclick="decideHoliday(\''+n.id+'\',\'rejected\',event)">Reject</button>'+
+      '</div>' : '');
+  return card;
+}
+function renderHolidayRequests(){
+  const wrap = document.getElementById('holReqWrap');
+  if(!wrap) return;
+  wrap.innerHTML='';
+  const items = notifMock.filter(n=>n.type==='holiday');
+  const pending = items.filter(n=>n.status==='pending');
+  const approved = items.filter(n=>n.status==='approved');
+  const rejected = items.filter(n=>n.status==='rejected');
+  const section=(label, list, showActions)=>{
+    if(!list.length) return;
+    const lbl=document.createElement('div'); lbl.className='section-label'; lbl.textContent=label; wrap.appendChild(lbl);
+    list.forEach(n=>wrap.appendChild(holidayCard(n, showActions)));
+  };
+  section('Pending', pending, true);
+  section('Approved', approved, false);
+  section('Rejected', rejected, false);
+  if(!items.length) wrap.innerHTML='<div class="empty-note">No holiday requests.</div>';
+}
+
+// ---- calendar grid helpers (shared by full calendar + mini calendar) ----
+const WEEKDAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function daysInMonth(y,m){ return new Date(y, m+1, 0).getDate(); }
+function firstWeekdayIndex(y,m){ const d=new Date(y,m,1).getDay(); return (d+6)%7; }
+function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function dateInRange(d, start, end){
+  const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  const s=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+  const e=new Date(end.getFullYear(),end.getMonth(),end.getDate());
+  return dd>=s && dd<=e;
+}
+function buildMonthGrid(containerId, year, month, highlights, onDayClick){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  el.innerHTML='';
+  const head=document.createElement('div'); head.className='cal-weekdays';
+  WEEKDAYS.forEach(w=>{ const s=document.createElement('div'); s.textContent=w; head.appendChild(s); });
+  el.appendChild(head);
+  const grid=document.createElement('div'); grid.className='cal-grid';
+  const firstIdx=firstWeekdayIndex(year,month);
+  const totalDays=daysInMonth(year,month);
+  const today=new Date();
+  for(let i=0;i<firstIdx;i++){ const s=document.createElement('div'); s.className='cal-cell empty'; grid.appendChild(s); }
+  for(let day=1; day<=totalDays; day++){
+    const cellDate=new Date(year,month,day);
+    const cell=document.createElement('div');
+    cell.className='cal-cell';
+    const matches=highlights.filter(h=>dateInRange(cellDate, h.start, h.end));
+    if(matches.length){
+      cell.classList.add('has-leave');
+      if(matches.some(m=>m.status==='pending')) cell.classList.add('pending');
+    }
+    if(isSameDay(cellDate, today)) cell.classList.add('today');
+    cell.innerHTML='<span class="num">'+day+'</span>'+(matches.length ? '<span class="dot"></span>' : '');
+    if(matches.length && onDayClick) cell.onclick=()=>onDayClick(cellDate, matches);
+    grid.appendChild(cell);
+  }
+  el.appendChild(grid);
+}
+let calViewDate = new Date();
+function renderHolidayCalendar(){
+  const y=calViewDate.getFullYear(), m=calViewDate.getMonth();
+  const lbl=document.getElementById('calMonthLabel');
+  if(!lbl) return;
+  lbl.textContent = calViewDate.toLocaleDateString('en-GB',{month:'long', year:'numeric'});
+  const relevant = notifMock.filter(n=>n.type==='holiday' && (n.status==='approved' || n.status==='pending'));
+  buildMonthGrid('holCalGrid', y, m, relevant, showDayInfo);
+  document.getElementById('calDayInfo').style.display='none';
+}
+function calPrevMonth(){ calViewDate.setMonth(calViewDate.getMonth()-1); renderHolidayCalendar(); }
+function calNextMonth(){ calViewDate.setMonth(calViewDate.getMonth()+1); renderHolidayCalendar(); }
+function showDayInfo(date, matches){
+  const el=document.getElementById('calDayInfo');
+  const names = matches.map(m=>m.employee+(m.status==='pending'?' (pending)':'')).join(', ');
+  el.textContent = 'On leave ' + date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) + ': ' + names;
+  el.style.display='block';
+}
+function openHolidayMiniCal(id){
+  const n = notifMock.find(x=>x.id===id && x.type==='holiday');
+  if(!n) return;
+  document.getElementById('miniCalTitle').textContent = n.employee;
+  document.getElementById('miniCalDates').textContent = formatRange(n.start,n.end)+' · '+n.days+' '+(n.days===1?'working day':'working days');
+  const statusBadge = document.getElementById('miniCalStatus');
+  statusBadge.className = 'badge '+(n.status==='approved' ? 'taken' : n.status==='rejected' ? 'rejected' : 'pool');
+  statusBadge.textContent = n.status==='approved' ? 'Approved' : n.status==='rejected' ? 'Rejected' : 'Pending';
+  buildMonthGrid('miniCalGrid', n.start.getFullYear(), n.start.getMonth(), [n], null);
+  goto('holidayMiniCal');
+}
+
+// ================= SEND MESSAGE (one-way, own team only) =================
+function sendMessage(){
+  const input=document.getElementById('msgInput');
+  if(!input.value.trim()) return;
+  input.value='';
+  document.getElementById('sendBtn').disabled=true;
+  goto('sendConfirm');
+}
+
+// ================= init =================
+renderBreakdownList();
+buildTeamShifts();
+buildClockStatus();
+buildNotifications();
+updateClockBtnLabel();
+</script>
+</body>
+</html>
