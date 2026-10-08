@@ -69,6 +69,9 @@ public static class Limits
     public const int MaxPageSize = 100;
     public const int MaxTaskPhotos = 5;
 
-    // Multipart bodies carry at most one photo plus a little text.
+    // Multipart bodies carry at most one photo plus a little text...
     public const long UploadRequestBytes = 12 * 1024 * 1024;
+
+    // ...except completing a task, which may carry up to MaxTaskPhotos photos of 10 MB each.
+    public const long MultiPhotoRequestBytes = 55 * 1024 * 1024;
 }

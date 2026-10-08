@@ -230,8 +230,8 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
 
     [HttpPost("{id:guid}/complete")]
     [Authorize(Policy = Policies.Engineer)]
-    [RequestSizeLimit(Limits.UploadRequestBytes)]
-    [RequestFormLimits(MultipartBodyLengthLimit = Limits.UploadRequestBytes)]
+    [RequestSizeLimit(Limits.MultiPhotoRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = Limits.MultiPhotoRequestBytes)]
     public async Task<ActionResult<TaskDto>> Complete(Guid id, [FromForm] string? comment, CancellationToken ct)
     {
         var me = User.UserId();
