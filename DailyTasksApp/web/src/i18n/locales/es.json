@@ -1,0 +1,145 @@
+{
+  "app": {
+    "name": "Tareas diarias"
+  },
+  "nav": {
+    "tasks": "Tareas",
+    "history": "Historial",
+    "orders": "Pedidos",
+    "team": "Equipo",
+    "logout": "Cerrar sesión",
+    "language": "Idioma",
+    "account": "Cuenta"
+  },
+  "login": {
+    "name": "Nombre",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "server": "Dirección del servidor",
+    "serverHint": "p. ej. http://192.168.1.20:5278",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "today": "Hoy",
+    "previousDay": "Día anterior",
+    "nextDay": "Día siguiente",
+    "optional": "opcional",
+    "clear": "Borrar"
+  },
+  "photo": {
+    "add": "Añadir foto",
+    "remove": "Quitar foto",
+    "view": "Ver foto",
+    "camera": "Cámara",
+    "gallery": "Galería"
+  },
+  "tasks": {
+    "new": "Nueva tarea",
+    "edit": "Editar tarea",
+    "morning": "Turno de mañana",
+    "afternoon": "Turno de tarde",
+    "empty": "No hay tareas",
+    "title": "Título",
+    "description": "Descripción",
+    "date": "Fecha",
+    "priority": "Prioridad",
+    "shift": "Turno",
+    "assignees": "Ingenieros",
+    "noEngineers": "Aún no hay ingenieros. Añádelos en Equipo.",
+    "complete": "Completar",
+    "completeTitle": "Completar tarea",
+    "comment": "Comentario",
+    "completedBy": "Hecho por {{name}} · {{time}}",
+    "carriedOver": "Desde {{date}}",
+    "deleteConfirm": "¿Eliminar esta tarea?",
+    "progress": "{{done}} de {{total}} hechas",
+    "photos": "Fotos"
+  },
+  "priority": {
+    "Low": "Baja",
+    "Medium": "Media",
+    "High": "Alta"
+  },
+  "shift": {
+    "Morning": "Mañana",
+    "Afternoon": "Tarde"
+  },
+  "orders": {
+    "new": "Nuevo pedido",
+    "statusNew": "Nuevos",
+    "statusOrdered": "Pedidos",
+    "description": "¿Qué se necesita?",
+    "markOrdered": "Marcar como pedido",
+    "empty": "No hay pedidos",
+    "orderedBy": "Pedido por {{name}} · {{date}}",
+    "deleteConfirm": "¿Eliminar este pedido?",
+    "loadMore": "Ver más",
+    "search": "Buscar pieza, descripción o nombre",
+    "requestedBy": "Pedido por {{name}} · {{date}}"
+  },
+  "users": {
+    "title": "Equipo",
+    "add": "Añadir persona",
+    "name": "Nombre",
+    "password": "Contraseña",
+    "passwordHint": "Al menos 8 caracteres",
+    "role": "Rol",
+    "empty": "Aún no hay personas"
+  },
+  "role": {
+    "Manager": "Responsable",
+    "Engineer": "Ingeniero"
+  },
+  "errors": {
+    "required": "Obligatorio",
+    "tooLong": "Demasiado largo",
+    "tooShort": "Demasiado corto",
+    "inPast": "No puede ser en el pasado",
+    "notEngineer": "Elige al menos un ingeniero",
+    "invalidCredentials": "Nombre o contraseña incorrectos",
+    "user.nameTaken": "Este nombre ya está en uso",
+    "task.completed": "Una tarea completada no se puede cambiar ni eliminar",
+    "task.alreadyCompleted": "Esta tarea ya está completada",
+    "task.notAssigned": "Esta tarea no está asignada a ti",
+    "order.alreadyOrdered": "Ya está marcado como pedido",
+    "notFound": "No encontrado. Puede que se haya eliminado.",
+    "forbidden": "No tienes permiso para esto",
+    "network": "No se puede conectar con el servidor",
+    "tooManyRequests": "Demasiados intentos. Espera un minuto.",
+    "generic": "Algo salió mal",
+    "photo.empty": "La foto está vacía",
+    "photo.tooLarge": "La foto es demasiado grande (máx. 10 MB)",
+    "photo.unsupportedFormat": "Usa una foto JPG, PNG o WEBP",
+    "photo.notFound": "Foto no encontrada",
+    "wrongPassword": "Contraseña incorrecta",
+    "order.ordered": "Ya está pedido, no se puede eliminar",
+    "photo.tooMany": "Hasta 5 fotos"
+  },
+  "history": {
+    "empty": "Aún no hay tareas completadas",
+    "search": "Buscar título, descripción o nombre",
+    "anyDate": "Cualquier fecha",
+    "noResults": "No se encontró nada"
+  },
+  "account": {
+    "changePassword": "Cambiar contraseña",
+    "currentPassword": "Contraseña actual",
+    "newPassword": "Nueva contraseña",
+    "confirmPassword": "Repite la nueva contraseña",
+    "mismatch": "Las contraseñas no coinciden",
+    "saved": "Contraseña cambiada"
+  },
+  "translation": {
+    "translated": "Traducido",
+    "showOriginal": "Ver original",
+    "showTranslation": "Ver traducción"
+  }
+}

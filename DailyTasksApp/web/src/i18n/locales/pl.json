@@ -1,0 +1,145 @@
+{
+  "app": {
+    "name": "Zadania dzienne"
+  },
+  "nav": {
+    "tasks": "Zadania",
+    "history": "Historia",
+    "orders": "Zamówienia",
+    "team": "Zespół",
+    "logout": "Wyloguj",
+    "language": "Język",
+    "account": "Konto"
+  },
+  "login": {
+    "name": "Imię",
+    "password": "Hasło",
+    "submit": "Zaloguj",
+    "server": "Adres serwera",
+    "serverHint": "np. http://192.168.1.20:5278",
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło"
+  },
+  "common": {
+    "save": "Zapisz",
+    "cancel": "Anuluj",
+    "delete": "Usuń",
+    "edit": "Edytuj",
+    "close": "Zamknij",
+    "loading": "Ładowanie…",
+    "retry": "Spróbuj ponownie",
+    "today": "Dziś",
+    "previousDay": "Poprzedni dzień",
+    "nextDay": "Następny dzień",
+    "optional": "opcjonalnie",
+    "clear": "Wyczyść"
+  },
+  "photo": {
+    "add": "Dodaj zdjęcie",
+    "remove": "Usuń zdjęcie",
+    "view": "Pokaż zdjęcie",
+    "camera": "Aparat",
+    "gallery": "Galeria"
+  },
+  "tasks": {
+    "new": "Nowe zadanie",
+    "edit": "Edytuj zadanie",
+    "morning": "Zmiana poranna",
+    "afternoon": "Zmiana popołudniowa",
+    "empty": "Brak zadań",
+    "title": "Tytuł",
+    "description": "Opis",
+    "date": "Data",
+    "priority": "Priorytet",
+    "shift": "Zmiana",
+    "assignees": "Inżynierowie",
+    "noEngineers": "Brak inżynierów. Dodaj ich w zakładce Zespół.",
+    "complete": "Zakończ",
+    "completeTitle": "Zakończ zadanie",
+    "comment": "Komentarz",
+    "completedBy": "Wykonał(a) {{name}} · {{time}}",
+    "carriedOver": "Z dnia {{date}}",
+    "deleteConfirm": "Usunąć to zadanie?",
+    "progress": "Wykonano {{done}} z {{total}}",
+    "photos": "Zdjęcia"
+  },
+  "priority": {
+    "Low": "Niski",
+    "Medium": "Średni",
+    "High": "Wysoki"
+  },
+  "shift": {
+    "Morning": "Poranna",
+    "Afternoon": "Popołudniowa"
+  },
+  "orders": {
+    "new": "Nowe zamówienie",
+    "statusNew": "Nowe",
+    "statusOrdered": "Zamówione",
+    "description": "Czego potrzeba?",
+    "markOrdered": "Oznacz jako zamówione",
+    "empty": "Brak zamówień",
+    "orderedBy": "Zamówił(a) {{name}} · {{date}}",
+    "deleteConfirm": "Usunąć to zamówienie?",
+    "loadMore": "Pokaż więcej",
+    "search": "Szukaj części, opisu lub osoby",
+    "requestedBy": "Zgłosił(a) {{name}} · {{date}}"
+  },
+  "users": {
+    "title": "Zespół",
+    "add": "Dodaj osobę",
+    "name": "Imię",
+    "password": "Hasło",
+    "passwordHint": "Co najmniej 8 znaków",
+    "role": "Rola",
+    "empty": "Brak osób"
+  },
+  "role": {
+    "Manager": "Kierownik",
+    "Engineer": "Inżynier"
+  },
+  "errors": {
+    "required": "Wymagane",
+    "tooLong": "Za długie",
+    "tooShort": "Za krótkie",
+    "inPast": "Nie może być w przeszłości",
+    "notEngineer": "Wybierz co najmniej jednego inżyniera",
+    "invalidCredentials": "Błędne imię lub hasło",
+    "user.nameTaken": "To imię jest już używane",
+    "task.completed": "Zakończonego zadania nie można zmienić ani usunąć",
+    "task.alreadyCompleted": "To zadanie jest już zakończone",
+    "task.notAssigned": "To zadanie nie jest przypisane do Ciebie",
+    "order.alreadyOrdered": "Już oznaczone jako zamówione",
+    "notFound": "Nie znaleziono. Mogło zostać usunięte.",
+    "forbidden": "Nie masz uprawnień",
+    "network": "Brak połączenia z serwerem",
+    "tooManyRequests": "Zbyt wiele prób. Odczekaj minutę.",
+    "generic": "Coś poszło nie tak",
+    "photo.empty": "Zdjęcie jest puste",
+    "photo.tooLarge": "Zdjęcie jest za duże (maks. 10 MB)",
+    "photo.unsupportedFormat": "Użyj zdjęcia JPG, PNG lub WEBP",
+    "photo.notFound": "Nie znaleziono zdjęcia",
+    "wrongPassword": "Błędne hasło",
+    "order.ordered": "Już zamówione, nie można usunąć",
+    "photo.tooMany": "Maksymalnie 5 zdjęć"
+  },
+  "history": {
+    "empty": "Brak zakończonych zadań",
+    "search": "Szukaj w tytule, opisie lub po imieniu",
+    "anyDate": "Dowolna data",
+    "noResults": "Nic nie znaleziono"
+  },
+  "account": {
+    "changePassword": "Zmień hasło",
+    "currentPassword": "Obecne hasło",
+    "newPassword": "Nowe hasło",
+    "confirmPassword": "Powtórz nowe hasło",
+    "mismatch": "Hasła nie są takie same",
+    "saved": "Hasło zostało zmienione"
+  },
+  "translation": {
+    "translated": "Przetłumaczono",
+    "showOriginal": "Pokaż oryginał",
+    "showTranslation": "Pokaż tłumaczenie"
+  }
+}

@@ -1,0 +1,26 @@
+# Internal customer reference material - never committed.
+Resources/
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+
+# Node
+node_modules/
+dist/
+.vite/
+*.local
+
+# Secrets
+.env
+.env.*
+appsettings.Local.json
+appsettings.Production.json
+
+# Uploaded photos
+storage/
+
+# Built APKs
+dist/

@@ -1,0 +1,21 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36 // installed SDK platform; suppressUnsupportedCompileSdk in gradle.properties
+        targetSdkVersion = 34
+        ndkVersion = "27.1.12297006" // the NDK installed on this machine
+        kotlinVersion = "1.9.25"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"

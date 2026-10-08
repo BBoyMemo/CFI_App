@@ -1,0 +1,145 @@
+{
+  "app": {
+    "name": "Дневни задачи"
+  },
+  "nav": {
+    "tasks": "Задачи",
+    "history": "История",
+    "orders": "Поръчки",
+    "team": "Екип",
+    "logout": "Изход",
+    "language": "Език",
+    "account": "Профил"
+  },
+  "login": {
+    "name": "Име",
+    "password": "Парола",
+    "submit": "Вход",
+    "server": "Адрес на сървъра",
+    "serverHint": "напр. http://192.168.1.20:5278",
+    "showPassword": "Покажи паролата",
+    "hidePassword": "Скрий паролата"
+  },
+  "common": {
+    "save": "Запази",
+    "cancel": "Отказ",
+    "delete": "Изтрий",
+    "edit": "Редактирай",
+    "close": "Затвори",
+    "loading": "Зареждане…",
+    "retry": "Опитай отново",
+    "today": "Днес",
+    "previousDay": "Предишен ден",
+    "nextDay": "Следващ ден",
+    "optional": "по избор",
+    "clear": "Изчисти"
+  },
+  "photo": {
+    "add": "Добави снимка",
+    "remove": "Премахни снимката",
+    "view": "Виж снимката",
+    "camera": "Камера",
+    "gallery": "Галерия"
+  },
+  "tasks": {
+    "new": "Нова задача",
+    "edit": "Редактиране на задача",
+    "morning": "Сутрешна смяна",
+    "afternoon": "Следобедна смяна",
+    "empty": "Няма задачи",
+    "title": "Заглавие",
+    "description": "Описание",
+    "date": "Дата",
+    "priority": "Приоритет",
+    "shift": "Смяна",
+    "assignees": "Инженери",
+    "noEngineers": "Още няма инженери. Добавете ги в Екип.",
+    "complete": "Завърши",
+    "completeTitle": "Завършване на задача",
+    "comment": "Коментар",
+    "completedBy": "Изпълнено от {{name}} · {{time}}",
+    "carriedOver": "От {{date}}",
+    "deleteConfirm": "Да се изтрие ли задачата?",
+    "progress": "{{done}} от {{total}} изпълнени",
+    "photos": "Снимки"
+  },
+  "priority": {
+    "Low": "Нисък",
+    "Medium": "Среден",
+    "High": "Висок"
+  },
+  "shift": {
+    "Morning": "Сутрешна",
+    "Afternoon": "Следобедна"
+  },
+  "orders": {
+    "new": "Нова поръчка",
+    "statusNew": "Нови",
+    "statusOrdered": "Поръчани",
+    "description": "Какво е нужно?",
+    "markOrdered": "Отбележи като поръчано",
+    "empty": "Няма поръчки",
+    "orderedBy": "Поръчано от {{name}} · {{date}}",
+    "deleteConfirm": "Да се изтрие ли поръчката?",
+    "loadMore": "Покажи още",
+    "search": "Търси част, описание или име",
+    "requestedBy": "Поискано от {{name}} · {{date}}"
+  },
+  "users": {
+    "title": "Екип",
+    "add": "Добави човек",
+    "name": "Име",
+    "password": "Парола",
+    "passwordHint": "Поне 8 символа",
+    "role": "Роля",
+    "empty": "Още няма хора"
+  },
+  "role": {
+    "Manager": "Мениджър",
+    "Engineer": "Инженер"
+  },
+  "errors": {
+    "required": "Задължително",
+    "tooLong": "Твърде дълго",
+    "tooShort": "Твърде кратко",
+    "inPast": "Не може да е в миналото",
+    "notEngineer": "Изберете поне един инженер",
+    "invalidCredentials": "Грешно име или парола",
+    "user.nameTaken": "Това име вече се използва",
+    "task.completed": "Завършена задача не може да се променя или изтрива",
+    "task.alreadyCompleted": "Задачата вече е завършена",
+    "task.notAssigned": "Тази задача не е възложена на вас",
+    "order.alreadyOrdered": "Вече е отбелязано като поръчано",
+    "notFound": "Не е намерено. Може да е изтрито.",
+    "forbidden": "Нямате права за това",
+    "network": "Няма връзка със сървъра",
+    "tooManyRequests": "Твърде много опити. Изчакайте минута.",
+    "generic": "Нещо се обърка",
+    "photo.empty": "Снимката е празна",
+    "photo.tooLarge": "Снимката е твърде голяма (макс. 10 MB)",
+    "photo.unsupportedFormat": "Използвайте снимка JPG, PNG или WEBP",
+    "photo.notFound": "Снимката не е намерена",
+    "wrongPassword": "Грешна парола",
+    "order.ordered": "Вече е поръчано, не може да се изтрие",
+    "photo.tooMany": "До 5 снимки"
+  },
+  "history": {
+    "empty": "Още няма завършени задачи",
+    "search": "Търси в заглавие, описание или име",
+    "anyDate": "Всяка дата",
+    "noResults": "Няма резултати"
+  },
+  "account": {
+    "changePassword": "Смяна на парола",
+    "currentPassword": "Текуща парола",
+    "newPassword": "Нова парола",
+    "confirmPassword": "Повторете новата парола",
+    "mismatch": "Паролите не съвпадат",
+    "saved": "Паролата е сменена"
+  },
+  "translation": {
+    "translated": "Преведено",
+    "showOriginal": "Покажи оригинала",
+    "showTranslation": "Покажи превода"
+  }
+}
