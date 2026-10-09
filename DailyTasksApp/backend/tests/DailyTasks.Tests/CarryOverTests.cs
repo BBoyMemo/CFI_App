@@ -35,7 +35,7 @@ public class CarryOverTests(ApiFactory api) : IClassFixture<ApiFactory>
 
         var unfinished = await Create("Grease bearings");
         var finished = await Create("Check guards");
-        await engineer.Client.PostAsync($"/api/tasks/{finished}/complete", TestData.EmptyCompletion());
+        await engineer.Client.PostAsync($"/api/tasks/{finished}/updates", TestData.EmptyCompletion());
 
         api.Clock.Now = start.AddDays(1);
 

@@ -28,17 +28,23 @@ public class TranslationOptions
 // The UI languages. Every free-text field is kept in all of them.
 public static class AppLanguages
 {
-    public static readonly string[] All = ["en", "pl", "bg", "es"];
+    public static readonly string[] All = ["en", "pl", "bg", "fil"];
 
     public static string ToDeepLTarget(string language) => language switch
     {
         "en" => "EN-GB",
+        // DeepL calls Filipino by its base language, Tagalog.
+        "fil" => "TL",
         _ => language.ToUpperInvariant(),
     };
 
-    // DeepL reports the source as e.g. "EN" or "PL"; we keep the two-letter lower-case form.
-    public static string FromDeepLSource(string? code) =>
-        string.IsNullOrEmpty(code) ? "" : code[..Math.Min(2, code.Length)].ToLowerInvariant();
+    // DeepL reports the source as e.g. "EN", "PL" or "TL"; we keep the app's language code.
+    public static string FromDeepLSource(string? code)
+    {
+        if (string.IsNullOrEmpty(code)) return "";
+        var two = code[..Math.Min(2, code.Length)].ToLowerInvariant();
+        return two == "tl" ? "fil" : two;
+    }
 }
 
 public record TranslatedText(string Text, string SourceLanguage);
@@ -253,25 +259,33 @@ public class TranslationProcessor(
         return finished;
     }
 
-    // Records written before translation was switched on have no translations and no job.
-    // Queues them once, so existing tasks and orders are translated too.
+    // Records written before translation was switched on, or before a language was added, lack
+    // a translation in some language and have no job. Queues each of them once.
     public async Task<int> EnqueueMissingAsync(CancellationToken ct)
     {
         if (!translator.IsEnabled) return 0;
         var now = clock.UtcNow;
+        var queued = new HashSet<Guid>(await db.TranslationJobs.Select(j => j.EntityId).ToListAsync(ct));
         var jobs = new List<TranslationJob>();
 
-        var tasks = await db.Tasks.AsNoTracking()
-            .Where(t => !db.Translations.Any(x => x.EntityId == t.Id) && !db.TranslationJobs.Any(j => j.EntityId == t.Id))
-            .Select(t => t.Id)
-            .ToListAsync(ct);
-        jobs.AddRange(tasks.Select(id => NewJob(TranslatedEntity.Task, id, now)));
+        void Add(string type, IEnumerable<Guid> ids)
+        {
+            foreach (var id in ids.Where(queued.Add)) jobs.Add(NewJob(type, id, now));
+        }
 
-        var orders = await db.Orders.AsNoTracking()
-            .Where(o => !db.Translations.Any(x => x.EntityId == o.Id) && !db.TranslationJobs.Any(j => j.EntityId == o.Id))
-            .Select(o => o.Id)
-            .ToListAsync(ct);
-        jobs.AddRange(orders.Select(id => NewJob(TranslatedEntity.Order, id, now)));
+        foreach (var language in AppLanguages.All)
+        {
+            Add(TranslatedEntity.Task, await db.Tasks.AsNoTracking()
+                .Where(t => !db.Translations.Any(x => x.EntityId == t.Id && x.Language == language))
+                .Select(t => t.Id).ToListAsync(ct));
+            Add(TranslatedEntity.TaskUpdate, await db.TaskUpdates.AsNoTracking()
+                .Where(u => u.Comment != null && u.Comment != "" &&
+                            !db.Translations.Any(x => x.EntityId == u.Id && x.Language == language))
+                .Select(u => u.Id).ToListAsync(ct));
+            Add(TranslatedEntity.Order, await db.Orders.AsNoTracking()
+                .Where(o => !db.Translations.Any(x => x.EntityId == o.Id && x.Language == language))
+                .Select(o => o.Id).ToListAsync(ct));
+        }
 
         db.TranslationJobs.AddRange(jobs);
         await db.SaveChangesAsync(ct);
@@ -361,8 +375,12 @@ public class TranslationProcessor(
             {
                 fields.Add((TranslatedField.Title, task.Title));
                 fields.Add((TranslatedField.Description, task.Description));
-                fields.Add((TranslatedField.Comment, task.CompletionComment));
             }
+        }
+        else if (job.EntityType == TranslatedEntity.TaskUpdate)
+        {
+            var update = await db.TaskUpdates.AsNoTracking().SingleOrDefaultAsync(u => u.Id == job.EntityId, ct);
+            if (update is not null) fields.Add((TranslatedField.Comment, update.Comment));
         }
         else if (job.EntityType == TranslatedEntity.Order)
         {

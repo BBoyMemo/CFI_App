@@ -36,6 +36,9 @@ public static class DbInitializer
         if (config.GetSection(DatabaseOptions.Section).Get<DatabaseOptions>()?.MigrateOnStartup == true)
             await db.Database.MigrateAsync();
 
+        var cards = await TaskUpdateBackfill.RunAsync(db);
+        if (cards > 0) logger.LogInformation("Turned {Count} earlier completions into update cards.", cards);
+
         if (await db.Users.AnyAsync()) return;
 
         var bootstrap = config.GetSection(BootstrapOptions.Section).Get<BootstrapOptions>();

@@ -128,8 +128,20 @@ public static class TestData
     // Enough of a JPEG for signature sniffing: SOI marker + APP0 header bytes.
     public static byte[] Jpeg => [0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0xFF, 0xD9];
 
-    // What the browser sends when the engineer completes without a comment or photo.
-    public static MultipartFormDataContent EmptyCompletion() => new() { { new StringContent(""), "comment" } };
+    // What the app sends when someone completes without a comment or photo.
+    public static MultipartFormDataContent EmptyCompletion() => Card("Completed");
+
+    // A card for POST /api/tasks/{id}/updates: outcome "InProgress" or "Completed".
+    public static MultipartFormDataContent Card(string outcome, string? comment = null, int photos = 0)
+    {
+        var form = new MultipartFormDataContent
+        {
+            { new StringContent(comment ?? ""), "comment" },
+            { new StringContent(outcome), "outcome" },
+        };
+        for (var i = 0; i < photos; i++) form.Add(File(Jpeg), "photo", $"p{i}.jpg");
+        return form;
+    }
 
     public static ByteArrayContent File(byte[] bytes, string contentType = "image/jpeg")
     {

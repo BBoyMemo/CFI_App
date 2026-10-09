@@ -17,29 +17,28 @@ istediğiniz satırı söylemeniz yeterli.
 | 4 | Giriş adı | Büyük/küçük harf duyarsız ve **benzersiz** (iki "John Smith" olamaz — giriş adla yapıldığı için). | — |
 | 5 | Fotoğraf nerede | **Sunucunun diskinde** (`backend/src/DailyTasks.Api/storage/`), `IFileStorage` arkasında → ileride bulut. Veritabanında sadece dosya anahtarı. | Evet |
 | 6 | Fotoğraf limiti | Tek fotoğraf, **en çok 10 MB**, **JPG / PNG / WEBP**. Tür, dosya adına değil dosyanın ilk baytlarına bakılarak doğrulanır. Telefon/web fotoğrafı yüklemeden önce 1920 px'e küçültür. | Evet |
-| 7 | Engineer hangi görevleri görür | **Açık görevler:** sadece kendisine atananlar. **Tamamlanan görevler:** hepsi (kullanıcı kararı, History sekmesinde). Manager her şeyi görür. | Evet |
+| 7 | Engineer hangi görevleri görür | **Açık / devam eden görevler:** sadece kendisine atananlar. **En az bir kez tamamlanmış görevler:** hepsi (kullanıcı kararı, History sekmesinde). Manager her şeyi görür. | Evet |
 | 8 | Manager sipariş silebilir mi | **Evet.** | Evet |
 | 9 | Engineer hangi siparişleri görür | **Hepsini** (aynı parçayı iki kez istememek için). | Evet |
 | 10 | Devir (carry-over) nasıl tetiklenir | **İstek anında**: görev listesi her okunduğunda tamamlanmamış, tarihi geçmiş görevler bugüne taşınır. Zamanlayıcı yok, sunucu kapalı kalsa bile doğru çalışır. | Evet |
 | 11 | "Gün sonu" hangi saat dilimi | **Europe/London** (fabrika saati; yaz saati dahil). | Evet (`Site:TimeZone`) |
-| 12 | Manager görevi sonradan düzenleyebilir mi | **Evet** (başlık, açıklama, tarih, öncelik, vardiya, atananlar). **Tamamlanmış** görev düzenlenemez (kayıttır), sadece silinebilir. | Evet |
+| 12 | Manager görevi sonradan düzenleyebilir mi | **Evet** (başlık, açıklama, tarih, öncelik, vardiya, atananlar) — açık ve **devam eden** görevde her an (yeniden atama dahil). **Tamamlanmış** görev düzenlenemez (kayıttır). | Evet |
 | 13 | Barındırma | Henüz karar yok. Şu an geliştirme bilgisayarında çalışıyor. API, derlenmiş web uygulamasını kendisi de sunabilir (tek sunucu kurulumu). | — |
-| 14 | Diller | **EN** (varsayılan), **PL**, **BG**, **ES**. Çeviriler web ve mobilde ortak dosyalardan gelir. | Evet |
+| 14 | Diller | **EN** (varsayılan), **PL**, **BG**, **FIL** (Filipino; İspanyolca'nın yerine, kullanıcı isteği). Çeviriler web ve mobilde ortak dosyalardan gelir. | Evet |
 
 ## Diğer kurallar (prompt'tan)
 
 - Roller: yalnızca **Manager** ve **Engineer**. Kayıt ekranı yok; kullanıcıyı Manager ekler (ad + şifre + rol).
 - Çalışan listesinde **sadece ad** var.
 - Görev: başlık (zorunlu), açıklama (isteğe bağlı), tarih, öncelik (Low / Medium / High),
-  vardiya (Morning / Afternoon), en az bir Engineer. Tarih geçmişte olamaz.
-- Bir görevi atanan Engineer'lardan **biri** tamamlar; yorum ve fotoğraf isteğe bağlı.
-  İki kişi aynı anda tamamlarsa yalnızca biri kaydedilir (diğeri "zaten tamamlandı" görür).
+  vardiya (Morning / Afternoon), en az bir kişi (Engineer veya Manager). Tarih geçmişte olamaz.
+- Görev durumu: **Open → In progress → Completed**. Ayrıntılar: "Görev kartları" bölümü.
 - Tamamlanan görevde **kim + tarih + saat** görünür (kullanıcı isteği).
-- **History** sekmesi (Tasks ile Orders arasında, kullanıcı isteği): tüm tamamlanan görevler,
-  en yeni üstte, tamamlandığı güne göre gruplu, sayfalı. Salt okunur. Herkes hepsini görür.
+- **History** sekmesi (Tasks ile Orders arasında, kullanıcı isteği): **en az bir kez tamamlanmış**
+  görevler, en yeni tamamlanma üstte, o güne göre gruplu, sayfalı. Herkes hepsini görür ve kart
+  ekleyebilir. Hiç tamamlanmamış "devam eden" görev History'de görünmez.
 - **History araması** (kullanıcı isteği): başlıkta veya açıklamada geçen ifade (büyük/küçük
   harf duyarsız) ve/veya **tamamlanma günü** (fabrika saatiyle). İkisi birlikte de kullanılabilir.
-  Tamamlama yorumu aramaya dahil değil.
 - Devreden görevde "**↪ 6 Oct'tan**" etiketi görünür (ilk planlanan tarih). Manager tarihi
   elle değiştirirse bu etiket sıfırlanır.
 - Sipariş: açıklama (zorunlu) + fotoğraf (isteğe bağlı). Durum: **New** → **Ordered**; yalnızca Manager değiştirir.
@@ -52,15 +51,31 @@ ile **bir** Manager hesabı oluşturur (geliştirmede: `Manager` / `Manager123!`
 sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şifreyi değiştirin**
 (şu an şifre değiştirme ekranı yok — prompt'ta olmadığı için eklenmedi).
 
+## Görev kartları (kullanıcı isteği)
+
+- Görevin verildiği hâli üstte **ana kart**tır; altında eklenen her işlem ayrı bir **kart** olarak
+  sıralanır: sonuç (In progress / Completed), kişi, tarih + saat, yorum ve en fazla 5 fotoğraf
+  (ikisi de isteğe bağlı). Ana kart ve eski kartlar **asla değişmez**.
+- **Tamamlanana kadar** kart ekleyebilenler: göreve atananlar ve Manager (başkası 403 alır).
+  "In progress" kartı görevi devam ediyor yapar; görev tamamlanana kadar her gün bugüne devreder.
+- **Tamamlandıktan sonra** herkes kart ekleyebilir:
+  - **Completed** → ek not; görev tamamlanmış kalır, tamamlanma zamanı/kişisi bu kart olur.
+  - **In progress** → görevi geri alır: görev **yalnızca geri alanın** olur (atananlar = o kişi),
+    bugünün listesine düşer ve **History'de kalmaya devam eder**.
+- Manager, Engineer'ın yapabildiği her şeyi her görevde yapabilir.
+- Bu özellikten önceki tamamlamalar (yorum + fotoğraflarıyla) otomatik olarak görevin **ilk kartı**
+  yapıldı (geliştirme veritabanında 8 görev).
+
 ## Kayıtlar silinmez (kullanıcı isteği)
 
-- **Tamamlanan görev silinemez ve değiştirilemez** (Manager dahil); History'nin parçasıdır.
+- **Üzerinde en az bir kart olan görev silinemez** (Manager dahil). Yalnızca hiç dokunulmamış
+  (Open, kartsız) görevi Manager silebilir. Tamamlanan görevin aslı ve kartları değiştirilemez.
 - **Sipariş verilmiş (Ordered) sipariş silinemez.** Yalnızca hâlâ "New" olan bir talebi Manager silebilir.
 
 ## Arama (kullanıcı isteği)
 
-- **History:** başlık, açıklama, tamamlama yorumu, **tamamlayan kişinin adı** veya **atanan kişilerin
-  adları** + tamamlanma günü (takvimden).
+- **History:** başlık, açıklama, **kart yorumları** (ve çevirileri), **kartı yazanların adı** veya
+  **atanan kişilerin adları** + tamamlanma günü (takvimden).
 - **Siparişler:** açıklama (parça adı vb.), **isteyen** veya **sipariş veren** kişinin adı + gün
   (istendiği ya da sipariş verildiği gün). Arama New ve Ordered'ın **ikisinde birden** arar ve her
   sonucun durumunu gösterir ("bu parça ısmarlandı mı?" sorusunun tek cevabı olsun diye).
@@ -68,13 +83,13 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 ## Görev fotoğrafları (kullanıcı isteği)
 
 - Manager görev oluştururken/düzenlerken **en fazla 5 fotoğraf** ekler (kamera veya galeriden toplu).
-  Tamamlanan görevde fotoğraflar değişmez. Tamamlama fotoğrafı (Engineer'ın) ayrıca durur.
+  Tamamlanan görevde fotoğraflar değişmez. Her kartın kendi fotoğrafları (en fazla 5) ayrıca durur.
 - Fotoğrafları görevi görebilen herkes görür (açık görev: atananlar + Manager; tamamlanan: herkes).
 
 ## Otomatik çeviri (kullanıcı isteği, DeepL API Free)
 
-- Görev başlığı/açıklaması, tamamlama yorumu ve sipariş açıklaması kayıttan sonra arka planda
-  EN/PL/BG/ES'ye çevrilip saklanır; herkes kendi dilinde okur, 🌐 ile aslını görür. Adlar çevrilmez.
+- Görev başlığı/açıklaması, kart yorumları ve sipariş açıklaması kayıttan sonra arka planda
+  EN/PL/BG/FIL'e çevrilip saklanır (Filipino için DeepL hedefi `TL`); herkes kendi dilinde okur, 🌐 ile aslını görür. Adlar çevrilmez.
 - Anahtar `backend/src/DailyTasks.Api/appsettings.Local.json` içinde (git dışı). Anahtar yoksa hiçbir
   metin dışarı gitmez. Kota/ağ sorununda orijinal görünür, çeviri sonra tekrar denenir.
 - **Gizlilik:** DeepL'in ücretsiz planında gönderilen metinler DeepL tarafından saklanıp eğitimde

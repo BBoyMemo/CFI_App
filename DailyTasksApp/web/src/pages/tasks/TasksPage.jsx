@@ -5,9 +5,10 @@ import { useAuth } from '../../auth/AuthContext';
 import Icon from '../../components/Icon';
 import { ConfirmModal } from '../../components/Modal';
 import { addDays, errorMessage, formatDay, siteToday } from '../../lib/format';
-import CompleteTaskModal from './CompleteTaskModal';
+import { taskRules } from '../../lib/taskRules';
 import TaskCard from './TaskCard';
 import TaskFormModal from './TaskFormModal';
+import UpdateTaskModal from './UpdateTaskModal';
 
 const SHIFTS = [
   { value: 'Morning', icon: 'sun', label: 'tasks.morning' },
@@ -19,7 +20,8 @@ export default function TasksPage() {
   const { user, isManager } = useAuth();
   const [date, setDate] = useState(siteToday);
   const [tasks, setTasks] = useState(null);
-  const [engineers, setEngineers] = useState([]);
+  // Everyone a task can be given to: engineers and managers alike.
+  const [people, setPeople] = useState([]);
   const [error, setError] = useState(null);
   // { type: 'create' | 'edit' | 'complete' | 'delete', task? }
   const [dialog, setDialog] = useState(null);
@@ -50,8 +52,8 @@ export default function TasksPage() {
     if (!isManager) return;
     api
       .users()
-      .then((users) => setEngineers(users.filter((u) => u.role === 'Engineer')))
-      .catch(() => setEngineers([]));
+      .then(setPeople)
+      .catch(() => setPeople([]));
   }, [isManager]);
 
   const today = siteToday();
@@ -85,12 +87,21 @@ export default function TasksPage() {
         <button type="button" className="icon-btn" onClick={() => setDate(addDays(date, -1))} aria-label={t('common.previousDay')}>
           <Icon name="left" />
         </button>
-        <label className="relative flex-1 cursor-pointer text-center">
+        {/* Today gets a soft box so it stands out while moving between days. */}
+        <label
+          className={`relative flex-1 cursor-pointer rounded-2xl border-[1.5px] py-1 text-center ${
+            date === today ? 'border-yellow bg-yellow/20' : 'border-transparent'
+          }`}
+        >
           <span className="block text-lg font-bold text-brown capitalize">
             {formatDay(date, { weekday: 'long', day: 'numeric', month: 'long' })}
           </span>
-          {tasks && tasks.length > 0 && (
-            <span className="block text-xs text-muted">{t('tasks.progress', { done, total: tasks.length })}</span>
+          {(date === today || tasks?.length > 0) && (
+            <span className="block text-xs text-muted">
+              {date === today && <span className="font-bold text-brown">{t('common.today')}</span>}
+              {date === today && tasks?.length > 0 && ' · '}
+              {tasks?.length > 0 && t('tasks.progress', { done, total: tasks.length })}
+            </span>
           )}
           <input
             type="date"
@@ -142,9 +153,8 @@ export default function TasksPage() {
                     <TaskCard
                       key={task.id}
                       task={task}
-                      isManager={isManager}
-                      canComplete={!isManager && !task.completed && task.assignees.some((a) => a.id === user.id)}
-                      onComplete={() => setDialog({ type: 'complete', task })}
+                      rules={taskRules(task, user, isManager)}
+                      onUpdate={(outcome) => setDialog({ type: 'update', task, outcome })}
                       onEdit={() => setDialog({ type: 'edit', task })}
                       onDelete={() => setDialog({ type: 'delete', task })}
                     />
@@ -171,14 +181,15 @@ export default function TasksPage() {
         <TaskFormModal
           task={dialog.task}
           defaultDate={date < today ? today : date}
-          engineers={engineers}
+          engineers={people}
           onSaved={afterSave}
           onClose={close}
         />
       )}
-      {dialog?.type === 'complete' && (
-        <CompleteTaskModal
+      {dialog?.type === 'update' && (
+        <UpdateTaskModal
           task={dialog.task}
+          initialOutcome={dialog.outcome}
           onDone={(updated) => {
             setTasks((list) => list.map((x) => (x.id === updated.id ? updated : x)));
             close();

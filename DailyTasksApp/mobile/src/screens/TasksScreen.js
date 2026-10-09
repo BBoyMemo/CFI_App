@@ -13,14 +13,7 @@ import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import {api} from '../api';
 import CalendarSheet from '../Calendar';
 import {useAuth} from '../auth';
-import {
-  addDays,
-  errorMessage,
-  formatDateTime,
-  formatDay,
-  siteToday,
-} from '../format';
-import {StoredPhoto} from '../Photo';
+import {addDays, errorMessage, formatDay, siteToday} from '../format';
 import {colors, priorityColor} from '../theme';
 import {hasTranslation, localized} from '../translate';
 import TranslationToggle from '../TranslationToggle';
@@ -34,7 +27,13 @@ import {
   styles as ui,
 } from '../ui';
 import TaskDetail from './TaskDetail';
-import {CompleteSheet, TaskFormSheet} from './TaskSheets';
+import {TaskFormSheet} from './TaskSheets';
+import {
+  InProgressChip,
+  taskRules,
+  UpdateCard,
+  UpdateSheet,
+} from './TaskUpdates';
 
 const SHIFTS = [
   {value: 'Morning', icon: 'sun', label: 'tasks.morning'},
@@ -46,7 +45,8 @@ export default function TasksScreen() {
   const {user, isManager} = useAuth();
   const [date, setDate] = useState(siteToday);
   const [tasks, setTasks] = useState(null);
-  const [engineers, setEngineers] = useState([]);
+  // Everyone a task can be given to: engineers and managers alike.
+  const [people, setPeople] = useState([]);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dialog, setDialog] = useState(null);
@@ -79,8 +79,8 @@ export default function TasksScreen() {
     if (isManager) {
       api
         .users()
-        .then(users => setEngineers(users.filter(u => u.role === 'Engineer')))
-        .catch(() => setEngineers([]));
+        .then(setPeople)
+        .catch(() => setPeople([]));
     }
   }, [isManager]);
 
@@ -134,8 +134,9 @@ export default function TasksScreen() {
   }
 
   const done = tasks?.filter(x => x.completed).length ?? 0;
-  const canComplete = task =>
-    !isManager && !task.completed && task.assignees.some(a => a.id === user.id);
+  const rules = task => taskRules(task, user, isManager);
+  const replace = updated =>
+    setTasks(list => list?.map(x => (x.id === updated.id ? updated : x)));
 
   return (
     <View style={ui.flex}>
@@ -148,13 +149,19 @@ export default function TasksScreen() {
           label={t('common.previousDay')}
         />
         <Pressable
-          style={styles.dateCenter}
+          style={[styles.dateCenter, date === today && styles.dateToday]}
           onPress={() => setDialog({type: 'calendar'})}
           accessibilityLabel={t('tasks.date')}>
           <Text style={styles.dateText}>📅 {formatDay(date)}</Text>
-          {tasks && tasks.length > 0 ? (
+          {date === today || tasks?.length > 0 ? (
             <Text style={styles.progress}>
-              {t('tasks.progress', {done, total: tasks.length})}
+              {date === today ? (
+                <Text style={styles.todayLabel}>{t('common.today')}</Text>
+              ) : null}
+              {date === today && tasks?.length > 0 ? ' · ' : ''}
+              {tasks?.length > 0
+                ? t('tasks.progress', {done, total: tasks.length})
+                : ''}
             </Text>
           ) : null}
         </Pressable>
@@ -215,11 +222,10 @@ export default function TasksScreen() {
                           <TaskCard
                             key={task.id}
                             task={task}
-                            isManager={isManager}
-                            canComplete={canComplete(task)}
+                            rules={rules(task)}
                             onOpen={() => setDialog({type: 'detail', task})}
-                            onComplete={() =>
-                              setDialog({type: 'complete', task})
+                            onUpdate={outcome =>
+                              setDialog({type: 'update', task, outcome})
                             }
                             onEdit={() => setDialog({type: 'edit', task})}
                             onDelete={() => setDialog({type: 'delete', task})}
@@ -247,9 +253,10 @@ export default function TasksScreen() {
       {dialog?.type === 'detail' ? (
         <TaskDetail
           task={dialog.task}
-          isManager={isManager}
-          canComplete={canComplete(dialog.task)}
-          onComplete={() => setDialog({type: 'complete', task: dialog.task})}
+          rules={rules(dialog.task)}
+          onUpdate={outcome =>
+            setDialog({type: 'update', task: dialog.task, outcome, back: true})
+          }
           onEdit={() => setDialog({type: 'edit', task: dialog.task})}
           onDelete={() => setDialog({type: 'delete', task: dialog.task})}
           onClose={close}
@@ -259,7 +266,7 @@ export default function TasksScreen() {
         <TaskFormSheet
           task={dialog.task}
           defaultDate={date < today ? today : date}
-          engineers={engineers}
+          engineers={people}
           onSaved={() => {
             close();
             load();
@@ -267,16 +274,18 @@ export default function TasksScreen() {
           onClose={close}
         />
       ) : null}
-      {dialog?.type === 'complete' ? (
-        <CompleteSheet
+      {dialog?.type === 'update' ? (
+        <UpdateSheet
           task={dialog.task}
+          initialOutcome={dialog.outcome}
           onDone={updated => {
-            setTasks(list =>
-              list.map(x => (x.id === updated.id ? updated : x)),
-            );
-            close();
+            replace(updated);
+            // Opened from the detail screen: go back to it, now with the new card.
+            setDialog(dialog.back ? {type: 'detail', task: updated} : null);
           }}
-          onClose={close}
+          onClose={() =>
+            setDialog(dialog.back ? {type: 'detail', task: dialog.task} : null)
+          }
         />
       ) : null}
       {dialog?.type === 'delete' ? (
@@ -292,24 +301,17 @@ export default function TasksScreen() {
   );
 }
 
-export function TaskCard({
-  task,
-  isManager,
-  canComplete,
-  onOpen,
-  onComplete,
-  onEdit,
-  onDelete,
-}) {
+export function TaskCard({task, rules, onOpen, onUpdate, onEdit, onDelete}) {
   const {t, i18n} = useTranslation();
   const [showOriginal, setShowOriginal] = useState(false);
   const text = field => localized(task, field, i18n.language, showOriginal);
   const translated = hasTranslation(
     task,
-    ['title', 'description', 'comment'],
+    ['title', 'description'],
     i18n.language,
   );
   const carried = task.originalDate !== task.date;
+  const latest = task.updates[task.updates.length - 1];
   return (
     <Pressable
       onPress={onOpen}
@@ -366,6 +368,7 @@ export function TaskCard({
         ) : null}
 
         <View style={styles.chipRow}>
+          {task.status === 'InProgress' ? <InProgressChip /> : null}
           {task.assignees.map(a => (
             <View key={a.id} style={ui.chip}>
               <Text style={ui.chipText}>👤 {a.name}</Text>
@@ -386,56 +389,52 @@ export function TaskCard({
               </Text>
             </View>
           ) : null}
-          {isManager && !task.completed ? (
+          {rules.edit || rules.delete ? (
             <View style={styles.actions}>
-              <IconButton
-                icon="edit"
-                onPress={onEdit}
-                label={t('common.edit')}
-              />
-              <IconButton
-                icon="trash"
-                onPress={onDelete}
-                label={t('common.delete')}
-              />
+              {rules.edit ? (
+                <IconButton
+                  icon="edit"
+                  onPress={onEdit}
+                  label={t('common.edit')}
+                />
+              ) : null}
+              {rules.delete ? (
+                <IconButton
+                  icon="trash"
+                  onPress={onDelete}
+                  label={t('common.delete')}
+                />
+              ) : null}
             </View>
           ) : null}
         </View>
 
-        {task.completed ? (
-          <View style={styles.completion}>
-            <Text style={styles.completedBy}>
-              {t('tasks.completedBy', {
-                name: task.completedBy?.name ?? '—',
-                time: formatDateTime(task.completedAt),
-              })}
-            </Text>
-            {task.completionComment ? (
-              <Text style={styles.comment}>💬 {text('comment')}</Text>
-            ) : null}
-            {task.hasPhoto || task.completionPhotoIds?.length ? (
-              <View style={styles.thumbs}>
-                {task.hasPhoto ? (
-                  <StoredPhoto path={`/tasks/${task.id}/photo`} />
-                ) : null}
-                {(task.completionPhotoIds ?? []).map(photoId => (
-                  <StoredPhoto
-                    key={photoId}
-                    path={`/tasks/${task.id}/photos/${photoId}`}
-                  />
-                ))}
-              </View>
+        {latest ? (
+          <View style={styles.latest}>
+            <UpdateCard task={task} update={latest} compact />
+            {task.updates.length > 1 ? (
+              <Text style={styles.more}>
+                🗂 {t('tasks.showAll', {count: task.updates.length})}
+              </Text>
             ) : null}
           </View>
         ) : null}
 
-        {canComplete ? (
-          <View style={styles.completeRow}>
+        {rules.work && onUpdate ? (
+          <View style={styles.workRow}>
+            <Button
+              title={t('status.InProgress')}
+              icon="wrench"
+              variant="primary"
+              onPress={() => onUpdate('InProgress')}
+              style={styles.workButton}
+            />
             <Button
               title={t('tasks.complete')}
               icon="check"
               variant="green"
-              onPress={onComplete}
+              onPress={() => onUpdate('Completed')}
+              style={styles.workButton}
             />
           </View>
         ) : null}
@@ -451,7 +450,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 10,
   },
-  dateCenter: {flex: 1, alignItems: 'center'},
+  dateCenter: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  // Today gets a soft box so it stands out while swiping between days.
+  dateToday: {backgroundColor: colors.yellowSoft, borderColor: colors.yellow},
+  todayLabel: {fontWeight: '800', color: colors.brown},
   dateText: {
     fontSize: 18,
     fontWeight: '800',
@@ -504,19 +513,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   actions: {flexDirection: 'row', marginLeft: 'auto'},
-  completion: {
-    backgroundColor: colors.greenSoft,
-    borderRadius: 12,
-    padding: 10,
-    marginTop: 10,
-    gap: 6,
-  },
-  completedBy: {color: colors.green, fontWeight: '700'},
-  comment: {color: colors.ink},
-  thumbs: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
-  completeRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 10,
-  },
+  latest: {marginTop: 10, gap: 6},
+  more: {color: colors.muted, fontSize: 12, fontWeight: '600'},
+  workRow: {flexDirection: 'row', gap: 8, marginTop: 10},
+  workButton: {flex: 1},
 });

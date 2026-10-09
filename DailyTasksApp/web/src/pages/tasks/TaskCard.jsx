@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import Icon from '../../components/Icon';
 import { StoredPhoto } from '../../components/Photo';
 import TranslationToggle from '../../components/TranslationToggle';
-import { formatDateTime, formatDay } from '../../lib/format';
+import { formatDay } from '../../lib/format';
 import { hasTranslation, localized } from '../../lib/translate';
+import UpdateCard from './UpdateCard';
 
 const PRIORITY_STYLE = {
   High: 'bg-danger text-white',
@@ -18,12 +19,16 @@ const PRIORITY_BAR = {
   Low: 'bg-cream-dark',
 };
 
-export default function TaskCard({ task, isManager, canComplete, onComplete, onEdit, onDelete }) {
+// The task as given (main card) with the cards people added under it. `rules` comes from
+// taskRules(); onUpdate(outcome) opens the add-card form.
+export default function TaskCard({ task, rules, onUpdate, onEdit, onDelete }) {
   const { t, i18n } = useTranslation();
   const [showOriginal, setShowOriginal] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   const text = (field) => localized(task, field, i18n.language, showOriginal);
-  const translated = hasTranslation(task, ['title', 'description', 'comment'], i18n.language);
+  const translated = hasTranslation(task, ['title', 'description'], i18n.language);
   const carried = task.originalDate !== task.date;
+  const updates = showAll ? task.updates : task.updates.slice(-1);
 
   return (
     <article className="card relative flex overflow-hidden">
@@ -35,9 +40,7 @@ export default function TaskCard({ task, isManager, canComplete, onComplete, onE
               <Icon name="check" size={15} strokeWidth={3} />
             </span>
           )}
-          <h3 className="min-w-0 flex-1 font-semibold break-words">
-            {text('title')}
-          </h3>
+          <h3 className="min-w-0 flex-1 font-semibold break-words">{text('title')}</h3>
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${PRIORITY_STYLE[task.priority]}`}>
             {t(`priority.${task.priority}`)}
           </span>
@@ -56,21 +59,31 @@ export default function TaskCard({ task, isManager, canComplete, onComplete, onE
         )}
 
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
-          {isManager && !task.completed && (
+          {(rules.edit || rules.delete) && (
             <div className="order-last ml-auto flex items-center">
-              <button type="button" className="icon-btn" onClick={onEdit} aria-label={t('common.edit')} title={t('common.edit')}>
-                <Icon name="edit" size={18} />
-              </button>
-              <button
-                type="button"
-                className="icon-btn hover:text-danger"
-                onClick={onDelete}
-                aria-label={t('common.delete')}
-                title={t('common.delete')}
-              >
-                <Icon name="trash" size={18} />
-              </button>
+              {rules.edit && (
+                <button type="button" className="icon-btn" onClick={onEdit} aria-label={t('common.edit')} title={t('common.edit')}>
+                  <Icon name="edit" size={18} />
+                </button>
+              )}
+              {rules.delete && (
+                <button
+                  type="button"
+                  className="icon-btn hover:text-danger"
+                  onClick={onDelete}
+                  aria-label={t('common.delete')}
+                  title={t('common.delete')}
+                >
+                  <Icon name="trash" size={18} />
+                </button>
+              )}
             </div>
+          )}
+          {task.status === 'InProgress' && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-yellow/25 px-2 py-0.5 text-xs font-bold text-brown">
+              <Icon name="wrench" size={12} />
+              {t('status.InProgress')}
+            </span>
           )}
           {task.assignees.map((a) => (
             <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-cream px-2 py-0.5 text-xs text-brown">
@@ -86,33 +99,40 @@ export default function TaskCard({ task, isManager, canComplete, onComplete, onE
           )}
         </div>
 
-        {task.completed && (
-          <div className="mt-3 space-y-2 rounded-xl bg-green-soft p-2.5 text-sm">
-            <p className="font-medium text-green">
-              {t('tasks.completedBy', { name: task.completedBy?.name ?? '—', time: formatDateTime(task.completedAt) })}
-            </p>
-            {task.completionComment && (
-              <p className="flex gap-1.5 whitespace-pre-line text-ink">
-                <Icon name="comment" size={16} className="mt-0.5 shrink-0 text-muted" />
-                {text('comment')}
-              </p>
-            )}
-            {(task.hasPhoto || task.completionPhotoIds?.length > 0) && (
-              <div className="flex flex-wrap gap-1.5">
-                {task.hasPhoto && <StoredPhoto path={`/tasks/${task.id}/photo`} />}
-                {(task.completionPhotoIds ?? []).map((photoId) => (
-                  <StoredPhoto key={photoId} path={`/tasks/${task.id}/photos/${photoId}`} />
-                ))}
-              </div>
+        {task.updates.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {updates.map((update) => (
+              <UpdateCard key={update.id} task={task} update={update} />
+            ))}
+            {task.updates.length > 1 && (
+              <button
+                type="button"
+                className="text-xs font-semibold text-muted hover:text-brown"
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll ? t('common.close') : t('tasks.showAll', { count: task.updates.length })}
+              </button>
             )}
           </div>
         )}
 
-        {canComplete && (
-          <div className="mt-3 flex justify-end">
-            <button type="button" className="btn-green" onClick={onComplete}>
+        {onUpdate && rules.work && (
+          <div className="mt-3 flex justify-end gap-2">
+            <button type="button" className="btn-primary" onClick={() => onUpdate('InProgress')}>
+              <Icon name="wrench" size={18} />
+              {t('status.InProgress')}
+            </button>
+            <button type="button" className="btn-green" onClick={() => onUpdate('Completed')}>
               <Icon name="check" size={18} strokeWidth={3} />
               {t('tasks.complete')}
+            </button>
+          </div>
+        )}
+        {onUpdate && rules.followUp && (
+          <div className="mt-3 flex justify-end">
+            <button type="button" className="btn-ghost" onClick={() => onUpdate('Completed')}>
+              <Icon name="plus" size={18} />
+              {t('tasks.addUpdate')}
             </button>
           </div>
         )}

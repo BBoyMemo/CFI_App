@@ -4,6 +4,7 @@ namespace DailyTasks.Api.Domain;
 public static class TranslatedEntity
 {
     public const string Task = "Task";
+    public const string TaskUpdate = "TaskUpdate";
     public const string Order = "Order";
 }
 

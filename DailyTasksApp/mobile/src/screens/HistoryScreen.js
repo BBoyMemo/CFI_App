@@ -1,13 +1,28 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Pressable, RefreshControl, SectionList, StyleSheet, Text, View} from 'react-native';
+import {
+  Pressable,
+  RefreshControl,
+  SectionList,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {api} from '../api';
+import {useAuth} from '../auth';
 import CalendarSheet from '../Calendar';
-import {addDays, errorMessage, formatDay, siteDateOf, siteToday} from '../format';
+import {
+  addDays,
+  errorMessage,
+  formatDay,
+  siteDateOf,
+  siteToday,
+} from '../format';
 import {colors} from '../theme';
 import {ErrorBox, IconButton, Input, styles as ui} from '../ui';
 import TaskDetail from './TaskDetail';
 import {TaskCard} from './TasksScreen';
+import {taskRules, UpdateSheet} from './TaskUpdates';
 
 const PAGE_SIZE = 20;
 
@@ -24,7 +39,10 @@ export default function HistoryScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const {user, isManager} = useAuth();
   const [opened, setOpened] = useState(null);
+  // {outcome} while the add-update sheet is open over the opened task.
+  const [updating, setUpdating] = useState(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   // Only the newest request may update the list; slower earlier ones are dropped.
   const requestId = useRef(0);
@@ -65,7 +83,10 @@ export default function HistoryScreen() {
     try {
       const result = await api.taskHistory(page + 1, {q, date}, PAGE_SIZE);
       if (id === requestId.current) {
-        setItems(list => [...list, ...result.items.filter(x => !list.some(y => y.id === x.id))]);
+        setItems(list => [
+          ...list,
+          ...result.items.filter(x => !list.some(y => y.id === x.id)),
+        ]);
         setTotal(result.total);
         setPage(page + 1);
       }
@@ -103,7 +124,12 @@ export default function HistoryScreen() {
       <View style={styles.filterRow}>
         {date ? (
           <View style={styles.dateFilter}>
-            <IconButton icon="left" color={colors.brown} onPress={() => setDate(addDays(date, -1))} label={t('common.previousDay')} />
+            <IconButton
+              icon="left"
+              color={colors.brown}
+              onPress={() => setDate(addDays(date, -1))}
+              label={t('common.previousDay')}
+            />
             <Pressable onPress={() => setCalendarOpen(true)}>
               <Text style={styles.dateText}>📅 {formatDay(date, false)}</Text>
             </Pressable>
@@ -115,7 +141,9 @@ export default function HistoryScreen() {
             />
           </View>
         ) : (
-          <Pressable style={styles.anyDate} onPress={() => setCalendarOpen(true)}>
+          <Pressable
+            style={styles.anyDate}
+            onPress={() => setCalendarOpen(true)}>
             <Text style={styles.anyDateText}>📅 {t('history.anyDate')}</Text>
           </Pressable>
         )}
@@ -169,22 +197,63 @@ export default function HistoryScreen() {
             {searchBar}
           </>
         }
-        renderSectionHeader={({section}) => <Text style={styles.day}>{formatDay(section.day)}</Text>}
+        renderSectionHeader={({section}) => (
+          <Text style={styles.day}>{formatDay(section.day)}</Text>
+        )}
         renderItem={({item}) => (
-          <TaskCard task={item} isManager={false} canComplete={false} onOpen={() => setOpened(item)} />
+          <TaskCard
+            task={item}
+            rules={taskRules(item, user, isManager)}
+            onOpen={() => setOpened(item)}
+          />
         )}
         ListEmptyComponent={
           items ? (
-            <Text style={ui.empty}>{filtered ? t('history.noResults') : t('history.empty')}</Text>
+            <Text style={ui.empty}>
+              {filtered ? t('history.noResults') : t('history.empty')}
+            </Text>
           ) : !error ? (
             <Text style={styles.loading}>{t('common.loading')}</Text>
           ) : null
         }
-        ListFooterComponent={loadingMore ? <Text style={styles.loading}>{t('common.loading')}</Text> : null}
+        ListFooterComponent={
+          loadingMore ? (
+            <Text style={styles.loading}>{t('common.loading')}</Text>
+          ) : null
+        }
       />
-      {opened ? <TaskDetail task={opened} isManager={false} canComplete={false} onClose={() => setOpened(null)} /> : null}
+      {opened && !updating ? (
+        <TaskDetail
+          task={opened}
+          // Read-mostly here: adding cards yes, editing / deleting is done from the Tasks screen.
+          rules={{
+            ...taskRules(opened, user, isManager),
+            edit: false,
+            delete: false,
+          }}
+          onUpdate={outcome => setUpdating({outcome})}
+          onClose={() => setOpened(null)}
+        />
+      ) : null}
+      {opened && updating ? (
+        <UpdateSheet
+          task={opened}
+          initialOutcome={updating.outcome}
+          onDone={updated => {
+            setUpdating(null);
+            setOpened(updated);
+            load();
+          }}
+          onClose={() => setUpdating(null)}
+        />
+      ) : null}
       {calendarOpen ? (
-        <CalendarSheet value={date} max={today} onSelect={setDate} onClose={() => setCalendarOpen(false)} />
+        <CalendarSheet
+          value={date}
+          max={today}
+          onSelect={setDate}
+          onClose={() => setCalendarOpen(false)}
+        />
       ) : null}
     </View>
   );
@@ -194,7 +263,12 @@ const styles = StyleSheet.create({
   pad: {paddingHorizontal: 14, paddingTop: 12},
   list: {padding: 14, paddingBottom: 40},
   loading: {textAlign: 'center', color: colors.muted, paddingVertical: 24},
-  header: {fontSize: 17, fontWeight: '800', color: colors.brown, marginBottom: 10},
+  header: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.brown,
+    marginBottom: 10,
+  },
   searchBar: {gap: 8, marginBottom: 6},
   filterRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
   anyDate: {

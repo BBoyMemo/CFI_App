@@ -164,8 +164,9 @@ export const api = {
     request('POST', `/tasks/${id}/photos`, {form, timeoutMs: 60000}),
   deleteTaskPhoto: (id, photoId) =>
     request('DELETE', `/tasks/${id}/photos/${photoId}`),
-  completeTask: (id, form) =>
-    request('POST', `/tasks/${id}/complete`, {form, timeoutMs: 60000}),
+  // A progress / completion / follow-up card: FormData with outcome, comment and photos.
+  addTaskUpdate: (id, form) =>
+    request('POST', `/tasks/${id}/updates`, {form, timeoutMs: 60000}),
 
   orders: ({status, q, date} = {}, page = 1, pageSize = 20) => {
     let query = `page=${page}&pageSize=${pageSize}`;

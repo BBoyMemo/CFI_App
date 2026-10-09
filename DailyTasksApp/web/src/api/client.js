@@ -104,7 +104,8 @@ export const api = {
   createTask: (task) => request('POST', '/tasks', { json: task }),
   updateTask: (id, task) => request('PUT', `/tasks/${id}`, { json: task }),
   deleteTask: (id) => request('DELETE', `/tasks/${id}`),
-  completeTask: (id, form) => request('POST', `/tasks/${id}/complete`, { form }),
+  // A progress / completion / follow-up card: FormData with outcome, comment and photos.
+  addTaskUpdate: (id, form) => request('POST', `/tasks/${id}/updates`, { form }),
   addTaskPhoto: (id, form) => request('POST', `/tasks/${id}/photos`, { form }),
   deleteTaskPhoto: (id, photoId) => request('DELETE', `/tasks/${id}/photos/${photoId}`),
 

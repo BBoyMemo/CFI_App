@@ -1,10 +1,8 @@
 // Free-text fields come with translations from the server: { language: { field: text } }.
 // The reader sees their own language when a translation exists, otherwise the original.
 
-const ORIGINAL_FIELD = {comment: 'completionComment'};
-
 export function original(item, field) {
-  return item[ORIGINAL_FIELD[field] ?? field];
+  return item[field];
 }
 
 export function localized(item, field, language, showOriginal = false) {

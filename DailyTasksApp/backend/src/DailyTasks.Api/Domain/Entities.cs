@@ -19,6 +19,15 @@ public enum Priority
     High,
 }
 
+// Where a task stands. Open = nothing reported yet; InProgress = work reported but not finished
+// (it carries over day to day); Completed = finished (it is in History).
+public enum WorkStatus
+{
+    Open,
+    InProgress,
+    Completed,
+}
+
 public enum OrderStatus
 {
     New,
@@ -58,26 +67,51 @@ public class DailyTask
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
 
+    public WorkStatus Status { get; set; }
+
+    // The latest time the task was (re)completed and by whom. Once set the task belongs to History,
+    // even if someone later takes it back into progress.
     public DateTimeOffset? CompletedAt { get; set; }
     public Guid? CompletedById { get; set; }
     public User? CompletedBy { get; set; }
+
+    // Single comment / photo of the time before update cards. Only read by TaskUpdateBackfill, which
+    // turns them into the task's first card and clears them.
     public string? CompletionComment { get; set; }
     public string? CompletionPhotoKey { get; set; }
 
     public List<DailyTaskAssignee> Assignees { get; set; } = [];
 
-    // Planning photos (manager) and completion photos (engineer). Tasks completed before multiple
-    // photos existed keep their single photo in CompletionPhotoKey.
+    // Planning photos (UpdateId = null) and photos attached to update cards.
     public List<TaskPhoto> Photos { get; set; } = [];
 
-    public bool IsCompleted => CompletedAt is not null;
+    // What people reported on the task, oldest first: progress, completion, later follow-ups.
+    public List<TaskUpdate> Updates { get; set; } = [];
+
+    public bool IsCompleted => Status == WorkStatus.Completed;
+    public bool EverCompleted => CompletedAt is not null;
+}
+
+// One card under a task: who reported what, when, with which photos, and where it left the task.
+public class TaskUpdate
+{
+    public Guid Id { get; set; }
+    public Guid TaskId { get; set; }
+    public DailyTask Task { get; set; } = null!;
+
+    // InProgress or Completed: the status the task had right after this card.
+    public WorkStatus Outcome { get; set; }
+    public Guid AuthorId { get; set; }
+    public User Author { get; set; } = null!;
+    public DateTimeOffset CreatedAt { get; set; }
+    public string? Comment { get; set; }
 }
 
 public enum TaskPhotoKind
 {
     // Attached by the manager while planning.
     Plan,
-    // Attached by the engineer when completing.
+    // Attached to an update card (the stored name predates progress cards).
     Completion,
 }
 
@@ -87,6 +121,8 @@ public class TaskPhoto
     public Guid TaskId { get; set; }
     public TaskPhotoKind Kind { get; set; }
     public DailyTask Task { get; set; } = null!;
+    public Guid? UpdateId { get; set; }
+    public TaskUpdate? Update { get; set; }
     public string PhotoKey { get; set; } = "";
     public Guid CreatedById { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

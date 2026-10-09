@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DailyTask> Tasks => Set<DailyTask>();
     public DbSet<DailyTaskAssignee> TaskAssignees => Set<DailyTaskAssignee>();
     public DbSet<TaskPhoto> TaskPhotos => Set<TaskPhoto>();
+    public DbSet<TaskUpdate> TaskUpdates => Set<TaskUpdate>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Translation> Translations => Set<Translation>();
     public DbSet<TranslationJob> TranslationJobs => Set<TranslationJob>();
@@ -32,6 +33,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Description).HasMaxLength(2000);
             e.Property(x => x.Priority).HasConversion<string>().HasMaxLength(20);
             e.Property(x => x.Shift).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).HasDefaultValue(WorkStatus.Open);
             e.Property(x => x.CompletionComment).HasMaxLength(2000);
             e.Property(x => x.CompletionPhotoKey).HasMaxLength(200);
             e.Ignore(x => x.IsCompleted);
@@ -56,8 +58,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.PhotoKey).HasMaxLength(200).IsRequired();
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20).HasDefaultValue(TaskPhotoKind.Plan);
             e.HasOne(x => x.Task).WithMany(t => t.Photos).HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            // Both the photo and its card go when the task goes; NoAction lets that single cascade run.
+            e.HasOne(x => x.Update).WithMany().HasForeignKey(x => x.UpdateId).OnDelete(DeleteBehavior.NoAction);
+            e.HasIndex(x => x.UpdateId);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.TaskId);
+        });
+
+        b.Entity<TaskUpdate>(e =>
+        {
+            e.ToTable("task_updates");
+            e.Property(x => x.Outcome).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Comment).HasMaxLength(2000);
+            e.HasOne(x => x.Task).WithMany(t => t.Updates).HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Author).WithMany().HasForeignKey(x => x.AuthorId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => new { x.TaskId, x.CreatedAt });
         });
 
         b.Entity<Translation>(e =>

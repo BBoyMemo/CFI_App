@@ -5,13 +5,13 @@ import {initReactI18next} from 'react-i18next';
 import en from '../../web/src/i18n/locales/en.json';
 import pl from '../../web/src/i18n/locales/pl.json';
 import bg from '../../web/src/i18n/locales/bg.json';
-import es from '../../web/src/i18n/locales/es.json';
+import fil from '../../web/src/i18n/locales/fil.json';
 
 export const LANGUAGES = [
   {code: 'en', label: 'EN'},
   {code: 'pl', label: 'PL'},
   {code: 'bg', label: 'BG'},
-  {code: 'es', label: 'ES'},
+  {code: 'fil', label: 'FIL'},
 ];
 
 const STORAGE_KEY = 'dt.lang';
@@ -31,7 +31,7 @@ function flatten(obj, prefix = '', out = {}) {
 
 i18n.use(initReactI18next).init({
   resources: Object.fromEntries(
-    Object.entries({en, pl, bg, es}).map(([code, data]) => [code, {translation: flatten(data)}]),
+    Object.entries({en, pl, bg, fil}).map(([code, data]) => [code, {translation: flatten(data)}]),
   ),
   lng: 'en',
   fallbackLng: 'en',

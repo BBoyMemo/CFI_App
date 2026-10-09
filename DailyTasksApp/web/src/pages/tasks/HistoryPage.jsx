@@ -3,7 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import Icon from '../../components/Icon';
 import { errorMessage, formatDay, siteDateOf, siteToday } from '../../lib/format';
+import { useAuth } from '../../auth/AuthContext';
+import { taskRules } from '../../lib/taskRules';
 import TaskCard from './TaskCard';
+import UpdateTaskModal from './UpdateTaskModal';
 
 const PAGE_SIZE = 20;
 
@@ -19,6 +22,8 @@ export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const { user, isManager } = useAuth();
+  const [updating, setUpdating] = useState(null);
   // Only the newest request may update the list; slower earlier ones are dropped.
   const requestId = useRef(0);
 
@@ -141,7 +146,13 @@ export default function HistoryPage() {
           </h2>
           <div className="space-y-2.5">
             {g.tasks.map((task) => (
-              <TaskCard key={task.id} task={task} isManager={false} canComplete={false} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                // History is for reading and adding cards; editing / deleting is done from Tasks.
+                rules={{ ...taskRules(task, user, isManager), edit: false, delete: false }}
+                onUpdate={(outcome) => setUpdating({ task, outcome })}
+              />
             ))}
           </div>
         </section>
@@ -151,6 +162,17 @@ export default function HistoryPage() {
         <button type="button" className="btn-ghost w-full" onClick={loadMore} disabled={loadingMore}>
           {t('orders.loadMore')}
         </button>
+      )}
+      {updating && (
+        <UpdateTaskModal
+          task={updating.task}
+          initialOutcome={updating.outcome}
+          onDone={() => {
+            setUpdating(null);
+            load();
+          }}
+          onClose={() => setUpdating(null)}
+        />
       )}
     </div>
   );

@@ -52,16 +52,15 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Task_must_be_assigned_to_engineers_and_not_dated_in_the_past()
+    public async Task Task_must_be_assigned_to_existing_people_and_not_dated_in_the_past()
     {
         var manager = await api.ManagerAsync();
-        var otherManager = await api.NewUserAsync("Manager", "Sophie");
 
-        var response = await manager.PostAsJsonAsync("/api/tasks", NewTask([otherManager.Id], date: "2020-01-01"));
+        var response = await manager.PostAsJsonAsync("/api/tasks", NewTask([Guid.NewGuid()], date: "2020-01-01"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         var errors = (await response.JsonAsync()).GetProperty("errors");
-        errors.GetProperty("assigneeIds")[0].GetString().ShouldBe("notEngineer");
+        errors.GetProperty("assigneeIds")[0].GetString().ShouldBe("unknownUser");
         errors.GetProperty("date")[0].GetString().ShouldBe("inPast");
     }
 
@@ -93,21 +92,19 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         var engineer = await api.NewUserAsync("Engineer", "William");
         var id = (await CreateAsync(NewTask([engineer.Id]))).GetProperty("id").GetGuid();
 
-        using var form = new MultipartFormDataContent
-        {
-            { new StringContent("Filter replaced, old one binned"), "comment" },
-            { TestData.File(TestData.Jpeg), "photo", "before.jpg" },
-            { TestData.File(TestData.Jpeg), "photo", "after.jpg" },
-            { TestData.File(TestData.Jpeg), "photo", "label.jpg" },
-        };
-        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/complete", form);
+        using var form = TestData.Card("Completed", "Filter replaced, old one binned", photos: 3);
+        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/updates", form);
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
         var task = await response.JsonAsync();
         task.GetProperty("completed").GetBoolean().ShouldBeTrue();
         task.GetProperty("completedBy").GetProperty("id").GetGuid().ShouldBe(engineer.Id);
-        task.GetProperty("completionComment").GetString().ShouldBe("Filter replaced, old one binned");
-        var photoIds = task.GetProperty("completionPhotoIds").EnumerateArray().Select(p => p.GetGuid()).ToList();
+        task.GetProperty("status").GetString().ShouldBe("Completed");
+        var card = task.GetProperty("updates").EnumerateArray().Single();
+        card.GetProperty("outcome").GetString().ShouldBe("Completed");
+        card.GetProperty("author").GetProperty("id").GetGuid().ShouldBe(engineer.Id);
+        card.GetProperty("comment").GetString().ShouldBe("Filter replaced, old one binned");
+        var photoIds = card.GetProperty("photoIds").EnumerateArray().Select(p => p.GetGuid()).ToList();
         photoIds.Count.ShouldBe(3);
         task.GetProperty("photoIds").GetArrayLength().ShouldBe(0); // planning photos are separate
 
@@ -126,7 +123,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         using var form = new MultipartFormDataContent();
         for (var i = 0; i < 6; i++) form.Add(TestData.File(TestData.Jpeg), "photo", $"p{i}.jpg");
 
-        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/complete", form);
+        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/updates", form);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.JsonAsync()).GetProperty("errors").GetProperty("photo")[0].GetString().ShouldBe("photo.tooMany");
@@ -140,30 +137,49 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         var engineer = await api.NewUserAsync("Engineer");
         var id = (await CreateAsync(NewTask([engineer.Id]))).GetProperty("id").GetGuid();
 
-        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion());
+        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/updates", TestData.EmptyCompletion());
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await response.JsonAsync()).GetProperty("hasPhoto").GetBoolean().ShouldBeFalse();
+        var card = (await response.JsonAsync()).GetProperty("updates").EnumerateArray().Single();
+        card.GetProperty("photoIds").GetArrayLength().ShouldBe(0);
+        card.TryGetProperty("comment", out var comment).ShouldBeTrue();
+        comment.ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
     [Fact]
-    public async Task Only_assignees_complete_and_only_once()
+    public async Task Before_completion_only_assignees_and_managers_add_cards()
     {
         var assignee = await api.NewUserAsync("Engineer");
         var outsider = await api.NewUserAsync("Engineer");
         var id = (await CreateAsync(NewTask([assignee.Id]))).GetProperty("id").GetGuid();
 
-        (await outsider.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion()))
+        (await outsider.Client.PostAsync($"/api/tasks/{id}/updates", TestData.Card("InProgress")))
             .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
+        // The manager can do whatever an engineer can, on any task.
         var manager = await api.ManagerAsync();
-        (await manager.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion()))
-            .StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-
-        (await assignee.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion()))
+        (await manager.PostAsync($"/api/tasks/{id}/updates", TestData.Card("InProgress", "Started on it")))
             .StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await assignee.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion()))
-            .StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        (await outsider.Client.PostAsync($"/api/tasks/{id}/updates", TestData.Card("Completed")))
+            .StatusCode.ShouldBe(HttpStatusCode.Forbidden); // still in progress: still not theirs
+
+        var done = await (await assignee.Client.PostAsync($"/api/tasks/{id}/updates", TestData.EmptyCompletion())).JsonAsync();
+        done.GetProperty("status").GetString().ShouldBe("Completed");
+        done.GetProperty("updates").GetArrayLength().ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_card_needs_an_outcome()
+    {
+        var assignee = await api.NewUserAsync("Engineer");
+        var id = (await CreateAsync(NewTask([assignee.Id]))).GetProperty("id").GetGuid();
+        using var form = new MultipartFormDataContent { { new StringContent("No outcome"), "comment" } };
+
+        var response = await assignee.Client.PostAsync($"/api/tasks/{id}/updates", form);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await response.JsonAsync()).GetProperty("errors").GetProperty("outcome")[0].GetString().ShouldBe("required");
     }
 
     [Fact]
@@ -172,11 +188,9 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         var engineer = await api.NewUserAsync("Engineer");
         var id = (await CreateAsync(NewTask([engineer.Id]))).GetProperty("id").GetGuid();
 
-        using var form = new MultipartFormDataContent
-        {
-            { TestData.File("not an image"u8.ToArray()), "photo", "fake.jpg" },
-        };
-        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/complete", form);
+        using var form = TestData.Card("Completed");
+        form.Add(TestData.File("not an image"u8.ToArray()), "photo", "fake.jpg");
+        var response = await engineer.Client.PostAsync($"/api/tasks/{id}/updates", form);
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.JsonAsync()).GetProperty("errors").GetProperty("photo")[0].GetString()
@@ -209,12 +223,12 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         var first = (await CreateAsync(NewTask([harry.Id]))).GetProperty("id").GetGuid();
         var open = (await CreateAsync(NewTask([harry.Id]))).GetProperty("id").GetGuid();
         var gracesTask = (await CreateAsync(NewTask([grace.Id]))).GetProperty("id").GetGuid();
-        await harry.Client.PostAsync($"/api/tasks/{first}/complete", TestData.EmptyCompletion());
+        await harry.Client.PostAsync($"/api/tasks/{first}/updates", TestData.EmptyCompletion());
 
         // The test clock stands still unless moved; make Grace finish visibly later.
         api.Clock.Now = api.Clock.Now.AddSeconds(30);
-        using var withPhoto = new MultipartFormDataContent { { TestData.File(TestData.Jpeg), "photo", "guard.jpg" } };
-        await grace.Client.PostAsync($"/api/tasks/{gracesTask}/complete", withPhoto);
+        using var withPhoto = TestData.Card("Completed", photos: 1);
+        await grace.Client.PostAsync($"/api/tasks/{gracesTask}/updates", withPhoto);
 
         var history = await (await harry.Client.GetAsync("/api/tasks/history?pageSize=100")).JsonAsync();
         var ids = history.GetProperty("items").EnumerateArray().Select(t => t.GetProperty("id").GetGuid()).ToList();
@@ -225,7 +239,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         // A completed task of someone else, and its photo, are open to every engineer...
         var gracesPhoto = history.GetProperty("items").EnumerateArray()
             .Single(t => t.GetProperty("id").GetGuid() == gracesTask)
-            .GetProperty("completionPhotoIds")[0].GetGuid();
+            .GetProperty("updates")[0].GetProperty("photoIds")[0].GetGuid();
         (await harry.Client.GetAsync($"/api/tasks/{gracesTask}/photos/{gracesPhoto}")).StatusCode.ShouldBe(HttpStatusCode.OK);
         // ...while another engineer's open task stays private.
         (await grace.Client.GetAsync($"/api/tasks/{open}")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
@@ -245,7 +259,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
                 title, description, date = Today, priority = "Low", shift = "Morning", assigneeIds = new[] { engineer.Id },
             });
             var id = (await r.JsonAsync()).GetProperty("id").GetGuid();
-            await engineer.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion());
+            await engineer.Client.PostAsync($"/api/tasks/{id}/updates", TestData.EmptyCompletion());
             return id;
         }
 
@@ -277,7 +291,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
 
         (await engineer.Client.DeleteAsync($"/api/tasks/{id}")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        await engineer.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion());
+        await engineer.Client.PostAsync($"/api/tasks/{id}/updates", TestData.EmptyCompletion());
         var manager = await api.ManagerAsync();
         var edit = await manager.PutAsJsonAsync($"/api/tasks/{id}", NewTask([engineer.Id]));
         edit.StatusCode.ShouldBe(HttpStatusCode.Conflict);
@@ -285,7 +299,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         // Completed work is kept: not even a manager can delete it.
         var delete = await manager.DeleteAsync($"/api/tasks/{id}");
         delete.StatusCode.ShouldBe(HttpStatusCode.Conflict);
-        (await delete.JsonAsync()).GetProperty("code").GetString().ShouldBe("task.completed");
+        (await delete.JsonAsync()).GetProperty("code").GetString().ShouldBe("task.hasUpdates");
         (await manager.GetAsync($"/api/tasks/{id}")).StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
@@ -333,7 +347,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
 
         (await engineer.Client.PostAsync($"/api/tasks/{id}/photos", PhotoForm())).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
-        await engineer.Client.PostAsync($"/api/tasks/{id}/complete", TestData.EmptyCompletion());
+        await engineer.Client.PostAsync($"/api/tasks/{id}/updates", TestData.EmptyCompletion());
         (await manager.PostAsync($"/api/tasks/{id}/photos", PhotoForm())).StatusCode.ShouldBe(HttpStatusCode.Conflict);
         (await manager.DeleteAsync($"/api/tasks/{id}/photos/{photoId}")).StatusCode.ShouldBe(HttpStatusCode.Conflict);
         // Once completed, everyone may look at it (History), photos included.
@@ -354,8 +368,8 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         });
         var id = (await r.JsonAsync()).GetProperty("id").GetGuid();
         var marker = Guid.NewGuid().ToString("N")[..8];
-        using var form = new MultipartFormDataContent { { new StringContent($"Used drum {marker}"), "comment" } };
-        await finisher.Client.PostAsync($"/api/tasks/{id}/complete", form);
+        using var form = TestData.Card("Completed", $"Used drum {marker}");
+        await finisher.Client.PostAsync($"/api/tasks/{id}/updates", form);
 
         async Task<List<Guid>> Search(string q)
         {

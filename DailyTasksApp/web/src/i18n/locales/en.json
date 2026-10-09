@@ -52,16 +52,27 @@
     "date": "Date",
     "priority": "Priority",
     "shift": "Shift",
-    "assignees": "Engineers",
-    "noEngineers": "No engineers yet. Add them under Team.",
+    "assignees": "Assigned to",
+    "noEngineers": "No people yet. Add them under Team.",
     "complete": "Complete",
-    "completeTitle": "Complete task",
     "comment": "Comment",
     "completedBy": "Done by {{name}} · {{time}}",
     "carriedOver": "From {{date}}",
     "deleteConfirm": "Delete this task?",
     "progress": "{{done}} of {{total}} done",
-    "photos": "Photos"
+    "photos": "Photos",
+    "inProgress": "In progress",
+    "addUpdate": "Add update",
+    "updateTitle": "Update task",
+    "outcome": "Result",
+    "reopenHint": "\"In progress\" takes the task back: it becomes yours for today.",
+    "updates": "Updates",
+    "showAll": "Show all ({{count}})"
+  },
+  "status": {
+    "Open": "Open",
+    "InProgress": "In progress",
+    "Completed": "Completed"
   },
   "priority": {
     "Low": "Low",
@@ -103,11 +114,9 @@
     "tooLong": "Too long",
     "tooShort": "Too short",
     "inPast": "Cannot be in the past",
-    "notEngineer": "Choose at least one engineer",
     "invalidCredentials": "Wrong name or password",
     "user.nameTaken": "This name is already used",
     "task.completed": "A completed task cannot be changed or deleted",
-    "task.alreadyCompleted": "This task is already completed",
     "task.notAssigned": "This task is not assigned to you",
     "order.alreadyOrdered": "Already marked as ordered",
     "notFound": "Not found. It may have been deleted.",
@@ -121,7 +130,9 @@
     "photo.notFound": "Photo not found",
     "wrongPassword": "Wrong password",
     "order.ordered": "Already ordered, it cannot be deleted",
-    "photo.tooMany": "Up to 5 photos"
+    "photo.tooMany": "Up to 5 photos",
+    "unknownUser": "Choose people from the list",
+    "task.hasUpdates": "A task with progress or completion cannot be deleted"
   },
   "history": {
     "empty": "No completed tasks yet",

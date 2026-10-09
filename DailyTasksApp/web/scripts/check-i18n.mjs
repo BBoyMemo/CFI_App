@@ -7,7 +7,7 @@ const keys = (obj, prefix = '') =>
 
 const reference = new Set(keys(load('en')));
 let failed = false;
-for (const code of ['pl', 'bg', 'es']) {
+for (const code of ['pl', 'bg', 'fil']) {
   const actual = new Set(keys(load(code)));
   const missing = [...reference].filter((k) => !actual.has(k));
   const extra = [...actual].filter((k) => !reference.has(k));

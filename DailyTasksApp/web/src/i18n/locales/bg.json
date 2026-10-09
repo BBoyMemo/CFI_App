@@ -52,16 +52,27 @@
     "date": "Дата",
     "priority": "Приоритет",
     "shift": "Смяна",
-    "assignees": "Инженери",
-    "noEngineers": "Още няма инженери. Добавете ги в Екип.",
+    "assignees": "Възложено на",
+    "noEngineers": "Още няма хора. Добавете ги в Екип.",
     "complete": "Завърши",
-    "completeTitle": "Завършване на задача",
     "comment": "Коментар",
     "completedBy": "Изпълнено от {{name}} · {{time}}",
     "carriedOver": "От {{date}}",
     "deleteConfirm": "Да се изтрие ли задачата?",
     "progress": "{{done}} от {{total}} изпълнени",
-    "photos": "Снимки"
+    "photos": "Снимки",
+    "inProgress": "В процес",
+    "addUpdate": "Добави запис",
+    "updateTitle": "Обнови задачата",
+    "outcome": "Резултат",
+    "reopenHint": "„В процес\" поема задачата: от днес тя е ваша.",
+    "updates": "Записи",
+    "showAll": "Покажи всички ({{count}})"
+  },
+  "status": {
+    "Open": "Отворена",
+    "InProgress": "В процес",
+    "Completed": "Завършена"
   },
   "priority": {
     "Low": "Нисък",
@@ -103,11 +114,9 @@
     "tooLong": "Твърде дълго",
     "tooShort": "Твърде кратко",
     "inPast": "Не може да е в миналото",
-    "notEngineer": "Изберете поне един инженер",
     "invalidCredentials": "Грешно име или парола",
     "user.nameTaken": "Това име вече се използва",
     "task.completed": "Завършена задача не може да се променя или изтрива",
-    "task.alreadyCompleted": "Задачата вече е завършена",
     "task.notAssigned": "Тази задача не е възложена на вас",
     "order.alreadyOrdered": "Вече е отбелязано като поръчано",
     "notFound": "Не е намерено. Може да е изтрито.",
@@ -121,7 +130,9 @@
     "photo.notFound": "Снимката не е намерена",
     "wrongPassword": "Грешна парола",
     "order.ordered": "Вече е поръчано, не може да се изтрие",
-    "photo.tooMany": "До 5 снимки"
+    "photo.tooMany": "До 5 снимки",
+    "unknownUser": "Изберете хора от списъка",
+    "task.hasUpdates": "Задача със записи за напредък или завършване не може да се изтрие"
   },
   "history": {
     "empty": "Още няма завършени задачи",

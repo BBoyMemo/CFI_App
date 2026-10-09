@@ -17,7 +17,7 @@ namespace DailyTasks.Api.Controllers;
 public class TasksController(AppDbContext db, AppClock clock, PhotoService photos, TranslationQueue translations)
     : ControllerBase
 {
-    // Managers see every task of the day; engineers only the ones assigned to them.
+    // Managers see every task of the day; everyone else only the ones assigned to them.
     [HttpGet]
     public async Task<IReadOnlyList<TaskDto>> List([FromQuery] DateOnly? date, CancellationToken ct)
     {
@@ -40,11 +40,11 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
             .ToList(), ct);
     }
 
-    // Completed tasks, most recently finished first. Everyone sees all of them: finished work is
-    // shared knowledge for the team, while open tasks stay visible only to their assignees.
-    // Optional filters: q = text in the title, description, completion comment (original or any
-    // translation) or a person's name (who completed it or any assignee), case-insensitive;
-    // date = the factory-local completion day.
+    // Tasks completed at least once, most recently completed first; everyone sees all of them. A task
+    // someone took back into progress stays here. Tasks never completed are not here.
+    // Optional filters: q = text in the title, description, a card's comment (original or any
+    // translation) or a person's name (assignee or card author), case-insensitive;
+    // date = the factory-local day of the latest completion.
     [HttpGet("history")]
     public async Task<PagedResult<TaskDto>> History(
         [FromQuery] string? q, [FromQuery] DateOnly? date,
@@ -62,9 +62,12 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
             query = query.Where(t =>
                 t.Title.ToLower().Contains(text) ||
                 (t.Description != null && t.Description.ToLower().Contains(text)) ||
-                (t.CompletionComment != null && t.CompletionComment.ToLower().Contains(text)) ||
-                (t.CompletedBy != null && t.CompletedBy.Name.ToLower().Contains(text)) ||
                 t.Assignees.Any(a => a.User.Name.ToLower().Contains(text)) ||
+                t.Updates.Any(u =>
+                    u.Author.Name.ToLower().Contains(text) ||
+                    (u.Comment != null && u.Comment.ToLower().Contains(text)) ||
+                    db.Translations.Any(x => x.EntityType == TranslatedEntity.TaskUpdate && x.EntityId == u.Id &&
+                                             x.Text.ToLower().Contains(text))) ||
                 db.Translations.Any(x => x.EntityType == TranslatedEntity.Task && x.EntityId == t.Id &&
                                          x.Text.ToLower().Contains(text)));
         }
@@ -110,6 +113,7 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         var task = new DailyTask
         {
             Id = Guid.NewGuid(),
+            Status = WorkStatus.Open,
             CreatedById = User.UserId(),
             CreatedAt = now,
             OriginalDate = request.Date!.Value,
@@ -123,7 +127,8 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         return StatusCode(StatusCodes.Status201Created, await ToDtoAsync(created, ct));
     }
 
-    // Editing covers moving a task to another date. Completed tasks are a record and stay as they are.
+    // The manager may change an open or in-progress task at any time, reassigning it included.
+    // Editing also moves it to another date. Completed tasks are a record and stay as they are.
     [HttpPut("{id:guid}")]
     [Authorize(Policy = Policies.Manager)]
     public async Task<ActionResult<TaskDto>> Update(Guid id, TaskRequest request, CancellationToken ct)
@@ -145,19 +150,19 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         return await ToDtoAsync(updated, ct);
     }
 
+    // Only a task nobody has reported on yet can be deleted: any card makes it a record.
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Policies.Manager)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var task = await db.Tasks.Include(t => t.Photos).SingleOrDefaultAsync(t => t.Id == id, ct);
         if (task is null) return ApiErrors.NotFound();
-        // Completed work is the team's record (History); it stays.
-        if (task.IsCompleted) return ApiErrors.Conflict("task.completed", "A completed task cannot be deleted.");
+        if (task.Status != WorkStatus.Open || await db.TaskUpdates.AnyAsync(u => u.TaskId == id, ct))
+            return ApiErrors.Conflict("task.hasUpdates", "A task with progress or completion cards cannot be deleted.");
 
         db.Tasks.Remove(task);
         await db.SaveChangesAsync(ct);
         await translations.RemoveAllForAsync(id, ct);
-        photos.Delete(task.CompletionPhotoKey);
         foreach (var photo in task.Photos) photos.Delete(photo.PhotoKey);
         return NoContent();
     }
@@ -174,7 +179,7 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         if (task is null) return ApiErrors.NotFound();
         if (task.IsCompleted) return ApiErrors.Conflict("task.completed", "A completed task cannot be changed.");
         if (photo is null) return new Validation().Add("photo", "required").ToResult();
-        if (task.Photos.Count(p => p.Kind == TaskPhotoKind.Plan) >= Limits.MaxTaskPhotos)
+        if (task.Photos.Count(p => p.UpdateId == null) >= Limits.MaxTaskPhotos)
             return new Validation().Add("photo", "photo.tooMany").ToResult();
 
         var (key, error) = await photos.SaveAsync(photo, "tasks", ct);
@@ -202,8 +207,9 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         var task = await db.Tasks.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id, ct);
         if (task is null) return ApiErrors.NotFound();
         if (task.IsCompleted) return ApiErrors.Conflict("task.completed", "A completed task cannot be changed.");
+        // Photos on cards are part of the record; only planning photos can go.
         var photo = await db.TaskPhotos.SingleOrDefaultAsync(
-            p => p.Id == photoId && p.TaskId == id && p.Kind == TaskPhotoKind.Plan, ct);
+            p => p.Id == photoId && p.TaskId == id && p.UpdateId == null, ct);
         if (photo is null) return ApiErrors.NotFound("photo.notFound");
 
         db.TaskPhotos.Remove(photo);
@@ -228,24 +234,31 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         return file is null ? ApiErrors.NotFound("photo.notFound") : File(file.Value.Content, file.Value.ContentType);
     }
 
-    [HttpPost("{id:guid}/complete")]
-    [Authorize(Policy = Policies.Engineer)]
+    // Adds a card under the task: an optional comment, up to Limits.MaxTaskPhotos photos (each sent
+    // as a "photo" form field) and the outcome, InProgress or Completed.
+    //  - Open / in progress: only the people it is assigned to, or a manager.
+    //  - Completed: anyone. Completed keeps it completed (a follow-up); InProgress takes the task
+    //    back: it becomes this person's task for today and carries on from there.
+    [HttpPost("{id:guid}/updates")]
     [RequestSizeLimit(Limits.MultiPhotoRequestBytes)]
     [RequestFormLimits(MultipartBodyLengthLimit = Limits.MultiPhotoRequestBytes)]
-    public async Task<ActionResult<TaskDto>> Complete(Guid id, [FromForm] string? comment, CancellationToken ct)
+    public async Task<ActionResult<TaskDto>> AddUpdate(
+        Guid id, [FromForm] string? comment, [FromForm] WorkStatus? outcome, CancellationToken ct)
     {
         var me = User.UserId();
-        var task = await db.Tasks.AsNoTracking().Include(t => t.Assignees).SingleOrDefaultAsync(t => t.Id == id, ct);
+        var task = await db.Tasks.Include(t => t.Assignees).SingleOrDefaultAsync(t => t.Id == id, ct);
         if (task is null) return ApiErrors.NotFound();
-        if (task.Assignees.All(a => a.UserId != me)) return ApiErrors.Forbidden("task.notAssigned");
-        if (task.IsCompleted) return ApiErrors.Conflict("task.alreadyCompleted", "The task is already completed.");
+
+        var wasCompleted = task.IsCompleted;
+        if (!wasCompleted && !User.IsManager() && task.Assignees.All(a => a.UserId != me))
+            return ApiErrors.Forbidden("task.notAssigned");
 
         var validation = new Validation().Text("comment", comment, required: false, max: Limits.TextMax);
+        if (outcome is not (WorkStatus.InProgress or WorkStatus.Completed)) validation.Add("outcome", "required");
+        var files = Request.HasFormContentType ? Request.Form.Files.GetFiles("photo") : [];
+        if (files.Count > Limits.MaxTaskPhotos) validation.Add("photo", "photo.tooMany");
         if (!validation.IsValid) return validation.ToResult();
 
-        // Up to Limits.MaxTaskPhotos files, each sent as a "photo" form field.
-        var files = Request.HasFormContentType ? Request.Form.Files.GetFiles("photo") : [];
-        if (files.Count > Limits.MaxTaskPhotos) return new Validation().Add("photo", "photo.tooMany").ToResult();
         var savedKeys = new List<string>();
         foreach (var file in files)
         {
@@ -258,29 +271,24 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
             savedKeys.Add(key!);
         }
 
-        var trimmed = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
         var now = clock.UtcNow;
-
-        // Conditional update: if two assignees finish at the same moment, exactly one wins.
-        var updated = await db.Tasks
-            .Where(t => t.Id == id && t.CompletedAt == null)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.CompletedAt, now)
-                .SetProperty(t => t.CompletedById, me)
-                .SetProperty(t => t.CompletionComment, trimmed)
-                .SetProperty(t => t.UpdatedAt, now), ct);
-        if (updated == 0)
+        var update = new TaskUpdate
         {
-            savedKeys.ForEach(photos.Delete);
-            return ApiErrors.Conflict("task.alreadyCompleted", "The task is already completed.");
-        }
-
+            Id = Guid.NewGuid(),
+            TaskId = id,
+            Outcome = outcome!.Value,
+            AuthorId = me,
+            CreatedAt = now,
+            Comment = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim(),
+        };
+        db.TaskUpdates.Add(update);
         for (var i = 0; i < savedKeys.Count; i++)
         {
             db.TaskPhotos.Add(new TaskPhoto
             {
                 Id = Guid.NewGuid(),
                 TaskId = id,
+                UpdateId = update.Id,
                 Kind = TaskPhotoKind.Completion,
                 PhotoKey = savedKeys[i],
                 CreatedById = me,
@@ -288,34 +296,40 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
                 CreatedAt = now.AddTicks(i),
             });
         }
-        if (trimmed is not null) await translations.AddAsync(TranslatedEntity.Task, id, ct);
+
+        task.Status = update.Outcome;
+        task.UpdatedAt = now;
+        if (update.Outcome == WorkStatus.Completed)
+        {
+            task.CompletedAt = now;
+            task.CompletedById = me;
+        }
+        else if (wasCompleted)
+        {
+            // Taken back into progress: from now on it is the taker's task, on today's list.
+            task.Assignees.RemoveAll(a => a.UserId != me);
+            if (task.Assignees.All(a => a.UserId != me))
+                task.Assignees.Add(new DailyTaskAssignee { TaskId = id, UserId = me });
+            task.Date = clock.Today;
+            task.OriginalDate = clock.Today;
+        }
+
+        if (update.Comment is not null) await translations.AddAsync(TranslatedEntity.TaskUpdate, update.Id, ct);
         await db.SaveChangesAsync(ct);
 
-        var completed = await WithDetails().SingleAsync(t => t.Id == id, ct);
-        return await ToDtoAsync(completed, ct);
+        var saved = await WithDetails().SingleAsync(t => t.Id == id, ct);
+        return await ToDtoAsync(saved, ct);
     }
 
-    [HttpGet("{id:guid}/photo")]
-    public async Task<IActionResult> Photo(Guid id, CancellationToken ct)
-    {
-        var task = await db.Tasks.AsNoTracking().Include(t => t.Assignees).SingleOrDefaultAsync(t => t.Id == id, ct);
-        if (task is null) return ApiErrors.NotFound();
-        if (!CanSee(task)) return ApiErrors.Forbidden();
-        if (task.CompletionPhotoKey is null) return ApiErrors.NotFound("photo.notFound");
-
-        var file = photos.Open(task.CompletionPhotoKey);
-        return file is null ? ApiErrors.NotFound("photo.notFound") : File(file.Value.Content, file.Value.ContentType);
-    }
-
-    // Unfinished tasks from earlier days move to today. Runs before every read, so the board is
-    // always correct without a scheduler; it is a single idempotent UPDATE that touches nothing
-    // once the day's carry-over is done.
+    // Unfinished tasks (open or in progress) from earlier days move to today. Runs before every
+    // read, so the board is always correct without a scheduler; it is a single idempotent UPDATE
+    // that touches nothing once the day's carry-over is done.
     private async Task CarryOverAsync(CancellationToken ct)
     {
         var today = clock.Today;
         var now = clock.UtcNow;
         await db.Tasks
-            .Where(t => t.CompletedAt == null && t.Date < today)
+            .Where(t => t.Status != WorkStatus.Completed && t.Date < today)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(t => t.Date, today)
                 .SetProperty(t => t.UpdatedAt, now), ct);
@@ -332,17 +346,12 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         if (r.Priority is null || !Enum.IsDefined(r.Priority.Value)) v.Add("priority", "required");
         if (r.Shift is null || !Enum.IsDefined(r.Shift.Value)) v.Add("shift", "required");
 
+        // Anyone on the team can be given a task: managers work on the floor too.
         var ids = (r.AssigneeIds ?? []).Distinct().ToList();
         if (ids.Count == 0)
-        {
             v.Add("assigneeIds", "required");
-        }
-        else
-        {
-            var engineers = await db.Users
-                .CountAsync(u => ids.Contains(u.Id) && u.Role == Role.Engineer, ct);
-            if (engineers != ids.Count) v.Add("assigneeIds", "notEngineer");
-        }
+        else if (await db.Users.CountAsync(u => ids.Contains(u.Id), ct) != ids.Count)
+            v.Add("assigneeIds", "unknownUser");
 
         return (v.IsValid ? null : v.ToResult(), ids);
     }
@@ -361,26 +370,29 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
             task.Assignees.Add(new DailyTaskAssignee { TaskId = task.Id, UserId = userId });
     }
 
+    // Once completed (even if taken back later) a task is shared knowledge: everyone may look at it.
     private bool CanSee(DailyTask task) =>
-        User.IsManager() || task.IsCompleted || task.Assignees.Any(a => a.UserId == User.UserId());
+        User.IsManager() || task.EverCompleted || task.Assignees.Any(a => a.UserId == User.UserId());
 
     private IQueryable<DailyTask> WithDetails() =>
         db.Tasks.AsNoTracking()
             .Include(t => t.Assignees).ThenInclude(a => a.User)
             .Include(t => t.CompletedBy)
-            .Include(t => t.Photos);
+            .Include(t => t.Photos)
+            .Include(t => t.Updates).ThenInclude(u => u.Author);
 
     private async Task<TaskDto> ToDtoAsync(DailyTask task, CancellationToken ct) =>
         (await ToDtosAsync([task], ct))[0];
 
     private async Task<List<TaskDto>> ToDtosAsync(IReadOnlyList<DailyTask> tasks, CancellationToken ct)
     {
-        var set = await TranslationSet.LoadAsync(db, tasks.Select(t => t.Id).ToList(), ct);
+        var ids = tasks.Select(t => t.Id).Concat(tasks.SelectMany(t => t.Updates).Select(u => u.Id)).ToList();
+        var set = await TranslationSet.LoadAsync(db, ids, ct);
         return tasks.Select(t => ToDto(t, set)).ToList();
     }
 
-    private static List<Guid> PhotoIdsOf(DailyTask t, TaskPhotoKind kind) =>
-        t.Photos.Where(p => p.Kind == kind).OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).Select(p => p.Id).ToList();
+    private static List<Guid> PhotoIdsOf(IEnumerable<TaskPhoto> photos) =>
+        photos.OrderBy(p => p.CreatedAt).ThenBy(p => p.Id).Select(p => p.Id).ToList();
 
     private static TaskDto ToDto(DailyTask t, TranslationSet set) => new(
         t.Id,
@@ -392,15 +404,20 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         t.Shift,
         t.Assignees.Select(a => new UserRef(a.UserId, a.User.Name)).OrderBy(u => u.Name).ToList(),
         t.CreatedAt,
+        t.Status,
         t.IsCompleted,
         t.CompletedAt,
         t.CompletedBy is null ? null : new UserRef(t.CompletedBy.Id, t.CompletedBy.Name),
-        t.CompletionComment,
-        t.CompletionPhotoKey is not null,
-        PhotoIdsOf(t, TaskPhotoKind.Plan),
-        PhotoIdsOf(t, TaskPhotoKind.Completion),
+        PhotoIdsOf(t.Photos.Where(p => p.UpdateId == null)),
+        t.Updates.OrderBy(u => u.CreatedAt).ThenBy(u => u.Id).Select(u => new TaskUpdateDto(
+            u.Id,
+            u.Outcome,
+            new UserRef(u.Author.Id, u.Author.Name),
+            u.CreatedAt,
+            u.Comment,
+            PhotoIdsOf(t.Photos.Where(p => p.UpdateId == u.Id)),
+            set.For(u.Id, (TranslatedField.Comment, u.Comment)))).ToList(),
         set.For(t.Id,
             (TranslatedField.Title, t.Title),
-            (TranslatedField.Description, t.Description),
-            (TranslatedField.Comment, t.CompletionComment)));
+            (TranslatedField.Description, t.Description)));
 }

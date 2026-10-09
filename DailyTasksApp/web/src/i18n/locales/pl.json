@@ -52,16 +52,27 @@
     "date": "Data",
     "priority": "Priorytet",
     "shift": "Zmiana",
-    "assignees": "Inżynierowie",
-    "noEngineers": "Brak inżynierów. Dodaj ich w zakładce Zespół.",
+    "assignees": "Przypisane do",
+    "noEngineers": "Brak osób. Dodaj je w zakładce Zespół.",
     "complete": "Zakończ",
-    "completeTitle": "Zakończ zadanie",
     "comment": "Komentarz",
     "completedBy": "Wykonał(a) {{name}} · {{time}}",
     "carriedOver": "Z dnia {{date}}",
     "deleteConfirm": "Usunąć to zadanie?",
     "progress": "Wykonano {{done}} z {{total}}",
-    "photos": "Zdjęcia"
+    "photos": "Zdjęcia",
+    "inProgress": "W toku",
+    "addUpdate": "Dodaj wpis",
+    "updateTitle": "Aktualizuj zadanie",
+    "outcome": "Wynik",
+    "reopenHint": "„W toku\" przejmuje zadanie: od dziś jest Twoje.",
+    "updates": "Wpisy",
+    "showAll": "Pokaż wszystkie ({{count}})"
+  },
+  "status": {
+    "Open": "Otwarte",
+    "InProgress": "W toku",
+    "Completed": "Zakończone"
   },
   "priority": {
     "Low": "Niski",
@@ -103,11 +114,9 @@
     "tooLong": "Za długie",
     "tooShort": "Za krótkie",
     "inPast": "Nie może być w przeszłości",
-    "notEngineer": "Wybierz co najmniej jednego inżyniera",
     "invalidCredentials": "Błędne imię lub hasło",
     "user.nameTaken": "To imię jest już używane",
     "task.completed": "Zakończonego zadania nie można zmienić ani usunąć",
-    "task.alreadyCompleted": "To zadanie jest już zakończone",
     "task.notAssigned": "To zadanie nie jest przypisane do Ciebie",
     "order.alreadyOrdered": "Już oznaczone jako zamówione",
     "notFound": "Nie znaleziono. Mogło zostać usunięte.",
@@ -121,7 +130,9 @@
     "photo.notFound": "Nie znaleziono zdjęcia",
     "wrongPassword": "Błędne hasło",
     "order.ordered": "Już zamówione, nie można usunąć",
-    "photo.tooMany": "Maksymalnie 5 zdjęć"
+    "photo.tooMany": "Maksymalnie 5 zdjęć",
+    "unknownUser": "Wybierz osoby z listy",
+    "task.hasUpdates": "Zadania z wpisami postępu lub zakończenia nie można usunąć"
   },
   "history": {
     "empty": "Brak zakończonych zadań",

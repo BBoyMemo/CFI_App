@@ -1,0 +1,156 @@
+{
+  "app": {
+    "name": "Pang-araw-araw na Gawain"
+  },
+  "nav": {
+    "tasks": "Mga Gawain",
+    "history": "Kasaysayan",
+    "orders": "Mga Order",
+    "team": "Koponan",
+    "logout": "Mag-log out",
+    "language": "Wika",
+    "account": "Account"
+  },
+  "login": {
+    "name": "Pangalan",
+    "password": "Password",
+    "submit": "Mag-log in",
+    "server": "Address ng server",
+    "serverHint": "hal. http://192.168.1.20:5278",
+    "showPassword": "Ipakita ang password",
+    "hidePassword": "Itago ang password"
+  },
+  "common": {
+    "save": "I-save",
+    "cancel": "Kanselahin",
+    "delete": "Burahin",
+    "edit": "I-edit",
+    "close": "Isara",
+    "loading": "Naglo-load…",
+    "retry": "Subukang muli",
+    "today": "Ngayon",
+    "previousDay": "Nakaraang araw",
+    "nextDay": "Susunod na araw",
+    "optional": "opsyonal",
+    "clear": "I-clear"
+  },
+  "photo": {
+    "add": "Magdagdag ng larawan",
+    "remove": "Alisin ang larawan",
+    "view": "Tingnan ang larawan",
+    "camera": "Kamera",
+    "gallery": "Gallery"
+  },
+  "tasks": {
+    "new": "Bagong gawain",
+    "edit": "I-edit ang gawain",
+    "morning": "Pang-umagang shift",
+    "afternoon": "Panghapong shift",
+    "empty": "Walang gawain",
+    "title": "Pamagat",
+    "description": "Paglalarawan",
+    "date": "Petsa",
+    "priority": "Prayoridad",
+    "shift": "Shift",
+    "assignees": "Nakatalaga kay",
+    "noEngineers": "Wala pang tao. Idagdag sa Koponan.",
+    "complete": "Tapusin",
+    "comment": "Komento",
+    "completedBy": "Tinapos ni {{name}} · {{time}}",
+    "carriedOver": "Mula {{date}}",
+    "deleteConfirm": "Burahin ang gawaing ito?",
+    "progress": "{{done}} sa {{total}} ang tapos",
+    "photos": "Mga larawan",
+    "inProgress": "Isinasagawa",
+    "addUpdate": "Magdagdag ng update",
+    "updateTitle": "I-update ang gawain",
+    "outcome": "Resulta",
+    "reopenHint": "Ang \"Isinasagawa\" ay kukunin muli ang gawain: magiging iyo ito ngayong araw.",
+    "updates": "Mga update",
+    "showAll": "Ipakita lahat ({{count}})"
+  },
+  "status": {
+    "Open": "Bukas",
+    "InProgress": "Isinasagawa",
+    "Completed": "Tapos na"
+  },
+  "priority": {
+    "Low": "Mababa",
+    "Medium": "Katamtaman",
+    "High": "Mataas"
+  },
+  "shift": {
+    "Morning": "Umaga",
+    "Afternoon": "Hapon"
+  },
+  "orders": {
+    "new": "Bagong order",
+    "statusNew": "Bago",
+    "statusOrdered": "Na-order na",
+    "description": "Ano ang kailangan?",
+    "markOrdered": "Markahan bilang na-order",
+    "empty": "Walang order",
+    "orderedBy": "In-order ni {{name}} · {{date}}",
+    "deleteConfirm": "Burahin ang order na ito?",
+    "loadMore": "Magpakita pa",
+    "search": "Maghanap ng piyesa, paglalarawan o pangalan",
+    "requestedBy": "Hiniling ni {{name}} · {{date}}"
+  },
+  "users": {
+    "title": "Koponan",
+    "add": "Magdagdag ng tao",
+    "name": "Pangalan",
+    "password": "Password",
+    "passwordHint": "Hindi bababa sa 8 character",
+    "role": "Tungkulin",
+    "empty": "Wala pang tao"
+  },
+  "role": {
+    "Manager": "Manager",
+    "Engineer": "Engineer"
+  },
+  "errors": {
+    "required": "Kailangan",
+    "tooLong": "Masyadong mahaba",
+    "tooShort": "Masyadong maikli",
+    "inPast": "Hindi puwedeng nakaraan",
+    "invalidCredentials": "Mali ang pangalan o password",
+    "user.nameTaken": "Ginagamit na ang pangalang ito",
+    "task.completed": "Hindi na mababago o mabubura ang tapos nang gawain",
+    "task.notAssigned": "Hindi nakatalaga sa iyo ang gawaing ito",
+    "order.alreadyOrdered": "Naka-markang na-order na",
+    "notFound": "Hindi nahanap. Maaaring nabura na.",
+    "forbidden": "Hindi ka pinapayagang gawin ito",
+    "network": "Hindi maabot ang server",
+    "tooManyRequests": "Masyadong maraming subok. Maghintay ng isang minuto.",
+    "generic": "May nangyaring mali",
+    "photo.empty": "Walang laman ang larawan",
+    "photo.tooLarge": "Masyadong malaki ang larawan (max 10 MB)",
+    "photo.unsupportedFormat": "Gumamit ng JPG, PNG o WEBP na larawan",
+    "photo.notFound": "Hindi nahanap ang larawan",
+    "wrongPassword": "Mali ang password",
+    "order.ordered": "Na-order na, hindi na mabubura",
+    "photo.tooMany": "Hanggang 5 larawan",
+    "unknownUser": "Pumili ng tao mula sa listahan",
+    "task.hasUpdates": "Hindi mabubura ang gawaing may update o tapos na"
+  },
+  "history": {
+    "empty": "Wala pang tapos na gawain",
+    "search": "Maghanap sa pamagat, paglalarawan o pangalan",
+    "anyDate": "Anumang petsa",
+    "noResults": "Walang nahanap"
+  },
+  "account": {
+    "changePassword": "Palitan ang password",
+    "currentPassword": "Kasalukuyang password",
+    "newPassword": "Bagong password",
+    "confirmPassword": "Ulitin ang bagong password",
+    "mismatch": "Hindi magkapareho ang mga password",
+    "saved": "Napalitan ang password"
+  },
+  "translation": {
+    "translated": "Isinalin",
+    "showOriginal": "Ipakita ang orihinal",
+    "showTranslation": "Ipakita ang salin"
+  }
+}

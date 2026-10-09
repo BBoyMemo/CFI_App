@@ -32,16 +32,28 @@ public record TaskDto(
     Shift Shift,
     IReadOnlyList<UserRef> Assignees,
     DateTimeOffset CreatedAt,
+    WorkStatus Status,
     bool Completed,
+    // The latest completion (a task taken back into progress keeps it: it stays in History).
     DateTimeOffset? CompletedAt,
     UserRef? CompletedBy,
-    string? CompletionComment,
-    bool HasPhoto,
     // Photos attached when the task was planned, oldest first: GET /api/tasks/{id}/photos/{photoId}.
     IReadOnlyList<Guid> PhotoIds,
-    // Photos the engineer attached when completing, same URL form. (HasPhoto = the older single photo.)
-    IReadOnlyList<Guid> CompletionPhotoIds,
-    // { language: { field: text } } for "title", "description", "comment"; missing = show the original.
+    // The cards under the task, oldest first.
+    IReadOnlyList<TaskUpdateDto> Updates,
+    // { language: { field: text } } for "title", "description"; missing = show the original.
+    IReadOnlyDictionary<string, Dictionary<string, string>> Translations);
+
+public record TaskUpdateDto(
+    Guid Id,
+    // Where the task stood right after this card: InProgress or Completed.
+    WorkStatus Outcome,
+    UserRef Author,
+    DateTimeOffset CreatedAt,
+    string? Comment,
+    // Same URL form as the task's own photos.
+    IReadOnlyList<Guid> PhotoIds,
+    // { language: { "comment": text } }; missing = show the original.
     IReadOnlyDictionary<string, Dictionary<string, string>> Translations);
 
 public record OrderDto(

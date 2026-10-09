@@ -1,20 +1,21 @@
 import React, {useState} from 'react';
 import {Modal, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
-import {formatDateTime, formatDay} from '../format';
+import {formatDay} from '../format';
 import {StoredPhoto} from '../Photo';
 import {colors, priorityColor} from '../theme';
 import {hasTranslation, localized} from '../translate';
 import TranslationToggle from '../TranslationToggle';
 import {Button, Glyph, IconButton, styles as ui} from '../ui';
+import {InProgressChip, UpdateCard} from './TaskUpdates';
 
-// Full-screen view of one task: everything the card shortens, and the photo at full width.
-// Actions are handed back to the list screen, which owns the forms.
+// Full-screen view of one task: the task itself as the main card, then every progress /
+// completion / follow-up card under it, oldest first. Actions are handed back to the screen that
+// opened it, which owns the forms. `rules` comes from taskRules().
 export default function TaskDetail({
   task,
-  isManager,
-  canComplete,
-  onComplete,
+  rules,
+  onUpdate,
   onEdit,
   onDelete,
   onClose,
@@ -24,13 +25,14 @@ export default function TaskDetail({
   const text = field => localized(task, field, i18n.language, showOriginal);
   const translated = hasTranslation(
     task,
-    ['title', 'description', 'comment'],
+    ['title', 'description'],
     i18n.language,
   );
   const carried = task.originalDate !== task.date;
-  // Completed tasks are a record: no edit, no delete.
-  const managerCanChange = isManager && !task.completed && (onEdit || onDelete);
-  const showActions = canComplete || managerCanChange;
+  const canEdit = rules.edit && onEdit;
+  const canDelete = rules.delete && onDelete;
+  const canWork = rules.work && onUpdate;
+  const canFollowUp = rules.followUp && onUpdate;
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
@@ -46,150 +48,156 @@ export default function TaskDetail({
           <Text style={styles.headerTitle} numberOfLines={1}>
             {text('title')}
           </Text>
+          {canEdit ? (
+            <IconButton
+              icon="edit"
+              color={colors.cream}
+              onPress={onEdit}
+              label={t('common.edit')}
+            />
+          ) : null}
+          {canDelete ? (
+            <IconButton
+              icon="trash"
+              color={colors.cream}
+              onPress={onDelete}
+              label={t('common.delete')}
+            />
+          ) : null}
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.titleRow}>
-            {task.completed ? (
-              <View style={styles.doneDot}>
-                <Text style={styles.doneDotText}>✓</Text>
+          {/* The task as it was given: the main card. */}
+          <View style={[ui.card, styles.mainCard]}>
+            <View style={styles.titleRow}>
+              {task.completed ? (
+                <View style={styles.doneDot}>
+                  <Text style={styles.doneDotText}>✓</Text>
+                </View>
+              ) : null}
+              <Text style={styles.title}>{text('title')}</Text>
+            </View>
+            {translated ? (
+              <TranslationToggle
+                showOriginal={showOriginal}
+                onToggle={() => setShowOriginal(v => !v)}
+                style={styles.translation}
+              />
+            ) : null}
+
+            <View style={styles.metaRow}>
+              {task.status === 'InProgress' ? <InProgressChip /> : null}
+              <View
+                style={[
+                  styles.badge,
+                  {backgroundColor: priorityColor[task.priority]},
+                ]}>
+                <Text
+                  style={[
+                    styles.badgeText,
+                    task.priority === 'High' && {color: colors.white},
+                    task.priority === 'Low' && {color: colors.muted},
+                  ]}>
+                  {t(`priority.${task.priority}`)}
+                </Text>
+              </View>
+              <View style={styles.meta}>
+                <Glyph
+                  name={task.shift === 'Morning' ? 'sun' : 'sunset'}
+                  size={15}
+                  color={colors.yellow}
+                />
+                <Text style={styles.metaText}>{t(`shift.${task.shift}`)}</Text>
+              </View>
+              <View style={styles.meta}>
+                <Text style={styles.metaText}>📅 {formatDay(task.date)}</Text>
+              </View>
+            </View>
+            {carried ? (
+              <View style={[ui.chip, styles.carried]}>
+                <Text style={ui.chipText}>
+                  ↪{' '}
+                  {t('tasks.carriedOver', {
+                    date: formatDay(task.originalDate, false),
+                  })}
+                </Text>
               </View>
             ) : null}
-            <Text style={styles.title}>{text('title')}</Text>
-          </View>
-          {translated ? (
-            <TranslationToggle
-              showOriginal={showOriginal}
-              onToggle={() => setShowOriginal(v => !v)}
-              style={styles.translation}
-            />
-          ) : null}
 
-          <View style={styles.metaRow}>
-            <View
-              style={[
-                styles.badge,
-                {backgroundColor: priorityColor[task.priority]},
-              ]}>
-              <Text
-                style={[
-                  styles.badgeText,
-                  task.priority === 'High' && {color: colors.white},
-                  task.priority === 'Low' && {color: colors.muted},
-                ]}>
-                {t(`priority.${task.priority}`)}
-              </Text>
-            </View>
-            <View style={styles.meta}>
-              <Glyph
-                name={task.shift === 'Morning' ? 'sun' : 'sunset'}
-                size={15}
-                color={colors.yellow}
-              />
-              <Text style={styles.metaText}>{t(`shift.${task.shift}`)}</Text>
-            </View>
-            <View style={styles.meta}>
-              <Text style={styles.metaText}>📅 {formatDay(task.date)}</Text>
-            </View>
-          </View>
-          {carried ? (
-            <View style={[ui.chip, styles.carried]}>
-              <Text style={ui.chipText}>
-                ↪{' '}
-                {t('tasks.carriedOver', {
-                  date: formatDay(task.originalDate, false),
-                })}
-              </Text>
-            </View>
-          ) : null}
+            {task.description ? (
+              <Section label={t('tasks.description')}>
+                <Text style={styles.body}>{text('description')}</Text>
+              </Section>
+            ) : null}
 
-          {task.description ? (
-            <Section label={t('tasks.description')}>
-              <Text style={styles.body}>{text('description')}</Text>
-            </Section>
-          ) : null}
-
-          <Section label={t('tasks.assignees')}>
-            <View style={styles.chips}>
-              {task.assignees.map(a => (
-                <View key={a.id} style={[ui.chip, styles.personChip]}>
-                  <Text style={[ui.chipText, styles.bigChip]}>👤 {a.name}</Text>
-                </View>
-              ))}
-            </View>
-          </Section>
-
-          {task.photoIds?.length ? (
-            <Section label={`${t('tasks.photos')} · ${task.photoIds.length}`}>
-              <View style={styles.photos}>
-                {task.photoIds.map(photoId => (
-                  <StoredPhoto
-                    key={photoId}
-                    path={`/tasks/${task.id}/photos/${photoId}`}
-                    large
-                  />
+            <Section label={t('tasks.assignees')}>
+              <View style={styles.chips}>
+                {task.assignees.map(a => (
+                  <View key={a.id} style={ui.chip}>
+                    <Text style={[ui.chipText, styles.bigChip]}>
+                      👤 {a.name}
+                    </Text>
+                  </View>
                 ))}
               </View>
             </Section>
-          ) : null}
 
-          {task.completed ? (
-            <View style={styles.completion}>
-              <Text style={styles.completedBy}>
-                ✓{' '}
-                {t('tasks.completedBy', {
-                  name: task.completedBy?.name ?? '—',
-                  time: formatDateTime(task.completedAt),
-                })}
-              </Text>
-              {task.completionComment ? (
-                <View>
-                  <Text style={styles.label}>{t('tasks.comment')}</Text>
-                  <Text style={styles.body}>{text('comment')}</Text>
+            {task.photoIds?.length ? (
+              <Section label={`${t('tasks.photos')} · ${task.photoIds.length}`}>
+                <View style={styles.photos}>
+                  {task.photoIds.map(photoId => (
+                    <StoredPhoto
+                      key={photoId}
+                      path={`/tasks/${task.id}/photos/${photoId}`}
+                      large
+                    />
+                  ))}
                 </View>
-              ) : null}
-              {task.hasPhoto ? (
-                <StoredPhoto path={`/tasks/${task.id}/photo`} large />
-              ) : null}
-              {(task.completionPhotoIds ?? []).map(photoId => (
-                <StoredPhoto
-                  key={photoId}
-                  path={`/tasks/${task.id}/photos/${photoId}`}
-                  large
-                />
+              </Section>
+            ) : null}
+          </View>
+
+          {/* What people did on it, in order. */}
+          {task.updates.length ? (
+            <View style={styles.updates}>
+              <Text style={styles.label}>
+                {t('tasks.updates')} · {task.updates.length}
+              </Text>
+              {task.updates.map(update => (
+                <UpdateCard key={update.id} task={task} update={update} large />
               ))}
             </View>
           ) : null}
         </ScrollView>
 
-        {showActions ? (
+        {canWork || canFollowUp ? (
           <View style={styles.footer}>
-            {managerCanChange && onDelete ? (
+            {canWork ? (
+              <>
+                <Button
+                  title={t('status.InProgress')}
+                  icon="wrench"
+                  variant="primary"
+                  onPress={() => onUpdate('InProgress')}
+                  style={styles.flex}
+                />
+                <Button
+                  title={t('tasks.complete')}
+                  icon="check"
+                  variant="green"
+                  onPress={() => onUpdate('Completed')}
+                  style={styles.flex}
+                />
+              </>
+            ) : (
               <Button
-                title={t('common.delete')}
-                icon="trash"
-                variant="ghost"
-                onPress={onDelete}
+                title={t('tasks.addUpdate')}
+                icon="plus"
+                variant="primary"
+                onPress={() => onUpdate('Completed')}
                 style={styles.flex}
               />
-            ) : null}
-            {managerCanChange && onEdit ? (
-              <Button
-                title={t('common.edit')}
-                icon="edit"
-                onPress={onEdit}
-                style={styles.flex}
-              />
-            ) : null}
-            {canComplete ? (
-              <Button
-                title={t('tasks.complete')}
-                icon="check"
-                variant="green"
-                onPress={onComplete}
-                style={styles.flex}
-              />
-            ) : null}
+            )}
           </View>
         ) : null}
       </View>
@@ -218,7 +226,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   headerTitle: {flex: 1, color: colors.cream, fontSize: 17, fontWeight: '700'},
-  content: {padding: 18, paddingBottom: 32},
+  content: {padding: 14, paddingBottom: 32, gap: 16},
+  mainCard: {padding: 16},
   titleRow: {flexDirection: 'row', alignItems: 'flex-start', gap: 10},
   doneDot: {
     width: 28,
@@ -245,7 +254,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: colors.white,
+    backgroundColor: colors.cream,
     borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 4,
@@ -256,7 +265,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.yellowSoft,
     marginTop: 10,
   },
-  section: {marginTop: 20},
+  section: {marginTop: 18},
   label: {
     fontSize: 13,
     fontWeight: '800',
@@ -266,17 +275,9 @@ const styles = StyleSheet.create({
   },
   body: {fontSize: 16, lineHeight: 23, color: colors.ink},
   chips: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
-  photos: {gap: 12},
-  personChip: {backgroundColor: colors.white},
   bigChip: {fontSize: 14, paddingVertical: 2},
-  completion: {
-    backgroundColor: colors.greenSoft,
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 22,
-    gap: 12,
-  },
-  completedBy: {color: colors.green, fontWeight: '800', fontSize: 15},
+  photos: {gap: 12},
+  updates: {gap: 10},
   footer: {
     flexDirection: 'row',
     gap: 8,

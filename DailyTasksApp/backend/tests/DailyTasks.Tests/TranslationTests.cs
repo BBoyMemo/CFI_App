@@ -60,7 +60,7 @@ public class TranslationTests(ApiFactory api) : IClassFixture<ApiFactory>, IAsyn
         Text(task, "en", "title").ShouldBe("Replace pump seal");             // English source stays as written
         Text(task, "pl", "title").ShouldBe("<pl> Replace pump seal");
         Text(task, "bg", "description").ShouldBe("<bg> Spare seal on shelf B2");
-        Text(task, "es", "description").ShouldBe("<es> Spare seal on shelf B2");
+        Text(task, "fil", "description").ShouldBe("<fil> Spare seal on shelf B2");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class TranslationTests(ApiFactory api) : IClassFixture<ApiFactory>, IAsyn
         var task = await GetTaskAsync(manager, id);
         Text(task, "pl", "title").ShouldBe("[pl] Wymień filtr");
         Text(task, "en", "title").ShouldBe("<en> [pl] Wymień filtr");
-        Text(task, "es", "title").ShouldBe("<es> [pl] Wymień filtr");
+        Text(task, "fil", "title").ShouldBe("<fil> [pl] Wymień filtr");
         api.Translator.Calls.ShouldNotContain(c => c.Language == "pl");
     }
 
@@ -105,17 +105,18 @@ public class TranslationTests(ApiFactory api) : IClassFixture<ApiFactory>, IAsyn
         var (manager, engineer) = await PeopleAsync();
         var marker = Guid.NewGuid().ToString("N")[..8];
         var id = (await CreateTaskAsync(manager, engineer.Id, "Check guard", null)).GetProperty("id").GetGuid();
-        using (var form = new MultipartFormDataContent { { new StringContent($"Guard bolt {marker} replaced"), "comment" } })
-            await engineer.Client.PostAsync($"/api/tasks/{id}/complete", form);
+        using (var form = TestData.Card("Completed", $"Guard bolt {marker} replaced"))
+            await engineer.Client.PostAsync($"/api/tasks/{id}/updates", form);
         using (var form = new MultipartFormDataContent { { new StringContent($"Bolts M8 {marker}"), "description" } })
             await engineer.Client.PostAsync("/api/orders", form);
 
         while (await api.ProcessTranslationsAsync() > 0) { }
 
-        Text(await GetTaskAsync(manager, id), "bg", "comment").ShouldBe($"<bg> Guard bolt {marker} replaced");
+        var card = (await GetTaskAsync(manager, id)).GetProperty("updates")[0];
+        Text(card, "bg", "comment").ShouldBe($"<bg> Guard bolt {marker} replaced");
 
         // A search typed in the reader's language finds the record through its translation.
-        var history = await (await engineer.Client.GetAsync($"/api/tasks/history?pageSize=100&q=%3Ces%3E%20guard%20bolt%20{marker}")).JsonAsync();
+        var history = await (await engineer.Client.GetAsync($"/api/tasks/history?pageSize=100&q=%3Cfil%3E%20guard%20bolt%20{marker}")).JsonAsync();
         history.GetProperty("items").EnumerateArray().Select(t => t.GetProperty("id").GetGuid()).ShouldContain(id);
 
         var orders = await (await engineer.Client.GetAsync($"/api/orders?pageSize=100&q=%3Cpl%3E%20bolts%20m8%20{marker}")).JsonAsync();
@@ -138,7 +139,7 @@ public class TranslationTests(ApiFactory api) : IClassFixture<ApiFactory>, IAsyn
         (await api.ProcessTranslationsAsync()).ShouldBe(0); // still waiting
         api.Clock.Now = api.Clock.Now.AddHours(7);
         (await api.ProcessTranslationsAsync()).ShouldBe(1);
-        Text(await GetTaskAsync(manager, id), "es", "title").ShouldBe("<es> Clean drains");
+        Text(await GetTaskAsync(manager, id), "fil", "title").ShouldBe("<fil> Clean drains");
     }
 
     [Fact]

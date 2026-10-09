@@ -25,13 +25,15 @@ public static class Policies
     public const string Engineer = "Engineer";
 }
 
-public class TokenService(IOptions<JwtOptions> options, TimeProvider time)
+public class TokenService(IOptions<JwtOptions> options)
 {
     private readonly JwtOptions _options = options.Value;
 
     public (string Token, DateTimeOffset ExpiresAt) Create(User user)
     {
-        var now = time.GetUtcNow();
+        // The JWT handler checks token times against the real clock, so they are issued from it too
+        // (not from the app's TimeProvider, which tests move to other days).
+        var now = DateTimeOffset.UtcNow;
         var expires = now.AddHours(_options.AccessTokenHours);
         var claims = new[]
         {
