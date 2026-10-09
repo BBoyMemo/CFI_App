@@ -15,8 +15,6 @@
     "name": "Pangalan",
     "password": "Password",
     "submit": "Mag-log in",
-    "server": "Address ng server",
-    "serverHint": "hal. http://192.168.1.20:5278",
     "showPassword": "Ipakita ang password",
     "hidePassword": "Itago ang password"
   },

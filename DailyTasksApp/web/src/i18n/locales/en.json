@@ -15,8 +15,6 @@
     "name": "Name",
     "password": "Password",
     "submit": "Log in",
-    "server": "Server address",
-    "serverHint": "e.g. http://192.168.1.20:5278",
     "showPassword": "Show password",
     "hidePassword": "Hide password"
   },

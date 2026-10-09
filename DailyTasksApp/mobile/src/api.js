@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Same REST API as the web app. The server address is entered once on the login screen,
-// because the app is installed from an APK and the server's address is not fixed yet.
+// Same REST API as the web app, on the production server.
+const SERVER = 'https://ynzserver.duckdns.org/dailytasks';
 
-const SERVER_KEY = 'dt.server';
 const SESSION_KEY = 'dt.session';
 
 export class ApiError extends Error {
@@ -15,7 +14,6 @@ export class ApiError extends Error {
   }
 }
 
-let server = '';
 let session = null;
 let onUnauthorized = () => {};
 
@@ -23,32 +21,15 @@ export function setUnauthorizedHandler(handler) {
   onUnauthorized = handler;
 }
 
-export function normalizeServer(value) {
-  let s = value.trim().replace(/\/+$/, '');
-  if (s && !/^https?:\/\//i.test(s)) {
-    s = `http://${s}`;
-  }
-  return s;
-}
-
 export async function loadStored() {
   try {
-    const [[, storedServer], [, storedSession]] = await AsyncStorage.multiGet([
-      SERVER_KEY,
-      SESSION_KEY,
-    ]);
-    server = storedServer ?? '';
+    const storedSession = await AsyncStorage.getItem(SESSION_KEY);
     const parsed = storedSession ? JSON.parse(storedSession) : null;
     session = parsed && new Date(parsed.expiresAt) > new Date() ? parsed : null;
   } catch {
     session = null;
   }
-  return {server, session};
-}
-
-export async function saveServer(value) {
-  server = value;
-  await AsyncStorage.setItem(SERVER_KEY, value).catch(() => {});
+  return {session};
 }
 
 export async function saveSession(next) {
@@ -67,7 +48,7 @@ export function authHeaders() {
 }
 
 export function photoSource(path) {
-  return {uri: `${server}/api${path}`, headers: authHeaders()};
+  return {uri: `${SERVER}/api${path}`, headers: authHeaders()};
 }
 
 async function request(
@@ -88,7 +69,7 @@ async function request(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response;
   try {
-    response = await fetch(`${server}/api${path}`, {
+    response = await fetch(`${SERVER}/api${path}`, {
       method,
       headers,
       body,

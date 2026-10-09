@@ -1,16 +1,14 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
-import {api, loadStored, saveServer, saveSession, setUnauthorizedHandler} from './api';
+import {api, loadStored, saveSession, setUnauthorizedHandler} from './api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({children}) {
   const [ready, setReady] = useState(false);
-  const [server, setServer] = useState('');
   const [session, setSession] = useState(null);
 
   useEffect(() => {
     loadStored().then(stored => {
-      setServer(stored.server);
       setSession(stored.session);
       setReady(true);
     });
@@ -34,9 +32,7 @@ export function AuthProvider({children}) {
     return () => clearTimeout(timer);
   }, [session, logout]);
 
-  const login = useCallback(async (serverAddress, name, password) => {
-    await saveServer(serverAddress);
-    setServer(serverAddress);
+  const login = useCallback(async (name, password) => {
     const result = await api.login(name, password);
     const next = {token: result.token, expiresAt: result.expiresAt, user: result.user};
     await saveSession(next);
@@ -46,13 +42,12 @@ export function AuthProvider({children}) {
   const value = useMemo(
     () => ({
       ready,
-      server,
       user: session?.user ?? null,
       isManager: session?.user?.role === 'Manager',
       login,
       logout,
     }),
-    [ready, server, session, login, logout],
+    [ready, session, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

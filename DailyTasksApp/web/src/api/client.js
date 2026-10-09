@@ -1,4 +1,6 @@
 // Thin fetch wrapper. Every call goes to the same origin (/api), proxied to the API in dev.
+// In production the API sits under the site's path prefix (VITE_API_BASE_URL).
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/+$/, '');
 
 const TOKEN_KEY = 'dt.session';
 
@@ -58,7 +60,7 @@ async function request(method, path, { json, form, skipAuthHandling } = {}) {
 
   let response;
   try {
-    response = await fetch(`/api${path}`, { method, headers, body });
+    response = await fetch(`${API_BASE}${path}`, { method, headers, body });
   } catch {
     throw new ApiError(0, { code: 'network' });
   }
@@ -78,7 +80,7 @@ async function request(method, path, { json, form, skipAuthHandling } = {}) {
 
 // Photos need the bearer token, so they are fetched as blobs rather than linked with <img src>.
 export async function fetchPhotoUrl(path) {
-  const response = await fetch(`/api${path}`, { headers: authHeader() });
+  const response = await fetch(`${API_BASE}${path}`, { headers: authHeader() });
   if (response.status === 401) onUnauthorized();
   if (!response.ok) throw new ApiError(response.status, null);
   return URL.createObjectURL(await response.blob());

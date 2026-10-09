@@ -8,7 +8,6 @@ import {
   View,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
-import {normalizeServer} from '../api';
 import {useAuth} from '../auth';
 import {errorMessage} from '../format';
 import LanguagePicker from '../LanguagePicker';
@@ -18,14 +17,13 @@ import {Button, Field, Input} from '../ui';
 export default function LoginScreen() {
   const {t} = useTranslation();
   const auth = useAuth();
-  const [server, setServer] = useState(auth.server);
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const canSubmit = server.trim() && name.trim() && password;
+  const canSubmit = name.trim() && password;
 
   async function submit() {
     if (!canSubmit) {
@@ -34,7 +32,7 @@ export default function LoginScreen() {
     setBusy(true);
     setError(null);
     try {
-      await auth.login(normalizeServer(server), name.trim(), password);
+      await auth.login(name.trim(), password);
     } catch (err) {
       setError(err);
       setBusy(false);
@@ -55,16 +53,6 @@ export default function LoginScreen() {
         <Text style={styles.title}>{t('app.name')}</Text>
 
         <View style={styles.card}>
-          <Field label={t('login.server')} hint={t('login.serverHint')}>
-            <Input
-              value={server}
-              onChangeText={setServer}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              placeholder="http://"
-            />
-          </Field>
           <Field label={t('login.name')}>
             <Input
               value={name}

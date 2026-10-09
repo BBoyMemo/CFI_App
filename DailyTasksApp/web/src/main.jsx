@@ -8,7 +8,8 @@ import { AuthProvider } from './auth/AuthContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* Same prefix as Vite's `base`: "/dailytasks" in production, "/" in dev. */}
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <AuthProvider>
         <App />
       </AuthProvider>

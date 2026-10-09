@@ -15,8 +15,6 @@
     "name": "Imię",
     "password": "Hasło",
     "submit": "Zaloguj",
-    "server": "Adres serwera",
-    "serverHint": "np. http://192.168.1.20:5278",
     "showPassword": "Pokaż hasło",
     "hidePassword": "Ukryj hasło"
   },
