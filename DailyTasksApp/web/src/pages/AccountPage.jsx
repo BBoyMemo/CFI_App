@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icon from '../components/Icon';
 import LanguageSelect from '../components/LanguageSelect';
+import PasswordInput from '../components/PasswordInput';
 import { errorMessage, fieldError } from '../lib/format';
 
 // The signed-in user's own name and password. `forced`: shown on its own right after logging in
@@ -221,15 +222,7 @@ function PasswordField({ id, label, value, onChange, autoComplete, error, hint }
       <label className="label" htmlFor={id}>
         {label}
       </label>
-      <input
-        id={id}
-        type="password"
-        className="input"
-        value={value}
-        maxLength={128}
-        autoComplete={autoComplete}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <PasswordInput id={id} value={value} onChange={onChange} autoComplete={autoComplete} />
       {error ? (
         <p className="mt-1 text-sm text-danger">{error}</p>
       ) : hint ? (

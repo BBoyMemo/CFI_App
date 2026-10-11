@@ -173,7 +173,7 @@
     "newName": "New name",
     "nameHint": "You will log in with this name.",
     "nameSaved": "Name changed",
-    "mustChange": "Your password was reset. Choose your own password to continue.",
+    "mustChange": "The password you were given is temporary. Choose your own password to continue.",
     "version": "Version {{version}}"
   },
   "translation": {

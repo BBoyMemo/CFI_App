@@ -45,6 +45,8 @@ public class UsersController(AppDbContext db, AppClock clock) : ControllerBase
             PasswordHash = PasswordHasher.Hash(request.Password!),
             Role = request.Role!.Value,
             CreatedAt = clock.UtcNow,
+            // The manager chose this password; the person picks their own at first login.
+            MustChangePassword = true,
         };
         db.Users.Add(user);
         try

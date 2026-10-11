@@ -13,14 +13,13 @@ import {useAuth} from '../auth';
 import {errorMessage} from '../format';
 import LanguagePicker from '../LanguagePicker';
 import {colors} from '../theme';
-import {Button, Field, Input} from '../ui';
+import {Button, Field, Input, PasswordInput} from '../ui';
 
 export default function LoginScreen() {
   const {t} = useTranslation();
   const auth = useAuth();
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [forgot, setForgot] = useState(false);
@@ -67,31 +66,12 @@ export default function LoginScreen() {
               />
             </Field>
             <Field label={t('login.password')}>
-              <View style={styles.passwordRow}>
-                <Input
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="password"
-                  onSubmitEditing={submit}
-                  style={styles.passwordInput}
-                />
-                <Pressable
-                  onPress={() => setShowPassword(v => !v)}
-                  hitSlop={8}
-                  style={styles.eye}
-                  accessibilityLabel={
-                    showPassword
-                      ? t('login.hidePassword')
-                      : t('login.showPassword')
-                  }>
-                  <Text style={[styles.eyeText, !showPassword && styles.eyeOff]}>
-                    👁
-                  </Text>
-                </Pressable>
-              </View>
+              <PasswordInput
+                value={password}
+                onChangeText={setPassword}
+                autoComplete="password"
+                onSubmitEditing={submit}
+              />
             </Field>
             {error ? (
               <Text style={styles.error}>⚠ {errorMessage(t, error)}</Text>
@@ -195,19 +175,6 @@ const styles = StyleSheet.create({
   },
   link: {alignSelf: 'center', marginTop: 14, padding: 4},
   linkText: {color: colors.muted, fontWeight: '600'},
-  passwordRow: {justifyContent: 'center'},
-  // Room on the right so typed text never runs under the eye.
-  passwordInput: {paddingRight: 52},
-  eye: {
-    position: 'absolute',
-    right: 6,
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eyeText: {fontSize: 22},
-  eyeOff: {opacity: 0.35},
   error: {
     color: colors.danger,
     backgroundColor: colors.dangerSoft,

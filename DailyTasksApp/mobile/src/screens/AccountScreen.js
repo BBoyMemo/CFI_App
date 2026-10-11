@@ -7,7 +7,7 @@ import {useAuth} from '../auth';
 import {errorMessage, fieldError} from '../format';
 import LanguagePicker from '../LanguagePicker';
 import {colors} from '../theme';
-import {Button, Field, Glyph, Input, styles as ui} from '../ui';
+import {Button, Field, Glyph, Input, PasswordInput, styles as ui} from '../ui';
 
 // The signed-in user's own name and password. `forced`: shown on its own right after logging in
 // with a password a manager set, until the user picks their own.
@@ -80,7 +80,7 @@ function NameForm() {
         <Input value={name} onChangeText={setName} maxLength={100} autoCapitalize="words" placeholder={user.name} />
       </Field>
       <Field label={t('account.currentPassword')} error={fieldError(t, error, 'currentPassword')}>
-        <Input value={current} onChangeText={setCurrent} secureTextEntry maxLength={128} autoCapitalize="none" />
+        <PasswordInput value={current} onChangeText={setCurrent} />
       </Field>
       {error && !error.fieldErrors && error.code !== 'user.nameTaken' ? (
         <Text style={styles.error}>{errorMessage(t, error)}</Text>
@@ -126,16 +126,16 @@ function PasswordForm() {
     <View style={[ui.card, styles.form]}>
       <Text style={styles.title}>🔑 {t('account.changePassword')}</Text>
       <Field label={t('account.currentPassword')} error={fieldError(t, error, 'currentPassword')}>
-        <Input value={current} onChangeText={setCurrent} secureTextEntry maxLength={128} autoCapitalize="none" />
+        <PasswordInput value={current} onChangeText={setCurrent} />
       </Field>
       <Field
         label={t('account.newPassword')}
         error={fieldError(t, error, 'newPassword')}
         hint={t('users.passwordHint')}>
-        <Input value={next} onChangeText={setNext} secureTextEntry maxLength={128} autoCapitalize="none" />
+        <PasswordInput value={next} onChangeText={setNext} />
       </Field>
       <Field label={t('account.confirmPassword')} error={mismatch ? t('account.mismatch') : null}>
-        <Input value={repeat} onChangeText={setRepeat} secureTextEntry maxLength={128} autoCapitalize="none" />
+        <PasswordInput value={repeat} onChangeText={setRepeat} />
       </Field>
       {error && !error.fieldErrors ? <Text style={styles.error}>{errorMessage(t, error)}</Text> : null}
       {saved ? <Text style={styles.saved}>✓ {t('account.saved')}</Text> : null}

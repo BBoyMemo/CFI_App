@@ -119,7 +119,11 @@ public class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         var response = await manager.PostAsJsonAsync("/api/users", new { name, password, role });
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadFromJsonAsync<JsonElement>(Json);
-        return (body.GetProperty("id").GetGuid(), name, await LoginAsync(name, password));
+        var client = await LoginAsync(name, password);
+        // A new user must choose their own password before anything else (here: the same one).
+        (await client.PostAsJsonAsync("/api/auth/change-password",
+            new { currentPassword = password, newPassword = password })).EnsureSuccessStatusCode();
+        return (body.GetProperty("id").GetGuid(), name, client);
     }
 }
 

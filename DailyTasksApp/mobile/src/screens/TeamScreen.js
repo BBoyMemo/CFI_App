@@ -13,6 +13,7 @@ import {
   Field,
   Glyph,
   Input,
+  PasswordInput,
   Segmented,
   Sheet,
   styles as ui,
@@ -248,19 +249,12 @@ function UserSheet({user, onSaved, onClose}) {
           optional={editing}
           error={fieldError(t, error, 'password')}
           hint={editing ? t('users.newPasswordHint') : t('users.passwordHint')}>
-          <Input
-            value={password}
-            onChangeText={setPassword}
-            maxLength={128}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus={Boolean(user?.resetRequested)}
-          />
+          <PasswordInput value={password} onChangeText={setPassword} autoFocus={Boolean(user?.resetRequested)} />
         </Field>
       ) : null}
       {canSetPassword && (!editing || password) ? (
         <Field label={t('users.confirmPassword')} error={mismatch ? t('account.mismatch') : null}>
-          <Input value={repeat} onChangeText={setRepeat} maxLength={128} autoCapitalize="none" autoCorrect={false} />
+          <PasswordInput value={repeat} onChangeText={setRepeat} />
         </Field>
       ) : null}
       <Field label={t('users.role')}>

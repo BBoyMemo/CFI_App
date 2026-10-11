@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -110,6 +110,31 @@ export function Input(props) {
       {...props}
       style={[styles.input, props.multiline && styles.multiline, props.style]}
     />
+  );
+}
+
+// Password field with an eye to show what was typed. Used for every password in the app.
+export function PasswordInput({style, ...props}) {
+  const {t} = useTranslation();
+  const [show, setShow] = useState(false);
+  return (
+    <View style={styles.passwordRow}>
+      <Input
+        maxLength={128}
+        autoCapitalize="none"
+        autoCorrect={false}
+        {...props}
+        secureTextEntry={!show}
+        style={[styles.passwordInput, style]}
+      />
+      <Pressable
+        onPress={() => setShow(v => !v)}
+        hitSlop={8}
+        style={styles.eye}
+        accessibilityLabel={show ? t('login.hidePassword') : t('login.showPassword')}>
+        <Text style={[styles.eyeText, !show && styles.eyeOff]}>👁</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -225,6 +250,19 @@ export const styles = StyleSheet.create({
     color: colors.ink,
   },
   multiline: {minHeight: 90, textAlignVertical: 'top'},
+  passwordRow: {justifyContent: 'center'},
+  // Room on the right so typed text never runs under the eye.
+  passwordInput: {paddingRight: 52},
+  eye: {
+    position: 'absolute',
+    right: 6,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  eyeText: {fontSize: 22},
+  eyeOff: {opacity: 0.35},
   segmented: {flexDirection: 'row', backgroundColor: colors.creamDark, borderRadius: 12, padding: 4, gap: 4},
   segment: {
     flex: 1,

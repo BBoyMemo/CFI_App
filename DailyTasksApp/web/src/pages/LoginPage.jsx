@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icon from '../components/Icon';
 import LanguageSelect from '../components/LanguageSelect';
+import PasswordInput from '../components/PasswordInput';
 import { errorMessage } from '../lib/format';
 
 export default function LoginPage() {
@@ -11,7 +12,6 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [forgot, setForgot] = useState(false);
@@ -63,27 +63,7 @@ export default function LoginPage() {
             <label className="label" htmlFor="password">
               {t('login.password')}
             </label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                className="input pr-12"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className={`absolute inset-y-0 right-1 flex w-10 items-center justify-center rounded-lg ${
-                  showPassword ? 'text-brown' : 'text-muted'
-                } hover:text-brown`}
-                aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-                title={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-              >
-                <Icon name={showPassword ? 'eyeOff' : 'eye'} size={20} />
-              </button>
-            </div>
+            <PasswordInput id="password" value={password} onChange={setPassword} autoComplete="current-password" />
           </div>
           {error && (
             <p className="flex items-center gap-2 rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger" role="alert">

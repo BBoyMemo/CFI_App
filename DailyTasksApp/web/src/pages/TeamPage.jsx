@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import Icon from '../components/Icon';
 import Modal, { ConfirmModal } from '../components/Modal';
+import PasswordInput from '../components/PasswordInput';
 import { errorMessage, fieldError } from '../lib/format';
 
 const ROLES = [
@@ -292,14 +293,11 @@ function UserModal({ user, onSaved, onClose }) {
               {editing ? t('users.newPassword') : t('users.password')}
               {editing && <span className="font-normal text-muted"> ({t('common.optional')})</span>}
             </label>
-            <input
+            <PasswordInput
               id="user-password"
-              type="text"
-              className="input font-mono"
               value={password}
-              maxLength={128}
+              onChange={setPassword}
               autoComplete="new-password"
-              onChange={(e) => setPassword(e.target.value)}
               autoFocus={Boolean(user?.resetRequested)}
             />
             <p className={`mt-1 text-xs ${fieldError(t, error, 'password') ? 'text-danger' : 'text-muted'}`}>
@@ -312,15 +310,7 @@ function UserModal({ user, onSaved, onClose }) {
             <label className="label" htmlFor="user-password-repeat">
               {t('users.confirmPassword')}
             </label>
-            <input
-              id="user-password-repeat"
-              type="text"
-              className="input font-mono"
-              value={repeat}
-              maxLength={128}
-              autoComplete="new-password"
-              onChange={(e) => setRepeat(e.target.value)}
-            />
+            <PasswordInput id="user-password-repeat" value={repeat} onChange={setRepeat} autoComplete="new-password" />
             {mismatch && <p className="mt-1 text-sm text-danger">{t('account.mismatch')}</p>}
           </div>
         )}

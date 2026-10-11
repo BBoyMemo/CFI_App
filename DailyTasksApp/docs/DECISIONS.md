@@ -113,13 +113,15 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 - Herkes üst bardaki adına dokunarak hesap sayfasını açar ve **kendi şifresini** değiştirir.
 - Mevcut şifre zorunludur (açık unutulmuş bir telefondan şifre değiştirilemesin diye); yeni
   şifre en az 8 karakter, iki kez yazılır. Giriş gibi hız sınırına tabidir.
+- Her şifre alanında yazılanı gösteren **göz düğmesi** var (giriş, hesap, Team formları; web ve mobil).
 - Herkes **kendi adını** da değiştirir (mevcut şifreyle). Ad aynı zamanda giriş adıdır, benzersiz kalır.
 - Mobilde hesap sayfasının altında **uygulama sürümü** görünür (tek kaynak: `mobile/app.json` → `version`).
 - Tamamlanan görevlerin başlıkları **üstü çizili değil**, normal renkte; yeşil şerit ve ✓ yeterli.
 
 ## Team ve şifre sıfırlama (kullanıcı isteği)
 
-- Yeni kişi eklerken şifre **iki kez** yazılır.
+- Yeni kişi eklerken şifre **iki kez** yazılır. Bu şifre **geçicidir**: kişi ilk girişte kendi şifresini
+  seçmeden uygulamada ilerleyemez (sıfırlamadaki ekranın aynısı).
 - Team listesinde düğme yok: kişiye dokununca **kart** açılır (Edit / Reset password, Deactivate ya da Activate).
 - Manager kişiyi **düzenler** (ad, rol). Kendi bilgilerini Team'den değil hesap sayfasından değiştirir
   (kendi Manager rolünü elinden almasın diye).

@@ -173,7 +173,7 @@
     "newName": "Nowe imię i nazwisko",
     "nameHint": "Tym imieniem i nazwiskiem będziesz się logować.",
     "nameSaved": "Zmieniono imię i nazwisko",
-    "mustChange": "Twoje hasło zostało zresetowane. Wybierz własne hasło, aby kontynuować.",
+    "mustChange": "Otrzymane hasło jest tymczasowe. Wybierz własne hasło, aby kontynuować.",
     "version": "Wersja {{version}}"
   },
   "translation": {

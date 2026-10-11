@@ -66,6 +66,26 @@ public class TeamTests(ApiFactory api) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task A_new_person_must_choose_their_own_password_at_first_login()
+    {
+        var manager = await api.ManagerAsync();
+        var name = $"Agatha {Guid.NewGuid().ToString("N")[..8]}";
+        var created = await manager.PostAsJsonAsync("/api/users", new { name, password = "Welcome123", role = "Engineer" });
+        (await created.JsonAsync()).GetProperty("mustChangePassword").GetBoolean().ShouldBeTrue();
+
+        var session = await (await LoginAsync(name, "Welcome123")).JsonAsync();
+        session.GetProperty("user").GetProperty("mustChangePassword").GetBoolean().ShouldBeTrue();
+        var client = api.Anonymous();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", session.GetProperty("token").GetString());
+        (await client.GetAsync($"/api/tasks?date={Today()}")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        (await client.PostAsJsonAsync("/api/auth/change-password", new { currentPassword = "Welcome123", newPassword = "MyOwnPass321" }))
+            .StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        (await client.GetAsync($"/api/tasks?date={Today()}")).StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task Edit_renames_and_changes_role_without_touching_the_password()
     {
         var engineer = await api.NewUserAsync("Engineer", "Rupert");

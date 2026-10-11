@@ -173,7 +173,7 @@
     "newName": "Bagong pangalan",
     "nameHint": "Ito ang pangalang gagamitin mo sa pag-log in.",
     "nameSaved": "Napalitan ang pangalan",
-    "mustChange": "Na-reset ang iyong password. Pumili ng sarili mong password para magpatuloy.",
+    "mustChange": "Pansamantala lang ang password na ibinigay sa iyo. Pumili ng sarili mong password para magpatuloy.",
     "version": "Bersyon {{version}}"
   },
   "translation": {
