@@ -19,8 +19,14 @@ dist/
 appsettings.Local.json
 appsettings.Production.json
 
-# Uploaded photos
-storage/
+# Uploaded photos: Storage:RootPath = "storage", next to the API. On Windows that is the same
+# folder as the Storage/ source code (names are case-insensitive), so everything in it is
+# ignored except the source files.
+/backend/src/DailyTasks.Api/[Ss]torage/*
+!/backend/src/DailyTasks.Api/[Ss]torage/*.cs
+
+# The root .gitignore hides every "Debug" folder (.NET builds); this one is Android source.
+!/mobile/android/app/src/debug/
 
 # Built APKs
 dist/

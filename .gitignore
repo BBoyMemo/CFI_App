@@ -55,7 +55,8 @@ nginx/certs/
 
 # ---- Uploads / generated data ----
 uploads/
-storage/
+# CFI app uploads. Anchored, so a source folder named Storage elsewhere is not hidden.
+/backend/src/CfiApp.Api/storage/
 logs/
 *.log
 
