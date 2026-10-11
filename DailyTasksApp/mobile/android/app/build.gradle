@@ -89,8 +89,9 @@ android {
         applicationId "com.dailytasks.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "2.0"
+        versionCode 3
+        // Shown on the account screen too; both come from app.json.
+        versionName new groovy.json.JsonSlurper().parse(file("../../app.json")).version
     }
     signingConfigs {
         debug {

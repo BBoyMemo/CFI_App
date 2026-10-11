@@ -79,7 +79,8 @@ export default function TasksScreen() {
     if (isManager) {
       api
         .users()
-        .then(setPeople)
+        // Deactivated people stay in the list for history but cannot be given work.
+        .then(users => setPeople(users.filter(u => u.active !== false)))
         .catch(() => setPeople([]));
     }
   }, [isManager]);

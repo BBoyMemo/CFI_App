@@ -1,5 +1,8 @@
 using System.Net;
+using DailyTasks.Api.Data;
 using DailyTasks.Tests.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Shouldly;
 
 namespace DailyTasks.Tests;
@@ -27,8 +30,12 @@ public class OrdersTests(ApiFactory api) : IClassFixture<ApiFactory>
         fromManager.StatusCode.ShouldBe(HttpStatusCode.Created);
         var order = await fromEngineer.JsonAsync();
         order.GetProperty("status").GetString().ShouldBe("New");
-        order.GetProperty("hasPhoto").GetBoolean().ShouldBeTrue();
+        var photoIds = order.GetProperty("photoIds").EnumerateArray().Select(p => p.GetGuid()).ToList();
+        photoIds.Count.ShouldBe(1);
         order.GetProperty("createdBy").GetProperty("id").GetGuid().ShouldBe(engineer.Id);
+        var photo = await manager.GetAsync($"/api/orders/{order.GetProperty("id").GetGuid()}/photos/{photoIds[0]}");
+        photo.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await photo.Content.ReadAsByteArrayAsync()).ShouldBe(TestData.Jpeg);
     }
 
     [Fact]
@@ -131,5 +138,88 @@ public class OrdersTests(ApiFactory api) : IClassFixture<ApiFactory>
             api.Clock.Now, TimeZoneInfo.FindSystemTimeZoneById("Europe/London")).DateTime);
         (await Search($"q={marker}&date={day:yyyy-MM-dd}")).ShouldBe([placed, pending], ignoreOrder: true);
         (await Search($"q={marker}&date={day.AddDays(-1):yyyy-MM-dd}")).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_order_takes_up_to_ten_photos()
+    {
+        var engineer = await api.NewUserAsync("Engineer");
+        MultipartFormDataContent WithPhotos(int count)
+        {
+            var form = Form("Bearings, assorted");
+            for (var i = 0; i < count; i++) form.Add(TestData.File(TestData.Jpeg), "photo", $"p{i}.jpg");
+            return form;
+        }
+
+        var ten = await engineer.Client.PostAsync("/api/orders", WithPhotos(10));
+        ten.StatusCode.ShouldBe(HttpStatusCode.Created);
+        (await ten.JsonAsync()).GetProperty("photoIds").GetArrayLength().ShouldBe(10);
+
+        var eleven = await engineer.Client.PostAsync("/api/orders", WithPhotos(11));
+        eleven.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await eleven.JsonAsync()).GetProperty("errors").GetProperty("photo")[0].GetString().ShouldBe("photo.tooMany");
+    }
+
+    [Fact]
+    public async Task Manager_can_undo_ordered_until_midnight_only()
+    {
+        var london = TimeZoneInfo.FindSystemTimeZoneById("Europe/London");
+        var original = api.Clock.Now;
+        var local = TimeZoneInfo.ConvertTime(original, london);
+        var midnight = local.Date.AddDays(1);
+        var nextMidnight = new DateTimeOffset(midnight, london.GetUtcOffset(midnight)).ToUniversalTime();
+        try
+        {
+            var engineer = await api.NewUserAsync("Engineer");
+            var manager = await api.ManagerAsync();
+            var id = (await (await engineer.Client.PostAsync("/api/orders", Form("Proximity sensor M18"))).JsonAsync())
+                .GetProperty("id").GetGuid();
+
+            api.Clock.Now = nextMidnight.AddMinutes(-5);
+            (await manager.PostAsync($"/api/orders/{id}/mark-ordered", null)).StatusCode.ShouldBe(HttpStatusCode.OK);
+            (await engineer.Client.PostAsync($"/api/orders/{id}/undo-ordered", null)).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+            var undone = await manager.PostAsync($"/api/orders/{id}/undo-ordered", null);
+            undone.StatusCode.ShouldBe(HttpStatusCode.OK, await undone.Content.ReadAsStringAsync());
+            var body = await undone.JsonAsync();
+            body.GetProperty("status").GetString().ShouldBe("New");
+            body.GetProperty("orderedBy").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+            (await manager.PostAsync($"/api/orders/{id}/undo-ordered", null)).StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+            await manager.PostAsync($"/api/orders/{id}/mark-ordered", null);
+            api.Clock.Now = nextMidnight.AddMinutes(1);
+            var late = await manager.PostAsync($"/api/orders/{id}/undo-ordered", null);
+            late.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+            (await late.JsonAsync()).GetProperty("code").GetString().ShouldBe("order.undoExpired");
+        }
+        finally
+        {
+            api.Clock.Now = original;
+        }
+    }
+
+    [Fact]
+    public async Task Single_photo_orders_from_before_keep_their_photo()
+    {
+        var engineer = await api.NewUserAsync("Engineer");
+        var id = (await (await engineer.Client.PostAsync("/api/orders", Form("Old style order"))).JsonAsync())
+            .GetProperty("id").GetGuid();
+
+        using (var scope = api.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            // As the database looked before orders had several photos.
+            var order = await db.Orders.SingleAsync(o => o.Id == id);
+            order.PhotoKey = "orders/legacy.jpg";
+            await db.SaveChangesAsync();
+
+            (await OrderPhotoBackfill.RunAsync(db)).ShouldBeGreaterThanOrEqualTo(1);
+            (await OrderPhotoBackfill.RunAsync(db)).ShouldBe(0); // nothing done twice
+            (await db.OrderPhotos.CountAsync(p => p.OrderId == id)).ShouldBe(1);
+        }
+
+        var list = await (await engineer.Client.GetAsync("/api/orders?q=Old%20style%20order")).JsonAsync();
+        list.GetProperty("items").EnumerateArray().Single(o => o.GetProperty("id").GetGuid() == id)
+            .GetProperty("photoIds").GetArrayLength().ShouldBe(1);
     }
 }

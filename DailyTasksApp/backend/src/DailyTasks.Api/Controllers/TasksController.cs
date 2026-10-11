@@ -167,7 +167,7 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         return NoContent();
     }
 
-    // Photos the manager attaches while planning: one per request, up to Limits.MaxTaskPhotos.
+    // Photos the manager attaches while planning: one per request, up to Limits.MaxPhotos.
     // Like the rest of the task they are fixed once it is completed.
     [HttpPost("{id:guid}/photos")]
     [Authorize(Policy = Policies.Manager)]
@@ -179,7 +179,7 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         if (task is null) return ApiErrors.NotFound();
         if (task.IsCompleted) return ApiErrors.Conflict("task.completed", "A completed task cannot be changed.");
         if (photo is null) return new Validation().Add("photo", "required").ToResult();
-        if (task.Photos.Count(p => p.UpdateId == null) >= Limits.MaxTaskPhotos)
+        if (task.Photos.Count(p => p.UpdateId == null) >= Limits.MaxPhotos)
             return new Validation().Add("photo", "photo.tooMany").ToResult();
 
         var (key, error) = await photos.SaveAsync(photo, "tasks", ct);
@@ -234,7 +234,7 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         return file is null ? ApiErrors.NotFound("photo.notFound") : File(file.Value.Content, file.Value.ContentType);
     }
 
-    // Adds a card under the task: an optional comment, up to Limits.MaxTaskPhotos photos (each sent
+    // Adds a card under the task: an optional comment, up to Limits.MaxPhotos photos (each sent
     // as a "photo" form field) and the outcome, InProgress or Completed.
     //  - Open / in progress: only the people it is assigned to, or a manager.
     //  - Completed: anyone. Completed keeps it completed (a follow-up); InProgress takes the task
@@ -256,7 +256,7 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         var validation = new Validation().Text("comment", comment, required: false, max: Limits.TextMax);
         if (outcome is not (WorkStatus.InProgress or WorkStatus.Completed)) validation.Add("outcome", "required");
         var files = Request.HasFormContentType ? Request.Form.Files.GetFiles("photo") : [];
-        if (files.Count > Limits.MaxTaskPhotos) validation.Add("photo", "photo.tooMany");
+        if (files.Count > Limits.MaxPhotos) validation.Add("photo", "photo.tooMany");
         if (!validation.IsValid) return validation.ToResult();
 
         var savedKeys = new List<string>();
@@ -346,11 +346,11 @@ public class TasksController(AppDbContext db, AppClock clock, PhotoService photo
         if (r.Priority is null || !Enum.IsDefined(r.Priority.Value)) v.Add("priority", "required");
         if (r.Shift is null || !Enum.IsDefined(r.Shift.Value)) v.Add("shift", "required");
 
-        // Anyone on the team can be given a task: managers work on the floor too.
+        // Anyone active on the team can be given a task: managers work on the floor too.
         var ids = (r.AssigneeIds ?? []).Distinct().ToList();
         if (ids.Count == 0)
             v.Add("assigneeIds", "required");
-        else if (await db.Users.CountAsync(u => ids.Contains(u.Id), ct) != ids.Count)
+        else if (await db.Users.CountAsync(u => ids.Contains(u.Id) && u.DeactivatedAt == null, ct) != ids.Count)
             v.Add("assigneeIds", "unknownUser");
 
         return (v.IsValid ? null : v.ToResult(), ids);

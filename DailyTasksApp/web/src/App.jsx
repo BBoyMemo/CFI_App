@@ -12,6 +12,8 @@ export default function App() {
   const { user, isManager } = useAuth();
 
   if (!user) return <LoginPage />;
+  // A manager set this password: nothing else opens until the user picks their own.
+  if (user.mustChangePassword) return <AccountPage forced />;
 
   return (
     <Routes>

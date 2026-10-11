@@ -3,13 +3,11 @@ import {StyleSheet, Text, View} from 'react-native';
 import {useTranslation} from 'react-i18next';
 import {api, photoPart} from '../api';
 import {errorMessage, fieldError, formatDateTime} from '../format';
-import {MultiPhotoInput, StoredPhoto} from '../Photo';
+import {MultiPhotoInput, StoredPhoto, MAX_PHOTOS} from '../Photo';
 import {colors} from '../theme';
 import {hasTranslation, localized} from '../translate';
 import TranslationToggle from '../TranslationToggle';
 import {Button, Field, Input, Segmented, Sheet} from '../ui';
-
-const MAX_PHOTOS = 5;
 
 // Who may do what with a task, the same rules the server enforces.
 //  - work:     add a progress / completion card while the task is open or in progress

@@ -45,6 +45,17 @@ public class User
     public Role Role { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 
+    // Users are never deleted: their name stays on the tasks, cards and orders they touched.
+    // A deactivated user cannot log in and is no longer offered for assignment.
+    public DateTimeOffset? DeactivatedAt { get; set; }
+    public bool IsActive => DeactivatedAt == null;
+
+    // Set from the login screen ("Forgot password?"); shown to managers on the Team page.
+    public DateTimeOffset? PasswordResetRequestedAt { get; set; }
+
+    // Set when a manager gives the user a new password; the user must pick their own next.
+    public bool MustChangePassword { get; set; }
+
     public static string Normalize(string name) => name.Trim().ToUpperInvariant();
 }
 
@@ -140,7 +151,10 @@ public class Order
 {
     public Guid Id { get; set; }
     public string Description { get; set; } = "";
+
+    // Legacy single photo, from before orders had several. Only read by OrderPhotoBackfill.
     public string? PhotoKey { get; set; }
+    public List<OrderPhoto> Photos { get; set; } = [];
     public OrderStatus Status { get; set; }
 
     public Guid CreatedById { get; set; }
@@ -150,4 +164,13 @@ public class Order
     public DateTimeOffset? OrderedAt { get; set; }
     public Guid? OrderedById { get; set; }
     public User? OrderedBy { get; set; }
+}
+
+public class OrderPhoto
+{
+    public Guid Id { get; set; }
+    public Guid OrderId { get; set; }
+    public Order Order { get; set; } = null!;
+    public string PhotoKey { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
 }

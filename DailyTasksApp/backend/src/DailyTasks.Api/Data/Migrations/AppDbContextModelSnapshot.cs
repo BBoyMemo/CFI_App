@@ -154,6 +154,30 @@ namespace DailyTasks.Api.Data.Migrations
                     b.ToTable("orders", (string)null);
                 });
 
+            modelBuilder.Entity("DailyTasks.Api.Domain.OrderPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PhotoKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("order_photos", (string)null);
+                });
+
             modelBuilder.Entity("DailyTasks.Api.Domain.TaskPhoto", b =>
                 {
                     b.Property<Guid>("Id")
@@ -317,6 +341,12 @@ namespace DailyTasks.Api.Data.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateTimeOffset?>("DeactivatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -331,6 +361,9 @@ namespace DailyTasks.Api.Data.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("PasswordResetRequestedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -400,6 +433,17 @@ namespace DailyTasks.Api.Data.Migrations
                     b.Navigation("OrderedBy");
                 });
 
+            modelBuilder.Entity("DailyTasks.Api.Domain.OrderPhoto", b =>
+                {
+                    b.HasOne("DailyTasks.Api.Domain.Order", "Order")
+                        .WithMany("Photos")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("DailyTasks.Api.Domain.TaskPhoto", b =>
                 {
                     b.HasOne("DailyTasks.Api.Domain.User", null)
@@ -450,6 +494,11 @@ namespace DailyTasks.Api.Data.Migrations
                     b.Navigation("Photos");
 
                     b.Navigation("Updates");
+                });
+
+            modelBuilder.Entity("DailyTasks.Api.Domain.Order", b =>
+                {
+                    b.Navigation("Photos");
                 });
 #pragma warning restore 612, 618
         }

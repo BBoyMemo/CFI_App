@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import Icon from '../../components/Icon';
 import Modal from '../../components/Modal';
-import { MultiPhotoPicker } from '../../components/Photo';
+import { MAX_PHOTOS, MultiPhotoPicker } from '../../components/Photo';
 import { errorMessage, fieldError } from '../../lib/format';
 import { shrinkPhoto } from '../../lib/image';
 import { localized } from '../../lib/translate';
 
-const MAX_PHOTOS = 5;
 const OUTCOMES = [
   { value: 'InProgress', icon: 'wrench' },
   { value: 'Completed', icon: 'check' },

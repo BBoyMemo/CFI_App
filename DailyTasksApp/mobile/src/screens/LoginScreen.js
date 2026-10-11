@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import {useTranslation} from 'react-i18next';
+import {api} from '../api';
 import {useAuth} from '../auth';
 import {errorMessage} from '../format';
 import LanguagePicker from '../LanguagePicker';
@@ -22,6 +23,7 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [forgot, setForgot] = useState(false);
 
   const canSubmit = name.trim() && password;
 
@@ -52,54 +54,110 @@ export default function LoginScreen() {
         </View>
         <Text style={styles.title}>{t('app.name')}</Text>
 
-        <View style={styles.card}>
-          <Field label={t('login.name')}>
-            <Input
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              autoComplete="username"
-            />
-          </Field>
-          <Field label={t('login.password')}>
-            <View style={styles.passwordRow}>
+        {forgot ? (
+          <ForgotPassword initialName={name} onBack={() => setForgot(false)} />
+        ) : (
+          <View style={styles.card}>
+            <Field label={t('login.name')}>
               <Input
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoComplete="password"
-                onSubmitEditing={submit}
-                style={styles.passwordInput}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoComplete="username"
               />
-              <Pressable
-                onPress={() => setShowPassword(v => !v)}
-                hitSlop={8}
-                style={styles.eye}
-                accessibilityLabel={
-                  showPassword
-                    ? t('login.hidePassword')
-                    : t('login.showPassword')
-                }>
-                <Text style={[styles.eyeText, !showPassword && styles.eyeOff]}>
-                  👁
-                </Text>
-              </Pressable>
-            </View>
-          </Field>
-          {error ? (
-            <Text style={styles.error}>⚠ {errorMessage(t, error)}</Text>
-          ) : null}
-          <Button
-            title={t('login.submit')}
-            onPress={submit}
-            disabled={!canSubmit}
-            busy={busy}
-          />
-        </View>
+            </Field>
+            <Field label={t('login.password')}>
+              <View style={styles.passwordRow}>
+                <Input
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="password"
+                  onSubmitEditing={submit}
+                  style={styles.passwordInput}
+                />
+                <Pressable
+                  onPress={() => setShowPassword(v => !v)}
+                  hitSlop={8}
+                  style={styles.eye}
+                  accessibilityLabel={
+                    showPassword
+                      ? t('login.hidePassword')
+                      : t('login.showPassword')
+                  }>
+                  <Text style={[styles.eyeText, !showPassword && styles.eyeOff]}>
+                    👁
+                  </Text>
+                </Pressable>
+              </View>
+            </Field>
+            {error ? (
+              <Text style={styles.error}>⚠ {errorMessage(t, error)}</Text>
+            ) : null}
+            <Button
+              title={t('login.submit')}
+              onPress={submit}
+              disabled={!canSubmit}
+              busy={busy}
+            />
+            <Pressable
+              onPress={() => {
+                setError(null);
+                setForgot(true);
+              }}
+              hitSlop={6}
+              style={styles.link}>
+              <Text style={styles.linkText}>{t('login.forgot')}</Text>
+            </Pressable>
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+// Asks the managers for a new password. Nothing changes for the account until a manager sets one.
+function ForgotPassword({initialName, onBack}) {
+  const {t} = useTranslation();
+  const [name, setName] = useState(initialName);
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.forgotPassword(name.trim());
+      setSent(true);
+    } catch (err) {
+      setError(err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>🔑 {t('login.forgot')}</Text>
+      {sent ? (
+        <Text style={styles.sent}>✓ {t('login.forgotSent')}</Text>
+      ) : (
+        <>
+          <Text style={styles.hint}>{t('login.forgotHint')}</Text>
+          <Field label={t('login.name')}>
+            <Input value={name} onChangeText={setName} autoCapitalize="words" maxLength={100} />
+          </Field>
+          {error ? <Text style={styles.error}>⚠ {errorMessage(t, error)}</Text> : null}
+          <Button title={t('login.forgotSend')} onPress={submit} disabled={!name.trim()} busy={busy} />
+        </>
+      )}
+      <Pressable onPress={onBack} hitSlop={6} style={styles.link}>
+        <Text style={styles.linkText}>{t('login.backToLogin')}</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -126,6 +184,17 @@ const styles = StyleSheet.create({
     marginVertical: 18,
   },
   card: {backgroundColor: colors.cream, borderRadius: 24, padding: 20},
+  cardTitle: {fontSize: 16, fontWeight: '800', color: colors.brown, marginBottom: 10},
+  hint: {color: colors.muted, marginBottom: 12},
+  sent: {
+    color: colors.green,
+    backgroundColor: colors.greenSoft,
+    borderRadius: 10,
+    padding: 10,
+    fontWeight: '700',
+  },
+  link: {alignSelf: 'center', marginTop: 14, padding: 4},
+  linkText: {color: colors.muted, fontWeight: '600'},
   passwordRow: {justifyContent: 'center'},
   // Room on the right so typed text never runs under the eye.
   passwordInput: {paddingRight: 52},

@@ -76,6 +76,8 @@ public class TaskUpdatesTests(ApiFactory api) : IClassFixture<ApiFactory>
         var id = await CreateTaskAsync(doer.Id);
         await CardAsync(doer.Client, id, "Completed", "Done");
 
+        // The test clock stands still; a minute later keeps the two cards in a definite order.
+        api.Clock.Now = api.Clock.Now.AddMinutes(1);
         var task = await CardAsync(colleague.Client, id, "Completed", "Found a loose bolt, tightened it", photos: 1);
 
         task.GetProperty("status").GetString().ShouldBe("Completed");

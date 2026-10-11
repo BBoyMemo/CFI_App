@@ -18,9 +18,10 @@ import {
   fieldError,
   formatDateTime,
   formatDay,
+  siteDateOf,
   siteToday,
 } from '../format';
-import {PhotoInput, StoredPhoto} from '../Photo';
+import {MAX_PHOTOS, MultiPhotoInput, StoredPhoto} from '../Photo';
 import {colors} from '../theme';
 import {hasTranslation, localized} from '../translate';
 import {
@@ -160,6 +161,29 @@ export default function OrdersScreen() {
     }
   }
 
+  // Back to New: allowed to a manager until midnight of the day it was marked.
+  async function undoOrdered(order) {
+    setAction({busyId: order.id, error: null});
+    try {
+      const updated = await api.undoOrdered(order.id);
+      // In the Ordered tab it leaves the list; in search results it stays, now New again.
+      if (searching) {
+        replace(updated);
+      } else {
+        remove(order);
+      }
+      if (dialog?.type === 'detail') {
+        setDialog({type: 'detail', order: updated});
+      }
+      setAction({busyId: null, error: null});
+    } catch (err) {
+      setAction({
+        busyId: null,
+        error: {id: order.id, message: errorMessage(t, err)},
+      });
+    }
+  }
+
   async function confirmDelete() {
     const order = dialog.order;
     setAction({busyId: order.id, error: null});
@@ -225,6 +249,18 @@ export default function OrdersScreen() {
           {action.error?.id === order.id && !action.error.inDialog ? (
             <Text style={styles.error}>{action.error.message}</Text>
           ) : null}
+          {isManager && canUndo(order) ? (
+            <View style={styles.actions}>
+              <Button
+                title={t('orders.undo')}
+                icon="undo"
+                variant="ghost"
+                onPress={() => undoOrdered(order)}
+                busy={action.busyId === order.id}
+                style={styles.markButton}
+              />
+            </View>
+          ) : null}
           {isManager && isNew ? (
             <View style={styles.actions}>
               <Button
@@ -244,8 +280,13 @@ export default function OrdersScreen() {
             </View>
           ) : null}
         </View>
-        {order.hasPhoto ? (
-          <StoredPhoto path={`/orders/${order.id}/photo`} />
+        {order.photoIds?.length > 0 ? (
+          <View>
+            <StoredPhoto path={`/orders/${order.id}/photos/${order.photoIds[0]}`} />
+            {order.photoIds.length > 1 ? (
+              <Text style={styles.morePhotos}>+{order.photoIds.length - 1}</Text>
+            ) : null}
+          </View>
         ) : null}
       </Pressable>
     );
@@ -394,6 +435,8 @@ export default function OrdersScreen() {
             action.error?.id === dialog.order.id ? action.error.message : null
           }
           onMarkOrdered={() => markOrdered(dialog.order)}
+          canUndo={canUndo(dialog.order)}
+          onUndo={() => undoOrdered(dialog.order)}
           onDelete={() => setDialog({type: 'delete', order: dialog.order})}
           onClose={closeDialog}
         />
@@ -422,7 +465,7 @@ export default function OrdersScreen() {
 function NewOrderSheet({onCreated, onClose}) {
   const {t} = useTranslation();
   const [description, setDescription] = useState('');
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -432,9 +475,8 @@ function NewOrderSheet({onCreated, onClose}) {
     try {
       const form = new FormData();
       form.append('description', description.trim());
-      if (photo) {
-        form.append('photo', photoPart(photo));
-      }
+      // Each photo goes as its own "photo" field; the server takes up to MAX_PHOTOS.
+      photos.forEach(p => form.append('photo', photoPart(p)));
       await api.createOrder(form);
       onCreated();
     } catch (err) {
@@ -475,9 +517,13 @@ function NewOrderSheet({onCreated, onClose}) {
           autoFocus
         />
       </Field>
-      <PhotoInput
-        photo={photo}
-        onChange={setPhoto}
+      <MultiPhotoInput
+        stored={[]}
+        added={photos}
+        onRemoveStored={() => {}}
+        onAdd={assets => setPhotos(list => [...list, ...assets].slice(0, MAX_PHOTOS))}
+        onRemoveAdded={index => setPhotos(list => list.filter((_, i) => i !== index))}
+        max={MAX_PHOTOS}
         error={fieldError(t, error, 'photo')}
       />
       {error && !error.fieldErrors ? (
@@ -487,7 +533,11 @@ function NewOrderSheet({onCreated, onClose}) {
   );
 }
 
+// A manager may undo "ordered" until midnight of the day it was marked.
+const canUndo = order => order.status === 'Ordered' && siteDateOf(order.orderedAt) === siteToday();
+
 const styles = StyleSheet.create({
+  morePhotos: {textAlign: 'center', color: colors.muted, fontSize: 12, fontWeight: '700', marginTop: 2},
   top: {paddingHorizontal: 14, paddingTop: 12, gap: 8},
   filterRow: {flexDirection: 'row', alignItems: 'center', gap: 8},
   anyDate: {

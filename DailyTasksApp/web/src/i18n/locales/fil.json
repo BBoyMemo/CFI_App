@@ -16,7 +16,12 @@
     "password": "Password",
     "submit": "Mag-log in",
     "showPassword": "Ipakita ang password",
-    "hidePassword": "Itago ang password"
+    "hidePassword": "Itago ang password",
+    "forgot": "Nakalimutan ang password?",
+    "forgotHint": "Ilagay ang iyong pangalan. Isang manager ang magtatakda ng bagong password para sa iyo.",
+    "forgotSend": "Ipadala",
+    "forgotSent": "Naipadala na. Hingin sa iyong manager ang bagong password.",
+    "backToLogin": "Bumalik sa pag-log in"
   },
   "common": {
     "save": "I-save",
@@ -92,7 +97,8 @@
     "deleteConfirm": "Burahin ang order na ito?",
     "loadMore": "Magpakita pa",
     "search": "Maghanap ng piyesa, paglalarawan o pangalan",
-    "requestedBy": "Hiniling ni {{name}} · {{date}}"
+    "requestedBy": "Hiniling ni {{name}} · {{date}}",
+    "undo": "I-undo"
   },
   "users": {
     "title": "Koponan",
@@ -101,7 +107,18 @@
     "password": "Password",
     "passwordHint": "Hindi bababa sa 8 character",
     "role": "Tungkulin",
-    "empty": "Wala pang tao"
+    "empty": "Wala pang tao",
+    "edit": "I-edit ang tao",
+    "confirmPassword": "Ulitin ang password",
+    "newPassword": "Bagong password",
+    "newPasswordHint": "Iwanang blangko para panatilihin ang kasalukuyang password. Ang bago ay kailangang palitan ng tao pagkatapos mag-log in.",
+    "deactivate": "I-deactivate",
+    "deactivateConfirm": "I-deactivate si {{name}}? Hindi na siya makakapag-log in. Mananatili sa kasaysayan ang kanyang trabaho.",
+    "deactivated": "Na-deactivate",
+    "resetRequested": "Humihingi ng bagong password",
+    "resetPassword": "I-reset ang password",
+    "you": "Ikaw",
+    "activate": "I-activate"
   },
   "role": {
     "Manager": "Manager",
@@ -128,9 +145,16 @@
     "photo.notFound": "Hindi nahanap ang larawan",
     "wrongPassword": "Mali ang password",
     "order.ordered": "Na-order na, hindi na mabubura",
-    "photo.tooMany": "Hanggang 5 larawan",
+    "photo.tooMany": "Hanggang 10 larawan",
     "unknownUser": "Pumili ng tao mula sa listahan",
-    "task.hasUpdates": "Hindi mabubura ang gawaing may update o tapos na"
+    "task.hasUpdates": "Hindi mabubura ang gawaing may update o tapos na",
+    "user.self": "Hindi mo ito magagawa sa sarili mong account",
+    "user.deactivated": "Na-deactivate na ang taong ito",
+    "user.hasOpenTasks": "May bukas pang gawain ang taong ito. Ibigay muna ang mga ito sa iba.",
+    "order.undoExpired": "Maaari lang i-undo sa araw na ito ay na-order",
+    "order.notOrdered": "Hindi pa naka-marka bilang na-order",
+    "auth.mustChangePassword": "Pumili muna ng bagong password",
+    "user.noResetRequest": "Makakapagtakda lang ng bagong password kapag pinindot ng tao ang \"Nakalimutan ang password?\""
   },
   "history": {
     "empty": "Wala pang tapos na gawain",
@@ -144,7 +168,13 @@
     "newPassword": "Bagong password",
     "confirmPassword": "Ulitin ang bagong password",
     "mismatch": "Hindi magkapareho ang mga password",
-    "saved": "Napalitan ang password"
+    "saved": "Napalitan ang password",
+    "changeName": "Palitan ang pangalan",
+    "newName": "Bagong pangalan",
+    "nameHint": "Ito ang pangalang gagamitin mo sa pag-log in.",
+    "nameSaved": "Napalitan ang pangalan",
+    "mustChange": "Na-reset ang iyong password. Pumili ng sarili mong password para magpatuloy.",
+    "version": "Bersyon {{version}}"
   },
   "translation": {
     "translated": "Isinalin",

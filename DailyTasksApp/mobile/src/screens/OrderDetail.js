@@ -8,14 +8,16 @@ import {hasTranslation, localized} from '../translate';
 import TranslationToggle from '../TranslationToggle';
 import {Button, IconButton} from '../ui';
 
-// Full-screen view of one order with its photo at full width. Actions (manager, New only)
-// are handed back to the list screen.
+// Full-screen view of one order with its photos at full width. Actions (manager: New = mark
+// ordered / delete; ordered today = undo) are handed back to the list screen.
 export default function OrderDetail({
   order,
   isManager,
   busy,
   error,
   onMarkOrdered,
+  canUndo,
+  onUndo,
   onDelete,
   onClose,
 }) {
@@ -89,11 +91,11 @@ export default function OrderDetail({
             ) : null}
           </View>
 
-          {order.hasPhoto ? (
-            <View style={styles.photo}>
-              <StoredPhoto path={`/orders/${order.id}/photo`} large />
+          {(order.photoIds ?? []).map(photoId => (
+            <View key={photoId} style={styles.photo}>
+              <StoredPhoto path={`/orders/${order.id}/photos/${photoId}`} large />
             </View>
-          ) : null}
+          ))}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
         </ScrollView>
@@ -114,6 +116,18 @@ export default function OrderDetail({
               onPress={onMarkOrdered}
               busy={busy}
               style={styles.wide}
+            />
+          </View>
+        ) : null}
+        {isManager && canUndo ? (
+          <View style={styles.footer}>
+            <Button
+              title={t('orders.undo')}
+              icon="undo"
+              variant="ghost"
+              onPress={onUndo}
+              busy={busy}
+              style={styles.flex}
             />
           </View>
         ) : null}
@@ -157,7 +171,7 @@ const styles = StyleSheet.create({
   people: {gap: 8, marginTop: 16},
   person: {fontSize: 15, color: colors.muted},
   orderedBy: {color: colors.green, fontWeight: '700'},
-  photo: {marginTop: 20},
+  photo: {marginTop: 16},
   error: {color: colors.danger, marginTop: 14},
   footer: {
     flexDirection: 'row',

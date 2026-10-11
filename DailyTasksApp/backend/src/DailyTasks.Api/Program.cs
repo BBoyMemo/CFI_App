@@ -56,6 +56,7 @@ builder.Services
             RoleClaimType = "role",
             ClockSkew = TimeSpan.FromMinutes(1),
         };
+        o.Events = new JwtBearerEvents { OnTokenValidated = SessionCheck.OnTokenValidated };
     });
 
 builder.Services.AddAuthorizationBuilder()
@@ -89,6 +90,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseAuthentication();
+app.Use(SessionCheck.BlockUntilPasswordChanged);
 app.UseAuthorization();
 app.UseRateLimiter();
 

@@ -56,6 +56,7 @@ public class OrdersController(AppDbContext db, AppClock clock, PhotoService phot
         var orders = await query
             .Include(o => o.CreatedBy)
             .Include(o => o.OrderedBy)
+            .Include(o => o.Photos)
             .OrderByDescending(o => o.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -64,32 +65,43 @@ public class OrdersController(AppDbContext db, AppClock clock, PhotoService phot
         return new PagedResult<OrderDto>(await ToDtosAsync(orders, ct), total, page, pageSize);
     }
 
+    // A description and up to Limits.MaxPhotos photos, each sent as a "photo" form field.
     [HttpPost]
-    [RequestSizeLimit(Limits.UploadRequestBytes)]
-    [RequestFormLimits(MultipartBodyLengthLimit = Limits.UploadRequestBytes)]
-    public async Task<ActionResult<OrderDto>> Create(
-        [FromForm] string? description, IFormFile? photo, CancellationToken ct)
+    [RequestSizeLimit(Limits.MultiPhotoRequestBytes)]
+    [RequestFormLimits(MultipartBodyLengthLimit = Limits.MultiPhotoRequestBytes)]
+    public async Task<ActionResult<OrderDto>> Create([FromForm] string? description, CancellationToken ct)
     {
         var validation = new Validation().Text("description", description, required: true, max: Limits.TextMax);
+        var files = Request.HasFormContentType ? Request.Form.Files.GetFiles("photo") : [];
+        if (files.Count > Limits.MaxPhotos) validation.Add("photo", "photo.tooMany");
         if (!validation.IsValid) return validation.ToResult();
 
-        string? photoKey = null;
-        if (photo is not null)
+        var savedKeys = new List<string>();
+        foreach (var file in files)
         {
-            var (key, photoError) = await photos.SaveAsync(photo, "orders", ct);
-            if (photoError is not null) return new Validation().Add("photo", photoError).ToResult();
-            photoKey = key;
+            var (key, photoError) = await photos.SaveAsync(file, "orders", ct);
+            if (photoError is not null)
+            {
+                savedKeys.ForEach(photos.Delete);
+                return new Validation().Add("photo", photoError).ToResult();
+            }
+            savedKeys.Add(key!);
         }
 
+        var now = clock.UtcNow;
         var order = new Order
         {
             Id = Guid.NewGuid(),
             Description = description!.Trim(),
-            PhotoKey = photoKey,
             Status = OrderStatus.New,
             CreatedById = User.UserId(),
-            CreatedAt = clock.UtcNow,
+            CreatedAt = now,
         };
+        for (var i = 0; i < savedKeys.Count; i++)
+        {
+            // Keeps the order they were picked in.
+            order.Photos.Add(new OrderPhoto { Id = Guid.NewGuid(), PhotoKey = savedKeys[i], CreatedAt = now.AddTicks(i) });
+        }
         db.Orders.Add(order);
         await translations.AddAsync(TranslatedEntity.Order, order.Id, ct);
         await db.SaveChangesAsync(ct);
@@ -116,11 +128,33 @@ public class OrdersController(AppDbContext db, AppClock clock, PhotoService phot
         return (await ToDtosAsync([updated], ct))[0];
     }
 
+    // A manager may take back "ordered" on the same factory-local day it was marked (a mistake
+    // caught in time). From midnight on it is a purchase record and stays.
+    [HttpPost("{id:guid}/undo-ordered")]
+    [Authorize(Policy = Policies.Manager)]
+    public async Task<ActionResult<OrderDto>> UndoOrdered(Guid id, CancellationToken ct)
+    {
+        var order = await db.Orders.SingleOrDefaultAsync(o => o.Id == id, ct);
+        if (order is null) return ApiErrors.NotFound();
+        if (order.Status != OrderStatus.Ordered)
+            return ApiErrors.Conflict("order.notOrdered", "The order is not marked as ordered.");
+        if (order.OrderedAt < clock.DayBounds(clock.Today).From)
+            return ApiErrors.Conflict("order.undoExpired", "Ordered can only be undone on the same day.");
+
+        order.Status = OrderStatus.New;
+        order.OrderedAt = null;
+        order.OrderedById = null;
+        await db.SaveChangesAsync(ct);
+
+        var updated = await WithDetails().SingleAsync(o => o.Id == id, ct);
+        return (await ToDtosAsync([updated], ct))[0];
+    }
+
     [HttpDelete("{id:guid}")]
     [Authorize(Policy = Policies.Manager)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
-        var order = await db.Orders.SingleOrDefaultAsync(o => o.Id == id, ct);
+        var order = await db.Orders.Include(o => o.Photos).SingleOrDefaultAsync(o => o.Id == id, ct);
         if (order is null) return ApiErrors.NotFound();
         // Once ordered it is a purchase record and stays; only a request still marked New can go.
         if (order.Status == OrderStatus.Ordered)
@@ -129,14 +163,17 @@ public class OrdersController(AppDbContext db, AppClock clock, PhotoService phot
         db.Orders.Remove(order);
         await db.SaveChangesAsync(ct);
         await translations.RemoveAllForAsync(id, ct);
-        photos.Delete(order.PhotoKey);
+        foreach (var photo in order.Photos) photos.Delete(photo.PhotoKey);
         return NoContent();
     }
 
-    [HttpGet("{id:guid}/photo")]
-    public async Task<IActionResult> Photo(Guid id, CancellationToken ct)
+    [HttpGet("{id:guid}/photos/{photoId:guid}")]
+    public async Task<IActionResult> Photo(Guid id, Guid photoId, CancellationToken ct)
     {
-        var key = await db.Orders.Where(o => o.Id == id).Select(o => o.PhotoKey).SingleOrDefaultAsync(ct);
+        var key = await db.OrderPhotos
+            .Where(p => p.Id == photoId && p.OrderId == id)
+            .Select(p => p.PhotoKey)
+            .SingleOrDefaultAsync(ct);
         if (key is null) return ApiErrors.NotFound("photo.notFound");
 
         var file = photos.Open(key);
@@ -144,7 +181,7 @@ public class OrdersController(AppDbContext db, AppClock clock, PhotoService phot
     }
 
     private IQueryable<Order> WithDetails() =>
-        db.Orders.AsNoTracking().Include(o => o.CreatedBy).Include(o => o.OrderedBy);
+        db.Orders.AsNoTracking().Include(o => o.CreatedBy).Include(o => o.OrderedBy).Include(o => o.Photos);
 
     private async Task<List<OrderDto>> ToDtosAsync(IReadOnlyList<Order> orders, CancellationToken ct)
     {
@@ -155,7 +192,7 @@ public class OrdersController(AppDbContext db, AppClock clock, PhotoService phot
     private static OrderDto ToDto(Order o, TranslationSet set) => new(
         o.Id,
         o.Description,
-        o.PhotoKey is not null,
+        o.Photos.OrderBy(p => p.CreatedAt).Select(p => p.Id).ToList(),
         o.Status,
         o.CreatedAt,
         new UserRef(o.CreatedBy.Id, o.CreatedBy.Name),

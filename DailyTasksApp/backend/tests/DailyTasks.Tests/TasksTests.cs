@@ -116,12 +116,12 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
     }
 
     [Fact]
-    public async Task Completion_takes_at_most_five_photos_and_keeps_nothing_on_rejection()
+    public async Task Completion_takes_at_most_ten_photos_and_keeps_nothing_on_rejection()
     {
         var engineer = await api.NewUserAsync("Engineer");
         var id = (await CreateAsync(NewTask([engineer.Id]))).GetProperty("id").GetGuid();
         using var form = new MultipartFormDataContent();
-        for (var i = 0; i < 6; i++) form.Add(TestData.File(TestData.Jpeg), "photo", $"p{i}.jpg");
+        for (var i = 0; i < 11; i++) form.Add(TestData.File(TestData.Jpeg), "photo", $"p{i}.jpg");
 
         var response = await engineer.Client.PostAsync($"/api/tasks/{id}/updates", form);
 
@@ -306,7 +306,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
     private static MultipartFormDataContent PhotoForm() => new() { { TestData.File(TestData.Jpeg), "photo", "plan.jpg" } };
 
     [Fact]
-    public async Task Manager_attaches_up_to_five_photos_which_assignees_can_see()
+    public async Task Manager_attaches_up_to_ten_photos_which_assignees_can_see()
     {
         var engineer = await api.NewUserAsync("Engineer", "Felix");
         var outsider = await api.NewUserAsync("Engineer", "Agnes");
@@ -314,18 +314,18 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         var id = (await CreateAsync(NewTask([engineer.Id]))).GetProperty("id").GetGuid();
 
         JsonElement task = default;
-        for (var i = 0; i < 5; i++)
+        for (var i = 0; i < 10; i++)
         {
             var r = await manager.PostAsync($"/api/tasks/{id}/photos", PhotoForm());
             r.StatusCode.ShouldBe(HttpStatusCode.OK);
             task = await r.JsonAsync();
         }
         var photoIds = task.GetProperty("photoIds").EnumerateArray().Select(p => p.GetGuid()).ToList();
-        photoIds.Count.ShouldBe(5);
+        photoIds.Count.ShouldBe(10);
 
-        var sixth = await manager.PostAsync($"/api/tasks/{id}/photos", PhotoForm());
-        sixth.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
-        (await sixth.JsonAsync()).GetProperty("errors").GetProperty("photo")[0].GetString().ShouldBe("photo.tooMany");
+        var eleventh = await manager.PostAsync($"/api/tasks/{id}/photos", PhotoForm());
+        eleventh.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await eleventh.JsonAsync()).GetProperty("errors").GetProperty("photo")[0].GetString().ShouldBe("photo.tooMany");
 
         var seen = await engineer.Client.GetAsync($"/api/tasks/{id}/photos/{photoIds[0]}");
         seen.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -333,7 +333,7 @@ public class TasksTests(ApiFactory api) : IClassFixture<ApiFactory>
         (await outsider.Client.GetAsync($"/api/tasks/{id}/photos/{photoIds[0]}")).StatusCode.ShouldBe(HttpStatusCode.Forbidden);
 
         var removed = await (await manager.DeleteAsync($"/api/tasks/{id}/photos/{photoIds[0]}")).JsonAsync();
-        removed.GetProperty("photoIds").GetArrayLength().ShouldBe(4);
+        removed.GetProperty("photoIds").GetArrayLength().ShouldBe(9);
     }
 
     [Fact]

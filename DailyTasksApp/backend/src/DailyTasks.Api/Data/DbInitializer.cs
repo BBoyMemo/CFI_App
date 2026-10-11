@@ -39,6 +39,9 @@ public static class DbInitializer
         var cards = await TaskUpdateBackfill.RunAsync(db);
         if (cards > 0) logger.LogInformation("Turned {Count} earlier completions into update cards.", cards);
 
+        var orderPhotos = await OrderPhotoBackfill.RunAsync(db);
+        if (orderPhotos > 0) logger.LogInformation("Moved {Count} order photos into order_photos.", orderPhotos);
+
         if (await db.Users.AnyAsync()) return;
 
         var bootstrap = config.GetSection(BootstrapOptions.Section).Get<BootstrapOptions>();

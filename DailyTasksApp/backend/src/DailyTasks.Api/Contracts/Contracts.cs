@@ -4,7 +4,16 @@ namespace DailyTasks.Api.Contracts;
 
 public record UserRef(Guid Id, string Name);
 
-public record UserDto(Guid Id, string Name, Role Role, DateTimeOffset CreatedAt);
+public record UserDto(
+    Guid Id,
+    string Name,
+    Role Role,
+    DateTimeOffset CreatedAt,
+    bool Active,
+    // The user asked for a password reset from the login screen (shown to managers).
+    bool ResetRequested,
+    // A manager set this user's password; they must choose their own before anything else.
+    bool MustChangePassword);
 
 public record LoginRequest(string? Name, string? Password);
 
@@ -13,6 +22,13 @@ public record LoginResponse(string Token, DateTimeOffset ExpiresAt, UserDto User
 public record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
 public record CreateUserRequest(string? Name, string? Password, Role? Role);
+
+// Password empty = unchanged. A new password means the user must change it at next login.
+public record UpdateUserRequest(string? Name, Role? Role, string? Password);
+
+public record ForgotPasswordRequest(string? Name);
+
+public record ChangeNameRequest(string? CurrentPassword, string? NewName);
 
 public record TaskRequest(
     string? Title,
@@ -59,7 +75,8 @@ public record TaskUpdateDto(
 public record OrderDto(
     Guid Id,
     string Description,
-    bool HasPhoto,
+    // Oldest first: GET /api/orders/{id}/photos/{photoId}.
+    IReadOnlyList<Guid> PhotoIds,
     OrderStatus Status,
     DateTimeOffset CreatedAt,
     UserRef CreatedBy,
@@ -79,11 +96,12 @@ public static class Limits
     public const int TitleMax = 200;
     public const int TextMax = 2000;
     public const int MaxPageSize = 100;
-    public const int MaxTaskPhotos = 5;
+    // Photos on one task (planning), one card or one order.
+    public const int MaxPhotos = 10;
 
     // Multipart bodies carry at most one photo plus a little text...
     public const long UploadRequestBytes = 12 * 1024 * 1024;
 
-    // ...except completing a task, which may carry up to MaxTaskPhotos photos of 10 MB each.
-    public const long MultiPhotoRequestBytes = 55 * 1024 * 1024;
+    // ...except a card or a new order, which may carry up to MaxPhotos photos of 10 MB each.
+    public const long MultiPhotoRequestBytes = 105 * 1024 * 1024;
 }

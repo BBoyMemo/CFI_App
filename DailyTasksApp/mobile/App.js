@@ -43,7 +43,18 @@ function Root() {
       </View>
     );
   }
-  return user ? <Main /> : <LoginScreen />;
+  if (!user) {
+    return <LoginScreen />;
+  }
+  // A manager set this password: nothing else opens until the user picks their own.
+  if (user.mustChangePassword) {
+    return (
+      <SafeAreaView style={[styles.fill, {backgroundColor: colors.cream}]}>
+        <AccountScreen forced />
+      </SafeAreaView>
+    );
+  }
+  return <Main />;
 }
 
 function Main() {

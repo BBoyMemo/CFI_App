@@ -92,9 +92,16 @@ export const api = {
   me: () => request('GET', '/auth/me'),
   changePassword: (currentPassword, newPassword) =>
     request('POST', '/auth/change-password', { json: { currentPassword, newPassword } }),
+  // Returns a fresh session (token + user) carrying the new name.
+  changeName: (currentPassword, newName) => request('POST', '/auth/change-name', { json: { currentPassword, newName } }),
+  forgotPassword: (name) => request('POST', '/auth/forgot-password', { json: { name }, skipAuthHandling: true }),
 
   users: () => request('GET', '/users'),
   createUser: (user) => request('POST', '/users', { json: user }),
+  // { name, role, password }; an empty password keeps the current one.
+  updateUser: (id, user) => request('PUT', `/users/${id}`, { json: user }),
+  deactivateUser: (id) => request('POST', `/users/${id}/deactivate`),
+  activateUser: (id) => request('POST', `/users/${id}/activate`),
 
   tasks: (date) => request('GET', `/tasks?date=${encodeURIComponent(date)}`),
   taskHistory: (page, { q, date } = {}, pageSize = 20) => {
@@ -120,5 +127,6 @@ export const api = {
   },
   createOrder: (form) => request('POST', '/orders', { form }),
   markOrdered: (id) => request('POST', `/orders/${id}/mark-ordered`),
+  undoOrdered: (id) => request('POST', `/orders/${id}/undo-ordered`),
   deleteOrder: (id) => request('DELETE', `/orders/${id}`),
 };

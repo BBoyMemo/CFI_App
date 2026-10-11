@@ -52,7 +52,8 @@ export default function TasksPage() {
     if (!isManager) return;
     api
       .users()
-      .then(setPeople)
+      // Deactivated people stay in the list for history but cannot be given work.
+      .then((users) => setPeople(users.filter((u) => u.active)))
       .catch(() => setPeople([]));
   }, [isManager]);
 

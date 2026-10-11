@@ -3,11 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../api/client';
 import Icon from '../../components/Icon';
 import Modal from '../../components/Modal';
-import { MultiPhotoPicker } from '../../components/Photo';
+import { MAX_PHOTOS, MultiPhotoPicker } from '../../components/Photo';
 import { errorMessage, fieldError, siteToday } from '../../lib/format';
 import { shrinkPhoto } from '../../lib/image';
-
-const MAX_PHOTOS = 5;
 
 const PRIORITIES = ['Low', 'Medium', 'High'];
 const SHIFTS = [

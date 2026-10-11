@@ -37,6 +37,8 @@ const GLYPHS = {
   wrench: '🔧',
   close: '✕',
   alert: '⚠',
+  key: '🔑',
+  undo: '↶',
 };
 
 export function Glyph({name, size = 18, color = colors.brown, style}) {
@@ -155,7 +157,7 @@ export function Sheet({title, onClose, children, footer}) {
   );
 }
 
-export function ConfirmSheet({message, onConfirm, onClose, busy, error}) {
+export function ConfirmSheet({message, confirmLabel, onConfirm, onClose, busy, error}) {
   const {t} = useTranslation();
   return (
     <Sheet
@@ -164,7 +166,7 @@ export function ConfirmSheet({message, onConfirm, onClose, busy, error}) {
       footer={
         <>
           <Button title={t('common.cancel')} variant="ghost" onPress={onClose} style={styles.flex} />
-          <Button title={t('common.delete')} icon="trash" variant="danger" onPress={onConfirm} busy={busy} style={styles.flex} />
+          <Button title={confirmLabel ?? t('common.delete')} icon="trash" variant="danger" onPress={onConfirm} busy={busy} style={styles.flex} />
         </>
       }>
       {error ? <Text style={styles.error}>{error}</Text> : null}

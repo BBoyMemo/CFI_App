@@ -4,9 +4,9 @@ import { api } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import Icon from '../../components/Icon';
 import Modal, { ConfirmModal } from '../../components/Modal';
-import { PhotoPicker, StoredPhoto } from '../../components/Photo';
+import { MAX_PHOTOS, MultiPhotoPicker, StoredPhoto } from '../../components/Photo';
 import TranslationToggle from '../../components/TranslationToggle';
-import { errorMessage, fieldError, formatDateTime, siteToday } from '../../lib/format';
+import { errorMessage, fieldError, formatDateTime, siteDateOf, siteToday } from '../../lib/format';
 import { shrinkPhoto } from '../../lib/image';
 import { hasTranslation, localized } from '../../lib/translate';
 
@@ -87,6 +87,23 @@ export default function OrdersPage() {
     try {
       const updated = await api.markOrdered(order.id);
       // In the New tab it leaves the list; in search results it stays, now marked Ordered.
+      if (searching) {
+        setItems((list) => list.map((x) => (x.id === updated.id ? updated : x)));
+      } else {
+        setItems((list) => list.filter((x) => x.id !== order.id));
+        setTotal((n) => n - 1);
+      }
+      setAction({ busyId: null, error: null });
+    } catch (err) {
+      setAction({ busyId: null, error: { id: order.id, message: errorMessage(t, err) } });
+    }
+  }
+
+  // Back to New: allowed to a manager until midnight of the day it was marked.
+  async function undoOrdered(order) {
+    setAction({ busyId: order.id, error: null });
+    try {
+      const updated = await api.undoOrdered(order.id);
       if (searching) {
         setItems((list) => list.map((x) => (x.id === updated.id ? updated : x)));
       } else {
@@ -201,8 +218,8 @@ export default function OrdersPage() {
       {items && items.length > 0 && (
         <div className="space-y-2.5">
           {items.map((order) => (
-            <article key={order.id} className="card flex gap-3 p-3.5">
-              <div className="min-w-0 flex-1">
+            <article key={order.id} className="card p-3.5">
+              <div className="min-w-0">
                 {searching && (
                   <span
                     className={`mb-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold ${
@@ -227,7 +244,27 @@ export default function OrdersPage() {
                 {action.error?.id === order.id && !action.error.inDialog && (
                   <p className="mt-1 text-sm text-danger">{action.error.message}</p>
                 )}
-                {/* Once ordered it is a purchase record: no actions, no delete. */}
+                {order.photoIds.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {order.photoIds.map((photoId) => (
+                      <StoredPhoto key={photoId} path={`/orders/${order.id}/photos/${photoId}`} />
+                    ))}
+                  </div>
+                )}
+                {/* Once ordered it is a purchase record: no delete; only an undo on the same day. */}
+                {isManager && order.status === 'Ordered' && siteDateOf(order.orderedAt) === siteToday() && (
+                  <div className="mt-2.5 flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="btn-ghost px-3 py-1.5"
+                      onClick={() => undoOrdered(order)}
+                      disabled={action.busyId === order.id}
+                    >
+                      <Icon name="left" size={16} />
+                      {t('orders.undo')}
+                    </button>
+                  </div>
+                )}
                 {isManager && order.status === 'New' && (
                   <div className="mt-2.5 flex items-center gap-1">
                     <button
@@ -251,11 +288,6 @@ export default function OrdersPage() {
                   </div>
                 )}
               </div>
-              {order.hasPhoto && (
-                <div className="shrink-0">
-                  <StoredPhoto path={`/orders/${order.id}/photo`} />
-                </div>
-              )}
             </article>
           ))}
           {items.length < total && (
@@ -325,7 +357,7 @@ function OrderDescription({ order }) {
 function NewOrderModal({ onCreated, onClose }) {
   const { t } = useTranslation();
   const [description, setDescription] = useState('');
-  const [photo, setPhoto] = useState(null);
+  const [photos, setPhotos] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -336,7 +368,8 @@ function NewOrderModal({ onCreated, onClose }) {
     try {
       const form = new FormData();
       form.append('description', description.trim());
-      if (photo) form.append('photo', await shrinkPhoto(photo));
+      // Each photo goes as its own "photo" field; the server takes up to MAX_PHOTOS.
+      for (const file of photos) form.append('photo', await shrinkPhoto(file));
       await api.createOrder(form);
       onCreated();
     } catch (err) {
@@ -377,7 +410,17 @@ function NewOrderModal({ onCreated, onClose }) {
             <p className="mt-1 text-sm text-danger">{fieldError(t, error, 'description')}</p>
           )}
         </div>
-        <PhotoPicker file={photo} onChange={setPhoto} error={fieldError(t, error, 'photo')} />
+        <div>
+          <MultiPhotoPicker
+            stored={[]}
+            added={photos}
+            onRemoveStored={() => {}}
+            onAdd={(files) => setPhotos((list) => [...list, ...files].slice(0, MAX_PHOTOS))}
+            onRemoveAdded={(index) => setPhotos((list) => list.filter((_, i) => i !== index))}
+            max={MAX_PHOTOS}
+          />
+          {fieldError(t, error, 'photo') && <p className="mt-1 text-sm text-danger">{fieldError(t, error, 'photo')}</p>}
+        </div>
         {error && !error.fieldErrors && <p className="text-sm text-danger">{errorMessage(t, error)}</p>}
       </form>
     </Modal>

@@ -10,12 +10,11 @@ import {
   formatDay,
   siteToday,
 } from '../format';
-import {MultiPhotoInput} from '../Photo';
+import {MultiPhotoInput, MAX_PHOTOS} from '../Photo';
 import {colors} from '../theme';
 import {Button, Field, IconButton, Input, Segmented, Sheet} from '../ui';
 
 const PRIORITIES = ['Low', 'Medium', 'High'];
-const MAX_PHOTOS = 5;
 
 // Create and edit in one form. Editing also moves a task to another date.
 export function TaskFormSheet({

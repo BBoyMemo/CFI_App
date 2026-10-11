@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TaskPhoto> TaskPhotos => Set<TaskPhoto>();
     public DbSet<TaskUpdate> TaskUpdates => Set<TaskUpdate>();
     public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderPhoto> OrderPhotos => Set<OrderPhoto>();
     public DbSet<Translation> Translations => Set<Translation>();
     public DbSet<TranslationJob> TranslationJobs => Set<TranslationJob>();
 
@@ -24,6 +25,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => x.NormalizedName).IsUnique();
             e.Property(x => x.PasswordHash).HasMaxLength(200).IsRequired();
             e.Property(x => x.Role).HasConversion<string>().HasMaxLength(20);
+            e.Ignore(x => x.IsActive);
         });
 
         b.Entity<DailyTask>(e =>
@@ -104,6 +106,14 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.HasIndex(x => new { x.Status, x.CreatedAt });
             e.HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.OrderedBy).WithMany().HasForeignKey(x => x.OrderedById).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<OrderPhoto>(e =>
+        {
+            e.ToTable("order_photos");
+            e.Property(x => x.PhotoKey).HasMaxLength(200).IsRequired();
+            e.HasOne(x => x.Order).WithMany(o => o.Photos).HasForeignKey(x => x.OrderId).OnDelete(DeleteBehavior.Cascade);
+            e.HasIndex(x => x.OrderId);
         });
     }
 }

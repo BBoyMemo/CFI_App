@@ -16,7 +16,12 @@
     "password": "Password",
     "submit": "Log in",
     "showPassword": "Show password",
-    "hidePassword": "Hide password"
+    "hidePassword": "Hide password",
+    "forgot": "Forgot password?",
+    "forgotHint": "Enter your name. A manager will set a new password for you.",
+    "forgotSend": "Send",
+    "forgotSent": "Sent. Ask your manager for your new password.",
+    "backToLogin": "Back to login"
   },
   "common": {
     "save": "Save",
@@ -92,7 +97,8 @@
     "deleteConfirm": "Delete this order?",
     "loadMore": "Show more",
     "search": "Search part, description or name",
-    "requestedBy": "Requested by {{name}} · {{date}}"
+    "requestedBy": "Requested by {{name}} · {{date}}",
+    "undo": "Undo"
   },
   "users": {
     "title": "Team",
@@ -101,7 +107,18 @@
     "password": "Password",
     "passwordHint": "At least 8 characters",
     "role": "Role",
-    "empty": "No people yet"
+    "empty": "No people yet",
+    "edit": "Edit person",
+    "confirmPassword": "Repeat password",
+    "newPassword": "New password",
+    "newPasswordHint": "Leave empty to keep the current password. A new one must be changed by the person after logging in.",
+    "deactivate": "Deactivate",
+    "deactivateConfirm": "Deactivate {{name}}? They will not be able to log in. Their work stays in the history.",
+    "deactivated": "Deactivated",
+    "resetRequested": "Wants a new password",
+    "resetPassword": "Reset password",
+    "you": "You",
+    "activate": "Activate"
   },
   "role": {
     "Manager": "Manager",
@@ -128,9 +145,16 @@
     "photo.notFound": "Photo not found",
     "wrongPassword": "Wrong password",
     "order.ordered": "Already ordered, it cannot be deleted",
-    "photo.tooMany": "Up to 5 photos",
+    "photo.tooMany": "Up to 10 photos",
     "unknownUser": "Choose people from the list",
-    "task.hasUpdates": "A task with progress or completion cannot be deleted"
+    "task.hasUpdates": "A task with progress or completion cannot be deleted",
+    "user.self": "You cannot do this to your own account",
+    "user.deactivated": "This person is deactivated",
+    "user.hasOpenTasks": "This person still has open tasks. Give them to someone else first.",
+    "order.undoExpired": "Can only be undone on the day it was ordered",
+    "order.notOrdered": "Not marked as ordered",
+    "auth.mustChangePassword": "Choose a new password first",
+    "user.noResetRequest": "A new password can only be set after the person taps \"Forgot password?\""
   },
   "history": {
     "empty": "No completed tasks yet",
@@ -144,7 +168,13 @@
     "newPassword": "New password",
     "confirmPassword": "Repeat new password",
     "mismatch": "The passwords do not match",
-    "saved": "Password changed"
+    "saved": "Password changed",
+    "changeName": "Change name",
+    "newName": "New name",
+    "nameHint": "You will log in with this name.",
+    "nameSaved": "Name changed",
+    "mustChange": "Your password was reset. Choose your own password to continue.",
+    "version": "Version {{version}}"
   },
   "translation": {
     "translated": "Translated",

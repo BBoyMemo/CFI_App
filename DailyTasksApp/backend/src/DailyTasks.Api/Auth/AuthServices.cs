@@ -2,8 +2,11 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using DailyTasks.Api.Data;
 using DailyTasks.Api.Domain;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -86,4 +89,49 @@ public static class ClaimsPrincipalExtensions
 
     public static bool IsManager(this ClaimsPrincipal user) =>
         user.FindFirstValue("role") == nameof(Role.Manager);
+}
+
+// A token is valid for hours, but the user behind it can change meanwhile. Every request re-checks
+// the user: deactivated or given another role = the session ends (401, the app logs out). A user
+// whose password was set by a manager is marked, and only /api/auth answers them until they change it.
+public static class SessionCheck
+{
+    public const string MustChangePasswordClaim = "must_change_password";
+
+    public static async Task OnTokenValidated(TokenValidatedContext ctx)
+    {
+        var principal = ctx.Principal!;
+        if (!Guid.TryParse(principal.FindFirstValue(JwtRegisteredClaimNames.Sub), out var id))
+        {
+            ctx.Fail("Token has no valid subject.");
+            return;
+        }
+
+        var db = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+        var user = await db.Users.AsNoTracking()
+            .Where(u => u.Id == id)
+            .Select(u => new { u.DeactivatedAt, u.Role, u.MustChangePassword })
+            .SingleOrDefaultAsync(ctx.HttpContext.RequestAborted);
+
+        if (user is null || user.DeactivatedAt != null || user.Role.ToString() != principal.FindFirstValue("role"))
+        {
+            ctx.Fail("The user is no longer active in this role.");
+            return;
+        }
+        if (user.MustChangePassword)
+            ((ClaimsIdentity)principal.Identity!).AddClaim(new Claim(MustChangePasswordClaim, "true"));
+    }
+
+    public static async Task BlockUntilPasswordChanged(HttpContext http, Func<Task> next)
+    {
+        if (http.User.HasClaim(MustChangePasswordClaim, "true") && !http.Request.Path.StartsWithSegments("/api/auth"))
+        {
+            http.Response.StatusCode = StatusCodes.Status403Forbidden;
+            await http.Response.WriteAsJsonAsync(
+                new { status = 403, title = "Choose a new password first.", code = "auth.mustChangePassword" },
+                (System.Text.Json.JsonSerializerOptions?)null, "application/problem+json");
+            return;
+        }
+        await next();
+    }
 }

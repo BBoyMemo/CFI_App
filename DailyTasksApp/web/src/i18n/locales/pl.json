@@ -16,7 +16,12 @@
     "password": "Hasło",
     "submit": "Zaloguj",
     "showPassword": "Pokaż hasło",
-    "hidePassword": "Ukryj hasło"
+    "hidePassword": "Ukryj hasło",
+    "forgot": "Nie pamiętasz hasła?",
+    "forgotHint": "Wpisz swoje imię i nazwisko. Kierownik ustawi Ci nowe hasło.",
+    "forgotSend": "Wyślij",
+    "forgotSent": "Wysłano. Zapytaj kierownika o nowe hasło.",
+    "backToLogin": "Wróć do logowania"
   },
   "common": {
     "save": "Zapisz",
@@ -92,7 +97,8 @@
     "deleteConfirm": "Usunąć to zamówienie?",
     "loadMore": "Pokaż więcej",
     "search": "Szukaj części, opisu lub osoby",
-    "requestedBy": "Zgłosił(a) {{name}} · {{date}}"
+    "requestedBy": "Zgłosił(a) {{name}} · {{date}}",
+    "undo": "Cofnij"
   },
   "users": {
     "title": "Zespół",
@@ -101,7 +107,18 @@
     "password": "Hasło",
     "passwordHint": "Co najmniej 8 znaków",
     "role": "Rola",
-    "empty": "Brak osób"
+    "empty": "Brak osób",
+    "edit": "Edytuj osobę",
+    "confirmPassword": "Powtórz hasło",
+    "newPassword": "Nowe hasło",
+    "newPasswordHint": "Zostaw puste, aby zachować obecne hasło. Nowe hasło osoba musi zmienić po zalogowaniu.",
+    "deactivate": "Dezaktywuj",
+    "deactivateConfirm": "Dezaktywować {{name}}? Ta osoba nie będzie mogła się zalogować. Jej praca zostaje w historii.",
+    "deactivated": "Dezaktywowany",
+    "resetRequested": "Prosi o nowe hasło",
+    "resetPassword": "Zresetuj hasło",
+    "you": "Ty",
+    "activate": "Aktywuj"
   },
   "role": {
     "Manager": "Kierownik",
@@ -128,9 +145,16 @@
     "photo.notFound": "Nie znaleziono zdjęcia",
     "wrongPassword": "Błędne hasło",
     "order.ordered": "Już zamówione, nie można usunąć",
-    "photo.tooMany": "Maksymalnie 5 zdjęć",
+    "photo.tooMany": "Maksymalnie 10 zdjęć",
     "unknownUser": "Wybierz osoby z listy",
-    "task.hasUpdates": "Zadania z wpisami postępu lub zakończenia nie można usunąć"
+    "task.hasUpdates": "Zadania z wpisami postępu lub zakończenia nie można usunąć",
+    "user.self": "Nie możesz tego zrobić z własnym kontem",
+    "user.deactivated": "Ta osoba jest dezaktywowana",
+    "user.hasOpenTasks": "Ta osoba ma jeszcze otwarte zadania. Najpierw przypisz je komuś innemu.",
+    "order.undoExpired": "Można cofnąć tylko w dniu zamówienia",
+    "order.notOrdered": "Nie oznaczono jako zamówione",
+    "auth.mustChangePassword": "Najpierw wybierz nowe hasło",
+    "user.noResetRequest": "Nowe hasło można ustawić dopiero, gdy osoba kliknie „Nie pamiętasz hasła?”"
   },
   "history": {
     "empty": "Brak zakończonych zadań",
@@ -144,7 +168,13 @@
     "newPassword": "Nowe hasło",
     "confirmPassword": "Powtórz nowe hasło",
     "mismatch": "Hasła nie są takie same",
-    "saved": "Hasło zostało zmienione"
+    "saved": "Hasło zostało zmienione",
+    "changeName": "Zmień imię i nazwisko",
+    "newName": "Nowe imię i nazwisko",
+    "nameHint": "Tym imieniem i nazwiskiem będziesz się logować.",
+    "nameSaved": "Zmieniono imię i nazwisko",
+    "mustChange": "Twoje hasło zostało zresetowane. Wybierz własne hasło, aby kontynuować.",
+    "version": "Wersja {{version}}"
   },
   "translation": {
     "translated": "Przetłumaczono",

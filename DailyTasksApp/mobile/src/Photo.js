@@ -16,56 +16,8 @@ const PICKER_OPTIONS = {
   saveToPhotos: false,
 };
 
-export function PhotoInput({photo, onChange, error}) {
-  const {t} = useTranslation();
-
-  async function pick(fromCamera) {
-    try {
-      const result = fromCamera
-        ? await launchCamera(PICKER_OPTIONS)
-        : await launchImageLibrary(PICKER_OPTIONS);
-      const asset = result.assets?.[0];
-      if (asset?.uri) {
-        onChange(asset);
-      }
-    } catch {
-      // Picker closed or camera unavailable: nothing to do.
-    }
-  }
-
-  if (photo) {
-    return (
-      <View>
-        <View style={styles.previewWrap}>
-          <Image source={{uri: photo.uri}} style={styles.preview} />
-          <Pressable
-            style={styles.remove}
-            onPress={() => onChange(null)}
-            accessibilityLabel={t('photo.remove')}>
-            <Text style={styles.removeText}>✕</Text>
-          </Pressable>
-        </View>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      <View style={styles.row}>
-        <Pressable style={styles.pickButton} onPress={() => pick(true)}>
-          <Glyph name="camera" size={24} />
-          <Text style={styles.pickText}>{t('photo.camera')}</Text>
-        </Pressable>
-        <Pressable style={styles.pickButton} onPress={() => pick(false)}>
-          <Glyph name="gallery" size={24} />
-          <Text style={styles.pickText}>{t('photo.gallery')}</Text>
-        </Pressable>
-      </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-    </View>
-  );
-}
+// The server takes this many photos per task, card or order.
+export const MAX_PHOTOS = 10;
 
 // Several photos for one record: what is already stored plus what was just picked.
 // `stored` = [{id, path}], `added` = picker assets. The parent decides what happens on save.

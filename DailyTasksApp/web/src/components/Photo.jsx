@@ -3,62 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { fetchPhotoUrl } from '../api/client';
 import Icon from './Icon';
 
-// Optional single-photo input with a preview. Opens the camera directly on phones.
-export function PhotoPicker({ file, onChange, error }) {
-  const { t } = useTranslation();
-  const input = useRef(null);
-  const [preview, setPreview] = useState(null);
-
-  useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return undefined;
-    }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-
-  return (
-    <div>
-      <input
-        ref={input}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className="hidden"
-        onChange={(e) => {
-          onChange(e.target.files?.[0] ?? null);
-          e.target.value = '';
-        }}
-      />
-      {preview ? (
-        <div className="relative inline-block">
-          <img src={preview} alt="" className="h-28 w-28 rounded-xl object-cover ring-1 ring-cream-dark" />
-          <button
-            type="button"
-            onClick={() => onChange(null)}
-            aria-label={t('photo.remove')}
-            className="absolute -top-2 -right-2 flex h-7 w-7 items-center justify-center rounded-full bg-danger text-white shadow"
-          >
-            <Icon name="close" size={16} />
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => input.current?.click()}
-          className="flex h-28 w-28 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-cream-dark bg-white text-muted hover:border-yellow hover:text-brown"
-        >
-          <Icon name="camera" size={26} />
-          <span className="text-xs">{t('photo.add')}</span>
-        </button>
-      )}
-      {error && <p className="mt-1 text-sm text-danger">{error}</p>}
-    </div>
-  );
-}
-
 // Thumbnail of a stored photo; tap to see it full screen. Loaded with the bearer token.
 export function StoredPhoto({ path }) {
   const { t } = useTranslation();
@@ -112,6 +56,9 @@ export function StoredPhoto({ path }) {
     </>
   );
 }
+
+// The server takes this many photos per task, card or order.
+export const MAX_PHOTOS = 10;
 
 // Several photos for one record: what is already stored plus newly picked files.
 // `stored` = [{ id, path }], `added` = File objects. The parent decides what happens on save.

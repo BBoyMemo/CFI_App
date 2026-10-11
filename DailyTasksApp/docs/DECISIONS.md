@@ -41,7 +41,8 @@ istediğiniz satırı söylemeniz yeterli.
   harf duyarsız) ve/veya **tamamlanma günü** (fabrika saatiyle). İkisi birlikte de kullanılabilir.
 - Devreden görevde "**↪ 6 Oct'tan**" etiketi görünür (ilk planlanan tarih). Manager tarihi
   elle değiştirirse bu etiket sıfırlanır.
-- Sipariş: açıklama (zorunlu) + fotoğraf (isteğe bağlı). Durum: **New** → **Ordered**; yalnızca Manager değiştirir.
+- Sipariş: açıklama (zorunlu) + **en fazla 10 fotoğraf** (isteğe bağlı). Durum: **New** → **Ordered**; yalnızca Manager
+  değiştirir. Manager "Ordered"ı **aynı gün gece 00:00'a kadar** (Londra saati) **Undo** ile geri alabilir; sonra kalıcıdır.
 - Yetki reddi **403**, geçersiz/eksik oturum **401**. İstemci sadece 401'de çıkış yapar.
 
 ## İlk giriş
@@ -54,7 +55,7 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 ## Görev kartları (kullanıcı isteği)
 
 - Görevin verildiği hâli üstte **ana kart**tır; altında eklenen her işlem ayrı bir **kart** olarak
-  sıralanır: sonuç (In progress / Completed), kişi, tarih + saat, yorum ve en fazla 5 fotoğraf
+  sıralanır: sonuç (In progress / Completed), kişi, tarih + saat, yorum ve en fazla 10 fotoğraf
   (ikisi de isteğe bağlı). Ana kart ve eski kartlar **asla değişmez**.
 - **Tamamlanana kadar** kart ekleyebilenler: göreve atananlar ve Manager (başkası 403 alır).
   "In progress" kartı görevi devam ediyor yapar; görev tamamlanana kadar her gün bugüne devreder.
@@ -71,6 +72,11 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 - **Üzerinde en az bir kart olan görev silinemez** (Manager dahil). Yalnızca hiç dokunulmamış
   (Open, kartsız) görevi Manager silebilir. Tamamlanan görevin aslı ve kartları değiştirilemez.
 - **Sipariş verilmiş (Ordered) sipariş silinemez.** Yalnızca hâlâ "New" olan bir talebi Manager silebilir.
+- **Kullanıcılar silinmez, devre dışı bırakılır** (Team'de kişiye dokun → kart → Deactivate). Giriş yapamaz, açık oturumu hemen kapanır,
+  görev atama listesinde çıkmaz; Team'de "Deactivated" olarak görünür. Geçmişteki görev, kart ve siparişlerde
+  adı aynen kalır. Kişiye atanmış açık (Open / In progress) görev varsa engellenir: önce başkasına atanmalı.
+  Manager başka bir Manager'ı da devre dışı bırakabilir, **kendini bırakamaz**. Devre dışı kişi aynı karttan
+  **Activate** ile geri açılır; eski şifresiyle tekrar girer.
 
 ## Arama (kullanıcı isteği)
 
@@ -82,8 +88,8 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 
 ## Görev fotoğrafları (kullanıcı isteği)
 
-- Manager görev oluştururken/düzenlerken **en fazla 5 fotoğraf** ekler (kamera veya galeriden toplu).
-  Tamamlanan görevde fotoğraflar değişmez. Her kartın kendi fotoğrafları (en fazla 5) ayrıca durur.
+- Manager görev oluştururken/düzenlerken **en fazla 10 fotoğraf** ekler (kamera veya galeriden toplu).
+  Tamamlanan görevde fotoğraflar değişmez. Her kartın kendi fotoğrafları (en fazla 10) ayrıca durur.
 - Fotoğrafları görevi görebilen herkes görür (açık görev: atananlar + Manager; tamamlanan: herkes).
 
 ## Otomatik çeviri (kullanıcı isteği, DeepL API Free)
@@ -107,11 +113,27 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 - Herkes üst bardaki adına dokunarak hesap sayfasını açar ve **kendi şifresini** değiştirir.
 - Mevcut şifre zorunludur (açık unutulmuş bir telefondan şifre değiştirilemesin diye); yeni
   şifre en az 8 karakter, iki kez yazılır. Giriş gibi hız sınırına tabidir.
+- Herkes **kendi adını** da değiştirir (mevcut şifreyle). Ad aynı zamanda giriş adıdır, benzersiz kalır.
+- Mobilde hesap sayfasının altında **uygulama sürümü** görünür (tek kaynak: `mobile/app.json` → `version`).
 - Tamamlanan görevlerin başlıkları **üstü çizili değil**, normal renkte; yeşil şerit ve ✓ yeterli.
+
+## Team ve şifre sıfırlama (kullanıcı isteği)
+
+- Yeni kişi eklerken şifre **iki kez** yazılır.
+- Team listesinde düğme yok: kişiye dokununca **kart** açılır (Edit / Reset password, Deactivate ya da Activate).
+- Manager kişiyi **düzenler** (ad, rol). Kendi bilgilerini Team'den değil hesap sayfasından değiştirir
+  (kendi Manager rolünü elinden almasın diye).
+- Manager **şifreyi keyfine göre değiştiremez**: yalnızca kişi "Forgot password?" dediyse yeni şifre yazabilir
+  (sunucu da reddeder: 409 `user.noResetRequest`). Yeni kişi eklerken şifreyi Manager belirler (iki kez).
+- **Şifremi unuttum:** giriş ekranında kişi adını yazar → Team'de o kişinin yanında "Reset password"
+  görünür. Hesapta hiçbir şey değişmez (başkası adına istek zararsız); cevap her zaman aynıdır (hangi
+  adların var olduğu belli olmaz).
+- Manager'ın verdiği şifre **geçicidir**: kişi girişte önce kendi şifresini seçmek zorundadır; o zamana
+  kadar sunucu yalnızca `/api/auth` uçlarına cevap verir (403 `auth.mustChangePassword`).
+- Kişinin rolü değişirse açık oturumu kapanır (yeni rolle tekrar giriş yapar).
 
 ## Prompt'ta olmayan, eklenmeyen şeyler (ihtiyaç olursa sorun)
 
-- Kullanıcı silme / Manager'ın başkasının şifresini sıfırlaması
 - Görev geçmişi raporu / dışa aktarma (History ekranı ve araması var)
 - Bildirim (push)
 - Siparişte miktar/aciliyet alanı
@@ -119,7 +141,8 @@ sadece kullanıcı tablosu boşken kullanılır. **Canlıya geçmeden önce şif
 ## Android (APK)
 
 - React Native 0.76, yalnızca Android. Play Store değil, **APK** ile dağıtılır.
-- Sunucu adresi giriş ekranında bir kez yazılır (barındırma belli olmadığı için).
+- Sunucu adresi uygulamanın içinde sabit: `https://ynzserver.duckdns.org/dailytasks` (`mobile/src/api.js`).
+  Adres değişirse yeni APK gerekir. Dosya adı `dist/DailyTasks.apk`.
 - Şu an HTTP'ye izin verilir (`usesCleartextTraffic`) çünkü sunucu yerel ağda. Canlıda
   **HTTPS** kullanılmalı.
 - APK, `mobile/android/app/dailytasks-release.keystore` anahtarıyla imzalanır. Bu dosya ve
