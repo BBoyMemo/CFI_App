@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {version} from '../app.json';
 
 // Same REST API as the web app, on the production server.
 const SERVER = 'https://ynzserver.duckdns.org/dailytasks';
@@ -25,7 +26,13 @@ export async function loadStored() {
   try {
     const storedSession = await AsyncStorage.getItem(SESSION_KEY);
     const parsed = storedSession ? JSON.parse(storedSession) : null;
-    session = parsed && new Date(parsed.expiresAt) > new Date() ? parsed : null;
+    // A session ends on logout or when a new version of the app is installed.
+    session =
+      parsed &&
+      parsed.appVersion === version &&
+      new Date(parsed.expiresAt) > new Date()
+        ? parsed
+        : null;
   } catch {
     session = null;
   }
@@ -33,14 +40,18 @@ export async function loadStored() {
 }
 
 export async function saveSession(next) {
-  session = next;
+  session = next && {...next, appVersion: version};
   if (next) {
-    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(next)).catch(
+    await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session)).catch(
       () => {},
     );
   } else {
     await AsyncStorage.removeItem(SESSION_KEY).catch(() => {});
   }
+}
+
+export function currentToken() {
+  return session?.token ?? null;
 }
 
 export function authHeaders() {
@@ -115,9 +126,11 @@ export function photoPart(photo) {
 export const api = {
   login: (name, password) =>
     request('POST', '/auth/login', {
-      json: {name, password},
+      json: {name, password, keepSignedIn: true},
       skipAuthHandling: true,
     }),
+  // A fresh token for the current session, so it does not run out while the app is used.
+  renew: () => request('POST', '/auth/renew'),
 
   changePassword: (currentPassword, newPassword) =>
     request('POST', '/auth/change-password', {

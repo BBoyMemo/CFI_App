@@ -33,6 +33,55 @@ public class AuthAndUsersTests(ApiFactory api) : IClassFixture<ApiFactory>
     }
 
     [Fact]
+    public async Task Keep_signed_in_login_gets_a_long_session_and_renew_keeps_it_long()
+    {
+        var anon = api.Anonymous();
+        var shortLogin = await (await anon.PostAsJsonAsync("/api/auth/login",
+            new { name = ApiFactory.ManagerName, password = ApiFactory.ManagerPassword })).JsonAsync();
+        var longLogin = await (await anon.PostAsJsonAsync("/api/auth/login",
+            new { name = ApiFactory.ManagerName, password = ApiFactory.ManagerPassword, keepSignedIn = true })).JsonAsync();
+
+        shortLogin.GetProperty("expiresAt").GetDateTimeOffset().ShouldBeLessThan(DateTimeOffset.UtcNow.AddDays(1));
+        longLogin.GetProperty("expiresAt").GetDateTimeOffset().ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddDays(300));
+
+        var client = api.Anonymous();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", longLogin.GetProperty("token").GetString());
+        var renewed = await client.PostAsync("/api/auth/renew", null);
+
+        renewed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await renewed.JsonAsync()).GetProperty("expiresAt").GetDateTimeOffset()
+            .ShouldBeGreaterThan(DateTimeOffset.UtcNow.AddDays(300));
+    }
+
+    [Fact]
+    public async Task Renew_keeps_a_normal_session_short_and_needs_a_token()
+    {
+        var manager = await api.ManagerAsync();
+        var renewed = await manager.PostAsync("/api/auth/renew", null);
+
+        renewed.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await renewed.JsonAsync()).GetProperty("expiresAt").GetDateTimeOffset()
+            .ShouldBeLessThan(DateTimeOffset.UtcNow.AddDays(1));
+        (await api.Anonymous().PostAsync("/api/auth/renew", null)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Deactivated_user_cannot_renew_a_kept_session()
+    {
+        var (id, name, _) = await api.NewUserAsync("Engineer");
+        var login = await (await api.Anonymous().PostAsJsonAsync("/api/auth/login",
+            new { name, password = "UserPass123", keepSignedIn = true })).JsonAsync();
+        var client = api.Anonymous();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", login.GetProperty("token").GetString());
+
+        (await (await api.ManagerAsync()).PostAsync($"/api/users/{id}/deactivate", null)).EnsureSuccessStatusCode();
+
+        (await client.PostAsync("/api/auth/renew", null)).StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
     public async Task Requests_without_a_token_get_401()
     {
         var client = api.Anonymous();

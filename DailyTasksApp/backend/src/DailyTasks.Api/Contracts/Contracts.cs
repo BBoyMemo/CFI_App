@@ -15,7 +15,8 @@ public record UserDto(
     // A manager set this user's password; they must choose their own before anything else.
     bool MustChangePassword);
 
-public record LoginRequest(string? Name, string? Password);
+// KeepSignedIn: the phone app asks for a long session that only ends on logout.
+public record LoginRequest(string? Name, string? Password, bool KeepSignedIn = false);
 
 public record LoginResponse(string Token, DateTimeOffset ExpiresAt, UserDto User);
 

@@ -20,6 +20,8 @@ public class JwtOptions
     public string Issuer { get; set; } = "daily-tasks";
     public string Audience { get; set; } = "daily-tasks";
     public int AccessTokenHours { get; set; } = 12;
+    // The phone app stays signed in until its user logs out; it renews the token on every start.
+    public int KeepSignedInDays { get; set; } = 365;
 }
 
 public static class Policies
@@ -32,18 +34,23 @@ public class TokenService(IOptions<JwtOptions> options)
 {
     private readonly JwtOptions _options = options.Value;
 
-    public (string Token, DateTimeOffset ExpiresAt) Create(User user)
+    public const string KeepSignedInClaim = "keep_signed_in";
+
+    public (string Token, DateTimeOffset ExpiresAt) Create(User user, bool keepSignedIn = false)
     {
         // The JWT handler checks token times against the real clock, so they are issued from it too
         // (not from the app's TimeProvider, which tests move to other days).
         var now = DateTimeOffset.UtcNow;
-        var expires = now.AddHours(_options.AccessTokenHours);
-        var claims = new[]
+        var expires = keepSignedIn
+            ? now.AddDays(_options.KeepSignedInDays)
+            : now.AddHours(_options.AccessTokenHours);
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Name, user.Name),
-            new Claim("role", user.Role.ToString()),
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Name, user.Name),
+            new("role", user.Role.ToString()),
         };
+        if (keepSignedIn) claims.Add(new Claim(KeepSignedInClaim, "true"));
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(
@@ -89,6 +96,9 @@ public static class ClaimsPrincipalExtensions
 
     public static bool IsManager(this ClaimsPrincipal user) =>
         user.FindFirstValue("role") == nameof(Role.Manager);
+
+    public static bool KeepsSignedIn(this ClaimsPrincipal user) =>
+        user.HasClaim(TokenService.KeepSignedInClaim, "true");
 }
 
 // A token is valid for hours, but the user behind it can change meanwhile. Every request re-checks

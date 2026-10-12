@@ -1,18 +1,17 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
-import {api, loadStored, saveSession, setUnauthorizedHandler} from './api';
+import {
+  api,
+  currentToken,
+  loadStored,
+  saveSession,
+  setUnauthorizedHandler,
+} from './api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({children}) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState(null);
-
-  useEffect(() => {
-    loadStored().then(stored => {
-      setSession(stored.session);
-      setReady(true);
-    });
-  }, []);
 
   const logout = useCallback(() => {
     saveSession(null);
@@ -23,21 +22,36 @@ export function AuthProvider({children}) {
     setUnauthorizedHandler(logout);
   }, [logout]);
 
-  useEffect(() => {
-    if (!session) {
-      return undefined;
-    }
-    const ms = new Date(session.expiresAt).getTime() - Date.now();
-    const timer = setTimeout(logout, Math.max(ms, 0));
-    return () => clearTimeout(timer);
-  }, [session, logout]);
-
   // Takes a login-shaped answer ({token, expiresAt, user}), e.g. after a rename.
   const startSession = useCallback(async result => {
     const next = {token: result.token, expiresAt: result.expiresAt, user: result.user};
     await saveSession(next);
     setSession(next);
   }, []);
+
+  // Renews the stored session in the background. A 401 logs out (in api.js); being offline
+  // keeps the stored session as it is.
+  const renew = useCallback(
+    async token => {
+      try {
+        const result = await api.renew();
+        if (currentToken() === token) {
+          await startSession(result);
+        }
+      } catch {}
+    },
+    [startSession],
+  );
+
+  useEffect(() => {
+    loadStored().then(stored => {
+      setSession(stored.session);
+      setReady(true);
+      if (stored.session) {
+        renew(stored.session.token);
+      }
+    });
+  }, [renew]);
 
   const login = useCallback(
     async (name, password) => startSession(await api.login(name, password)),

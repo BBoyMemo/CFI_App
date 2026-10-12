@@ -35,7 +35,21 @@ public class AuthController(AppDbContext db, TokenService tokens, AppClock clock
         if (user is null || !valid || !user.IsActive)
             return ApiErrors.Problem(StatusCodes.Status401Unauthorized, "invalidCredentials", "Invalid name or password.");
 
-        var (token, expiresAt) = tokens.Create(user);
+        var (token, expiresAt) = tokens.Create(user, request.KeepSignedIn);
+        return new LoginResponse(token, expiresAt, user.ToDto());
+    }
+
+    // A fresh token of the same kind for a still valid session. The phone app calls it on every
+    // start, so a kept session only runs out after a long time without opening the app.
+    [HttpPost("renew")]
+    [Authorize]
+    public async Task<ActionResult<LoginResponse>> Renew(CancellationToken ct)
+    {
+        var id = User.UserId();
+        var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == id, ct);
+        if (user is null) return Unauthorized();
+
+        var (token, expiresAt) = tokens.Create(user, User.KeepsSignedIn());
         return new LoginResponse(token, expiresAt, user.ToDto());
     }
 
@@ -130,7 +144,7 @@ public class AuthController(AppDbContext db, TokenService tokens, AppClock clock
             return ApiErrors.Conflict("user.nameTaken", "A user with this name already exists.");
         }
 
-        var (token, expiresAt) = tokens.Create(user);
+        var (token, expiresAt) = tokens.Create(user, User.KeepsSignedIn());
         return new LoginResponse(token, expiresAt, user.ToDto());
     }
 }
